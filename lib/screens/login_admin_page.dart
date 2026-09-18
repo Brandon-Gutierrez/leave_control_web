@@ -39,6 +39,7 @@ class _LoginAdminPageState extends State<LoginAdminPage> {
     setState(() => _isLoading = true);
 
     String? error;
+    String adminName = '';
     try {
       final user = await _authService.login(
         _usernameController.text.trim(),
@@ -48,6 +49,8 @@ class _LoginAdminPageState extends State<LoginAdminPage> {
       if (!user.isAdmin) {
         await _authService.logout();
         error = 'No tiene permisos de administrador';
+      } else {
+        adminName = user.name;
       }
     } on ApiException catch (e) {
       error = e.isUnauthorized ? 'Credenciales incorrectas' : e.message;
@@ -59,7 +62,9 @@ class _LoginAdminPageState extends State<LoginAdminPage> {
     if (error == null) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const AdminDashboardPage()),
+        MaterialPageRoute(
+          builder: (context) => AdminDashboardPage(adminName: adminName),
+        ),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(

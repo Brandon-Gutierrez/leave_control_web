@@ -1,9 +1,8 @@
-import 'package:dio/browser.dart';
 import 'package:dio/dio.dart';
-import 'package:web/web.dart' as web;
 
 import '../config/api_config.dart';
 import '../config/api_routes.dart';
+import 'platform/browser_http.dart';
 
 /// Error de API con un mensaje listo para mostrar al usuario.
 class ApiException implements Exception {
@@ -38,17 +37,16 @@ class ApiClient {
       ),
     );
 
-    final browserAdapter = BrowserHttpClientAdapter()..withCredentials = true;
-    dio.httpClientAdapter = browserAdapter;
+    dio.httpClientAdapter = createHttpAdapter();
 
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
           if (_requiresCsrf(options.method)) {
-            var xsrfToken = _getCookie('XSRF-TOKEN');
+            var xsrfToken = readCookie('XSRF-TOKEN');
             if (xsrfToken == null) {
               await ensureCsrfCookie();
-              xsrfToken = _getCookie('XSRF-TOKEN');
+              xsrfToken = readCookie('XSRF-TOKEN');
             }
             if (xsrfToken != null) {
               options.headers['X-XSRF-TOKEN'] = Uri.decodeComponent(xsrfToken);
@@ -69,22 +67,12 @@ class ApiClient {
   /// Solicita a Laravel la cookie XSRF-TOKEN.
   Future<void> ensureCsrfCookie() async {
     final csrfDio = Dio(BaseOptions(baseUrl: ApiConfig.baseUrl))
-      ..httpClientAdapter = (BrowserHttpClientAdapter()..withCredentials = true);
+      ..httpClientAdapter = dio.httpClientAdapter;
     await csrfDio.get(ApiRoutes.csrfCookie);
   }
 
   bool _requiresCsrf(String method) {
     final m = method.toUpperCase();
     return m != 'GET' && m != 'HEAD' && m != 'OPTIONS';
-  }
-
-  String? _getCookie(String name) {
-    for (final cookie in web.document.cookie.split(';')) {
-      final parts = cookie.trim().split('=');
-      if (parts.length >= 2 && parts[0] == name) {
-        return parts.sublist(1).join('=');
-      }
-    }
-    return null;
   }
 }

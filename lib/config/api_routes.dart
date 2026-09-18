@@ -7,7 +7,7 @@ class ApiRoutes {
   static const String logout = '/api/auth/logout';
   static const String me = '/api/auth/me';
 
-  // Administración
+  // Administración - predios
   static const String premises = '/api/admin/premises';
   static const String reasons = '/api/admin/reasons';
   static const String syncReasons = '/api/admin/reasons/sync';
@@ -17,4 +17,10 @@ class ApiRoutes {
 
   static String premiseQrTokens(int premiseId) =>
       '/api/admin/premises/$premiseId/qr-tokens';
+
+  // Administración - usuarios y roles
+  static const String users = '/api/admin/users';
+  static const String roles = '/api/admin/roles';
+
+  static String userRole(int userId) => '/api/admin/users/$userId/role';
 }

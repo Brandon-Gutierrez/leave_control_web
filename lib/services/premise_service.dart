@@ -52,4 +52,31 @@ class PremiseService {
       throw ApiException.fromDio(e, fallback: 'Error al generar el QR.');
     }
   }
+
+  /// Crea un predio y, opcionalmente, le asigna motivos de salida por nombre
+  Future<Premise> createPremise(String name, List<String> reasonNames) async {
+    try {
+      final response = await _dio.post(
+        ApiRoutes.premises,
+        data: {
+          'name': name,
+          if (reasonNames.isNotEmpty) 'reasons': reasonNames,
+        },
+      );
+      return Premise.fromJson(response.data['data']);
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e, fallback: 'Error al crear el predio.');
+    }
+  }
+
+  /// Sincroniza el catálogo de motivos de salida con el servicio externo
+  Future<String> syncReasons() async {
+    try {
+      final response = await _dio.post(ApiRoutes.syncReasons);
+      return (response.data['message'] as String?) ??
+          'Motivos sincronizados correctamente.';
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e, fallback: 'Error al sincronizar los motivos.');
+    }
+  }
 }
