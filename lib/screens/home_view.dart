@@ -108,11 +108,11 @@ class HomeViewState extends State<HomeView> {
                       '¡Hola${widget.adminName.isEmpty ? '' : ', ${widget.adminName}'}!',
                       style: AppText.heading,
                     ),
-                    const SizedBox(height: 6),
+                    /*const SizedBox(height: 6),
                     Text(
                       'Este es el resumen de hoy.',
                       style: AppText.body.copyWith(color: Colors.grey.shade700),
-                    ),
+                    ),*/
                     const SizedBox(height: 24),
 
                     _buildStatsRow(width),

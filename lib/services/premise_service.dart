@@ -69,6 +69,24 @@ class PremiseService {
     }
   }
 
+  /// Reemplaza los motivos de salida asignados a un predio.
+  Future<void> updatePremiseReasons(
+    int premiseId,
+    List<String> reasonNames,
+  ) async {
+    try {
+      await _dio.put(
+        ApiRoutes.premiseReasons(premiseId),
+        data: {'reasons': reasonNames},
+      );
+    } on DioException catch (e) {
+      throw ApiException.fromDio(
+        e,
+        fallback: 'Error al actualizar los motivos del predio.',
+      );
+    }
+  }
+
   /// Sincroniza el catálogo de motivos de salida con el servicio externo
   Future<String> syncReasons() async {
     try {

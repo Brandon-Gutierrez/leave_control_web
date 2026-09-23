@@ -150,7 +150,7 @@ class _CreatePremiseDialogState extends State<CreatePremiseDialog> {
                 const Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    'Motivos de salida permitidos (opcional)',
+                    'Motivos de salida disponibles para este predio',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.bold,

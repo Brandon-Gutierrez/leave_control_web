@@ -143,6 +143,120 @@ class PremisesViewState extends State<PremisesView> {
     );
   }
 
+  Future<void> _editPremiseReasons(Premise premise) async {
+    final updated = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        final selectedReasons = premise.reasonNames.map((r) => r.name).toSet();
+        var isSaving = false;
+        String? errorMessage;
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            Future<void> save() async {
+              setDialogState(() {
+                isSaving = true;
+                errorMessage = null;
+              });
+              try {
+                await _premiseService.updatePremiseReasons(
+                  premise.id,
+                  selectedReasons.toList(),
+                );
+                if (context.mounted) Navigator.pop(context, true);
+              } on ApiException catch (e) {
+                if (!context.mounted) return;
+                if (e.isUnauthorized) {
+                  Navigator.pop(context);
+                  widget.onUnauthorized();
+                  return;
+                }
+                setDialogState(() {
+                  isSaving = false;
+                  errorMessage = e.message;
+                });
+              } catch (_) {
+                if (!context.mounted) return;
+                setDialogState(() {
+                  isSaving = false;
+                  errorMessage = 'No se pudieron actualizar los motivos.';
+                });
+              }
+            }
+
+            return AlertDialog(
+              title: Text('Motivos de ${premise.name}'),
+              content: SizedBox(
+                width: 460,
+                child: _allReasons.isEmpty
+                    ? const Text('No hay motivos disponibles para asignar.')
+                    : SingleChildScrollView(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            for (final reason in _allReasons)
+                              CheckboxListTile(
+                                value: selectedReasons.contains(reason.name),
+                                title: Text(reason.name),
+                                activeColor: primaryRed,
+                                contentPadding: EdgeInsets.zero,
+                                onChanged: isSaving
+                                    ? null
+                                    : (isSelected) {
+                                        setDialogState(() {
+                                          if (isSelected == true) {
+                                            selectedReasons.add(reason.name);
+                                          } else {
+                                            selectedReasons.remove(reason.name);
+                                          }
+                                        });
+                                      },
+                              ),
+                            if (errorMessage != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Text(
+                                  errorMessage!,
+                                  style: TextStyle(color: Colors.red.shade700),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSaving ? null : () => Navigator.pop(context),
+                  child: const Text('Cancelar'),
+                ),
+                ElevatedButton.icon(
+                  onPressed: isSaving ? null : save,
+                  icon: isSaving
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.save_outlined),
+                  label: const Text('Guardar'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryRed,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (updated == true) {
+      _showSnackBar('Motivos actualizados correctamente', Colors.green);
+      await _fetchData();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return _isLoading
@@ -372,6 +486,22 @@ class PremisesViewState extends State<PremisesView> {
                     ),
                   ),
                   const SizedBox(height: 10),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _editPremiseReasons(predio),
+                      icon: const Icon(Icons.edit_outlined, size: 17),
+                      label: const Text('Editar'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: primaryRed,
+                        side: const BorderSide(color: primaryRed),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                      ),
+                    ),
+                  ),
                   // Lista minimalista de motivos
                   ..._allReasons.map((reason) {
                     final isAssigned = predio.reasonNames.any(
