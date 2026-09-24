@@ -11,7 +11,16 @@ import '../theme/app_text_styles.dart';
 
 class QrPage extends StatefulWidget {
   final Premise premise;
-  const QrPage({super.key, required this.premise});
+  final bool showNavigation;
+
+  const QrPage({super.key, required this.premise}) : showNavigation = true;
+
+  QrPage.forPremiseManager({
+    super.key,
+    required int premiseId,
+    required String premiseName,
+  })  : premise = Premise(id: premiseId, name: premiseName, reasonNames: []),
+        showNavigation = false;
 
   @override
   State<QrPage> createState() => _QrPageState();
@@ -83,7 +92,8 @@ class _QrPageState extends State<QrPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.lightBg,
-      appBar: AppBar(
+        appBar: widget.showNavigation
+          ? AppBar(
         leading: IconButton(
           tooltip: 'Volver',
           icon: const Icon(Icons.arrow_back),
@@ -94,7 +104,8 @@ class _QrPageState extends State<QrPage> {
         backgroundColor: AppColors.lightBg,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-      ),
+            )
+          : null,
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../models/auth_user.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
 import 'admin_dashboard_page.dart';
+import 'generator_qr_page.dart';
 
 class LoginAdminPage extends StatefulWidget {
   const LoginAdminPage({super.key});
@@ -40,13 +42,17 @@ class _LoginAdminPageState extends State<LoginAdminPage> {
 
     String? error;
     String adminName = '';
+    AuthUser? user;
     try {
-      final user = await _authService.login(
+      user = await _authService.login(
         _usernameController.text.trim(),
         _passwordController.text,
       );
-      //Solo los administradores pueden usar el panel web
-      if (!user.isAdmin) {
+      if (user.isPremiseManager) {
+        if (user.premise == null || user.premise!.id <= 0) {
+          error = 'La cuenta no tiene un predio asignado';
+        }
+      } else if (!user.isAdmin) {
         await _authService.logout();
         error = 'No tiene permisos de administrador';
       } else {
@@ -62,9 +68,16 @@ class _LoginAdminPageState extends State<LoginAdminPage> {
     if (error == null) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (context) => AdminDashboardPage(adminName: adminName),
-        ),
+        MaterialPageRoute(builder: (context) {
+          if (user!.isPremiseManager) {
+            final premise = user.premise!;
+            return QrPage.forPremiseManager(
+              premiseId: premise.id,
+              premiseName: premise.name,
+            );
+          }
+          return AdminDashboardPage(adminName: adminName);
+        }),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(

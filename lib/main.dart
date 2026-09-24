@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'models/auth_user.dart';
 import 'screens/admin_dashboard_page.dart';
+import 'screens/generator_qr_page.dart';
 import 'screens/login_admin_page.dart';
 import 'services/auth_service.dart';
 import 'theme/app_colors.dart';
@@ -78,8 +79,14 @@ class _AuthGateState extends State<AuthGate> {
           );
         }
         final user = snapshot.data;
-        return user != null && user.isAdmin
-            ? AdminDashboardPage(adminName: user.name)
+        if (user?.isPremiseManager == true && user!.premise != null) {
+          return QrPage.forPremiseManager(
+            premiseId: user.premise!.id,
+            premiseName: user.premise!.name,
+          );
+        }
+        return user?.isAdmin == true
+            ? AdminDashboardPage(adminName: user!.name)
             : const LoginAdminPage();
       },
     );
