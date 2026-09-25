@@ -7,14 +7,25 @@ import 'api_client.dart';
 class QrToken {
   final String token;
   final int ttl;
+  final DateTime expiresAt;
 
-  QrToken({required this.token, required this.ttl});
+  /// Nombre del predio con el que el servidor generó el QR (puede cambiar si
+  /// administración reasigna al responsable).
+  final String? premiseName;
+
+  QrToken({
+    required this.token,
+    required this.ttl,
+    required this.expiresAt,
+    this.premiseName,
+  });
 }
 
 class PremiseService {
   final ApiClient _apiClient;
 
-  PremiseService([ApiClient? apiClient]) : _apiClient = apiClient ?? ApiClient();
+  PremiseService([ApiClient? apiClient])
+    : _apiClient = apiClient ?? ApiClient();
 
   Dio get _dio => _apiClient.dio;
 
@@ -40,13 +51,17 @@ class PremiseService {
     }
   }
 
-  /// Genera un nuevo token dinámico para el QR de un predio
-  Future<QrToken> createQrToken(int premiseId) async {
+  /// Genera un token para el predio del usuario autenticado.
+  Future<QrToken> createQrToken() async {
     try {
-      final response = await _dio.post(ApiRoutes.premiseQrTokens(premiseId));
+      final response = await _dio.post(ApiRoutes.managerQrToken);
       return QrToken(
-        token: response.data['token'],
-        ttl: response.data['TTL'] ?? 60,
+        token: response.data['token'] as String,
+        ttl: (response.data['TTL'] as num?)?.toInt() ?? 0,
+        expiresAt: DateTime.parse(response.data['expires_at'] as String),
+        premiseName: (response.data['premise'] is Map)
+            ? (response.data['premise']['name'] as String?)
+            : null,
       );
     } on DioException catch (e) {
       throw ApiException.fromDio(e, fallback: 'Error al generar el QR.');
@@ -94,7 +109,10 @@ class PremiseService {
       return (response.data['message'] as String?) ??
           'Motivos sincronizados correctamente.';
     } on DioException catch (e) {
-      throw ApiException.fromDio(e, fallback: 'Error al sincronizar los motivos.');
+      throw ApiException.fromDio(
+        e,
+        fallback: 'Error al sincronizar los motivos.',
+      );
     }
   }
 }

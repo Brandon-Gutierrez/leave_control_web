@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
+import '../session/session_controller.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import 'home_view.dart';
@@ -45,6 +46,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   }
 
   void _goToLogin() {
+    SessionController.instance.clear();
     if (!mounted) return;
     Navigator.pushAndRemoveUntil(
       context,
@@ -67,7 +69,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     }
   }
 
-  void _goToUsers() => setState(() => _selectedIndex = 2);
+  void _goToUsers({bool openCreateManager = false}) {
+    setState(() => _selectedIndex = 2);
+    if (openCreateManager) {
+      _usersKey.currentState?.openCreateManagerDialog();
+    }
+  }
 
   Future<void> _syncReasonsFromHome() async {
     await _premisesKey.currentState?.syncReasons();
@@ -87,6 +94,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               onAddPremise: () => _goToPremises(openCreateDialog: true),
               onSyncReasons: _syncReasonsFromHome,
               onOpenUsers: _goToUsers,
+              onAddManager: () => _goToUsers(openCreateManager: true),
               onUnauthorized: _goToLogin,
             ),
             PremisesView(key: _premisesKey, onUnauthorized: _goToLogin),

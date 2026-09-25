@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 
 import 'models/auth_user.dart';
 import 'screens/admin_dashboard_page.dart';
-import 'screens/generator_qr_page.dart';
 import 'screens/login_admin_page.dart';
+import 'screens/manager_lockdown.dart';
 import 'services/auth_service.dart';
+import 'session/session_controller.dart';
 import 'theme/app_colors.dart';
 
 void main() {
@@ -49,6 +50,22 @@ class MyApp extends StatelessWidget {
           contentTextStyle: TextStyle(fontSize: 15),
         ),
       ),
+      // Guardia global: si la sesión es de un responsable de predio (rol
+      // MANAGE_PREMISE) se muestra solo su pantalla de QR, sin importar la ruta.
+      builder: (context, child) => ValueListenableBuilder<AuthUser?>(
+        valueListenable: SessionController.instance.user,
+        builder: (context, user, _) {
+          if (user != null && user.isPremiseManager) {
+            return ManagerLockdown(
+              user: user,
+              onRetry: () async => SessionController.instance.set(
+                await AuthService().currentUser(),
+              ),
+            );
+          }
+          return child ?? const SizedBox.shrink();
+        },
+      ),
       home: const AuthGate(),
     );
   }
@@ -63,7 +80,14 @@ class AuthGate extends StatefulWidget {
 }
 
 class _AuthGateState extends State<AuthGate> {
-  late final Future<AuthUser?> _currentUser = AuthService().currentUser();
+  // Al restaurar la sesión se publica el usuario: si es un responsable de
+  // predio, la raíz de la app pasa a mostrar solo su pantalla de QR.
+  late final Future<AuthUser?> _currentUser = AuthService().currentUser().then((
+    user,
+  ) {
+    SessionController.instance.set(user);
+    return user;
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -79,12 +103,6 @@ class _AuthGateState extends State<AuthGate> {
           );
         }
         final user = snapshot.data;
-        if (user?.isPremiseManager == true && user!.premise != null) {
-          return QrPage.forPremiseManager(
-            premiseId: user.premise!.id,
-            premiseName: user.premise!.name,
-          );
-        }
         return user?.isAdmin == true
             ? AdminDashboardPage(adminName: user!.name)
             : const LoginAdminPage();

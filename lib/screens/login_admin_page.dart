@@ -5,7 +5,7 @@ import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
 import 'admin_dashboard_page.dart';
-import 'generator_qr_page.dart';
+import '../session/session_controller.dart';
 
 class LoginAdminPage extends StatefulWidget {
   const LoginAdminPage({super.key});
@@ -66,19 +66,17 @@ class _LoginAdminPageState extends State<LoginAdminPage> {
     setState(() => _isLoading = false);
 
     if (error == null) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) {
-          if (user!.isPremiseManager) {
-            final premise = user.premise!;
-            return QrPage.forPremiseManager(
-              premiseId: premise.id,
-              premiseName: premise.name,
-            );
-          }
-          return AdminDashboardPage(adminName: adminName);
-        }),
-      );
+      SessionController.instance.set(user);
+      // El responsable de predio no navega: al publicarse su sesión, la raíz de
+      // la app (MaterialApp.builder) muestra únicamente su pantalla de QR.
+      if (!user!.isPremiseManager) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => AdminDashboardPage(adminName: adminName),
+          ),
+        );
+      }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(error), backgroundColor: primaryRed),

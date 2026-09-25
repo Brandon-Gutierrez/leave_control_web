@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 
+import '../models/auth_user.dart' show kManagePremiseRole;
 import '../models/managed_user.dart';
 import '../services/api_client.dart';
+import '../services/premise_service.dart';
 import '../services/user_admin_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import 'change_role_dialog.dart';
+import 'create_manager_dialog.dart';
 
-/// Sección "Usuarios" del panel de administración: busca usuarios y permite
-/// otorgar o quitar el rol de administrador, siempre con una confirmación
-/// explicada en palabras simples.
+/// Sección "Usuarios" del panel de administración: busca usuarios, gestiona
+/// roles y asigna predios a los gestores, siempre con confirmación.
 class UsersView extends StatefulWidget {
   /// Se llama cuando el token de sesión ya no es válido (401).
   final VoidCallback onUnauthorized;
@@ -26,9 +28,11 @@ class UsersViewState extends State<UsersView> {
 
   final _searchController = TextEditingController();
   final UserAdminService _userAdminService = UserAdminService();
+  final PremiseService _premiseService = PremiseService();
 
   List<ManagedUser> _users = [];
   List<AppRole> _roles = [];
+  List<UserPremise> _premises = [];
   String _searchQuery = '';
   bool _isLoading = true;
   final Set<int> _updatingUserIds = {};
@@ -55,8 +59,9 @@ class UsersViewState extends State<UsersView> {
     final query = _searchQuery.toLowerCase().trim();
     if (query.isEmpty) return _users;
     return _users
-        .where((u) =>
-            u.name.toLowerCase().contains(query) || u.item.contains(query))
+        .where(
+          (u) => u.name.toLowerCase().contains(query) || u.item.contains(query),
+        )
         .toList();
   }
 
@@ -66,11 +71,15 @@ class UsersViewState extends State<UsersView> {
       final results = await Future.wait([
         _userAdminService.getUsers(),
         _userAdminService.getRoles(),
+        _premiseService.getPremisesWithReasons(),
       ]);
       if (!mounted) return;
       setState(() {
         _users = results[0] as List<ManagedUser>;
         _roles = results[1] as List<AppRole>;
+        _premises = (results[2] as List)
+            .map((premise) => UserPremise(id: premise.id, name: premise.name))
+            .toList();
       });
     } on ApiException catch (e) {
       if (e.isUnauthorized) {
@@ -96,29 +105,80 @@ class UsersViewState extends State<UsersView> {
     );
   }
 
+  /// Abre el formulario para crear un responsable de predio. Público para que
+  /// "Inicio" pueda ofrecerlo como acceso directo.
+  Future<void> openCreateManagerDialog() async {
+    if (_premises.isEmpty) {
+      _showSnackBar(
+        'Primero cree un predio para poder asignárselo a un responsable.',
+        Colors.red,
+      );
+      return;
+    }
+    final created = await showDialog<CreatedManager>(
+      context: context,
+      builder: (context) => CreateManagerDialog(premises: _premises),
+    );
+    if (created == null || !mounted) return;
+    setState(() => _users = [..._users, created.user]
+      ..sort((a, b) => a.name.compareTo(b.name)));
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => ManagerCredentialsDialog(created: created),
+    );
+  }
+
   Future<void> _openChangeRoleDialog(ManagedUser user) async {
     if (_updatingUserIds.contains(user.id) || _roles.isEmpty) return;
 
-    final newRole = await showDialog<AppRole>(
+    final selection = await showDialog<RoleChangeSelection>(
       context: context,
-      builder: (context) => ChangeRoleDialog(user: user, roles: _roles),
+      builder: (context) =>
+          ChangeRoleDialog(user: user, roles: _roles, premises: _premises),
     );
-    if (newRole == null) return;
-    await _changeRole(user, newRole);
+    if (selection == null) return;
+    await _changeUser(user, selection);
   }
 
-  Future<void> _changeRole(ManagedUser user, AppRole newRole) async {
+  Future<void> _changeUser(
+    ManagedUser user,
+    RoleChangeSelection selection,
+  ) async {
     setState(() => _updatingUserIds.add(user.id));
     try {
-      final updated = await _userAdminService.updateUserRole(user.id, newRole.id);
+      // Rol y predio viajan en una sola petición: el servidor exige que un
+      // gestor tenga predio y cierra las sesiones cuando cambian los permisos.
+      final ManagedUser updated;
+      if (selection.role.id != user.role?.id) {
+        updated = await _userAdminService.updateUserRole(
+          user.id,
+          selection.role.id,
+          premiseId: selection.premiseId,
+        );
+      } else if (selection.premiseId != null &&
+          selection.premiseId != user.premise?.id) {
+        updated = await _userAdminService.assignUserPremise(
+          user.id,
+          selection.premiseId!,
+        );
+      } else {
+        return;
+      }
       if (!mounted) return;
       setState(() {
         final index = _users.indexWhere((u) => u.id == user.id);
         if (index != -1) _users[index] = updated;
       });
       final displayName = user.name.isEmpty ? 'El usuario' : user.name;
-      final roleLabel = newRole.name.toUpperCase() == 'ADMIN' ? 'Administrador' : 'Empleado';
-      _showSnackBar('$displayName ahora es $roleLabel', Colors.green);
+      final roleLabel = _roleLabel(selection.role);
+      final premiseLabel = selection.premiseId == null
+          ? ''
+          : ' en ${_premises.firstWhere((p) => p.id == selection.premiseId).name}';
+      _showSnackBar(
+        '$displayName ahora es $roleLabel$premiseLabel',
+        Colors.green,
+      );
     } on ApiException catch (e) {
       if (e.isUnauthorized) {
         widget.onUnauthorized();
@@ -130,6 +190,19 @@ class UsersViewState extends State<UsersView> {
     }
   }
 
+  String _roleLabel(AppRole role) {
+    switch (role.name.toUpperCase()) {
+      case 'ADMIN':
+        return 'Administrador';
+      case kManagePremiseRole:
+        return 'Gestor de predio';
+      case 'EMPLOYEE':
+        return 'Empleado';
+      default:
+        return role.name;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return _isLoading
@@ -137,7 +210,9 @@ class UsersViewState extends State<UsersView> {
         : LayoutBuilder(
             builder: (context, constraints) {
               final width = constraints.maxWidth;
-              final horizontalPadding = width >= Breakpoints.tablet ? 32.0 : 16.0;
+              final horizontalPadding = width >= Breakpoints.tablet
+                  ? 32.0
+                  : 16.0;
 
               return Center(
                 child: ConstrainedBox(
@@ -150,6 +225,19 @@ class UsersViewState extends State<UsersView> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        SizedBox(
+                          height: AppDimens.buttonHeight,
+                          child: ElevatedButton.icon(
+                            onPressed: openCreateManagerDialog,
+                            icon: const Icon(Icons.person_add_alt_1_rounded),
+                            label: const Text('Nuevo responsable de predio'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: primaryRed,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
                         Text(
                           'Toca a una persona para cambiar su rol.',
                           style: AppText.caption,
@@ -161,7 +249,11 @@ class UsersViewState extends State<UsersView> {
                             Expanded(child: _buildSearchField()),
                             const SizedBox(width: 8),
                             IconButton(
-                              icon: const Icon(Icons.refresh_rounded, color: darkText, size: AppDimens.iconSize),
+                              icon: const Icon(
+                                Icons.refresh_rounded,
+                                color: darkText,
+                                size: AppDimens.iconSize,
+                              ),
                               tooltip: 'Actualizar',
                               onPressed: _isLoading ? null : _fetchData,
                             ),
@@ -174,7 +266,9 @@ class UsersViewState extends State<UsersView> {
                               ? Center(
                                   child: Text(
                                     'No se encontraron usuarios.',
-                                    style: AppText.body.copyWith(color: Colors.grey.shade600),
+                                    style: AppText.body.copyWith(
+                                      color: Colors.grey.shade600,
+                                    ),
                                   ),
                                 )
                               : RefreshIndicator(
@@ -182,11 +276,16 @@ class UsersViewState extends State<UsersView> {
                                   color: Colors.white,
                                   backgroundColor: primaryRed,
                                   child: ListView.builder(
-                                    physics: const AlwaysScrollableScrollPhysics(),
+                                    physics:
+                                        const AlwaysScrollableScrollPhysics(),
                                     itemCount: _filteredUsers.length,
                                     itemBuilder: (context, index) => Padding(
-                                      padding: const EdgeInsets.only(bottom: 12),
-                                      child: _buildUserTile(_filteredUsers[index]),
+                                      padding: const EdgeInsets.only(
+                                        bottom: 12,
+                                      ),
+                                      child: _buildUserTile(
+                                        _filteredUsers[index],
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -208,7 +307,11 @@ class UsersViewState extends State<UsersView> {
       decoration: InputDecoration(
         hintText: 'Buscar por nombre o item...',
         hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 15),
-        prefixIcon: const Icon(Icons.search_rounded, color: darkText, size: AppDimens.iconSize),
+        prefixIcon: const Icon(
+          Icons.search_rounded,
+          color: darkText,
+          size: AppDimens.iconSize,
+        ),
         filled: true,
         fillColor: Colors.white,
         contentPadding: const EdgeInsets.symmetric(vertical: 16),
@@ -227,11 +330,7 @@ class UsersViewState extends State<UsersView> {
   Widget _buildUserTile(ManagedUser user) {
     final isUpdating = _updatingUserIds.contains(user.id);
     final isAdmin = user.isAdmin;
-    final roleLabel = user.role == null
-        ? 'Sin rol'
-        : isAdmin
-            ? 'Administrador'
-            : 'Empleado';
+    final roleLabel = user.role == null ? 'Sin rol' : _roleLabel(user.role!);
 
     return Material(
       color: Colors.white,
@@ -269,13 +368,23 @@ class UsersViewState extends State<UsersView> {
                   ),
                   const SizedBox(height: 3),
                   Text('Item: ${user.item}', style: AppText.caption),
+                  if (user.managesPremise && user.premise != null)
+                    Text(
+                      'Predio: ${user.premise!.name}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.caption,
+                    ),
                 ],
               );
               final indicator = isUpdating
                   ? const SizedBox(
                       height: 22,
                       width: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2.5, color: primaryRed),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: primaryRed,
+                      ),
                     )
                   : _RoleBadge(label: roleLabel, isAdmin: isAdmin);
 
@@ -327,16 +436,24 @@ class _RoleBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: isAdmin ? AppColors.primaryRed.withValues(alpha: 0.1) : Colors.grey.shade100,
+        color: isAdmin
+            ? AppColors.primaryRed.withValues(alpha: 0.1)
+            : Colors.grey.shade100,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: isAdmin ? AppColors.primaryRed : Colors.grey.shade400),
+        border: Border.all(
+          color: isAdmin ? AppColors.primaryRed : Colors.grey.shade400,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             label,
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: color),
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
           ),
           const SizedBox(width: 4),
           Icon(Icons.edit_rounded, size: 15, color: color),

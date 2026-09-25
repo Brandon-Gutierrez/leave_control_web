@@ -15,12 +15,15 @@ class ApiRoutes {
   static String premiseReasons(int premiseId) =>
       '/api/admin/premises/$premiseId/reasons';
 
-  static String premiseQrTokens(int premiseId) =>
-      '/api/admin/premises/$premiseId/qr-tokens';
+  static const String managerQrToken = '/api/manager/qr-token';
 
   // Administración - usuarios y roles
   static const String users = '/api/admin/users';
   static const String roles = '/api/admin/roles';
 
   static String userRole(int userId) => '/api/admin/users/$userId/role';
+
+  static String userPremise(int userId) => '/api/admin/users/$userId/premise';
+
+  static const String premiseManagers = '/api/admin/users/premise-managers';
 }

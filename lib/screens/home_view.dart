@@ -16,6 +16,9 @@ class HomeView extends StatefulWidget {
   final VoidCallback onOpenUsers;
   final VoidCallback onUnauthorized;
 
+  /// Acceso directo para crear la cuenta de un responsable de predio.
+  final VoidCallback? onAddManager;
+
   const HomeView({
     super.key,
     required this.adminName,
@@ -23,6 +26,7 @@ class HomeView extends StatefulWidget {
     required this.onSyncReasons,
     required this.onOpenUsers,
     required this.onUnauthorized,
+    this.onAddManager,
   });
 
   @override
@@ -142,6 +146,16 @@ class HomeViewState extends State<HomeView> {
                       subtitle: 'Otorga o quita permisos de administrador.',
                       onTap: widget.onOpenUsers,
                     ),
+                    if (widget.onAddManager != null) ...[
+                      const SizedBox(height: 12),
+                      _ActionRow(
+                        icon: Icons.person_add_alt_1_rounded,
+                        title: 'Crear un responsable de predio',
+                        subtitle:
+                            'Una cuenta que solo muestra el código QR de su predio.',
+                        onTap: widget.onAddManager!,
+                      ),
+                    ],
                   ],
                 ),
               ),

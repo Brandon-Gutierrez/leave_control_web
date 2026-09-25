@@ -1,3 +1,6 @@
+/// Nombre del rol que solo puede generar el QR de su predio asignado.
+const String kManagePremiseRole = 'MANAGE_PREMISE';
+
 class AuthUser {
   final int id;
   final String name;
@@ -14,8 +17,9 @@ class AuthUser {
   });
 
   bool get isAdmin => roleName?.toUpperCase() == 'ADMIN';
-  bool get isPremiseManager =>
-      roleName?.toUpperCase() == 'PREMISE_MANAGER';
+
+  /// Responsable de un predio (rol MANAGE_PREMISE): experiencia bloqueada.
+  bool get isPremiseManager => roleName?.toUpperCase() == kManagePremiseRole;
 
   factory AuthUser.fromJson(Map<String, dynamic> json) {
     final role = json['role'];

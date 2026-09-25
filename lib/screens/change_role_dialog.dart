@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models/auth_user.dart' show kManagePremiseRole;
 import '../models/managed_user.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
@@ -10,8 +11,14 @@ import '../theme/app_text_styles.dart';
 class ChangeRoleDialog extends StatefulWidget {
   final ManagedUser user;
   final List<AppRole> roles;
+  final List<UserPremise> premises;
 
-  const ChangeRoleDialog({super.key, required this.user, required this.roles});
+  const ChangeRoleDialog({
+    super.key,
+    required this.user,
+    required this.roles,
+    required this.premises,
+  });
 
   @override
   State<ChangeRoleDialog> createState() => _ChangeRoleDialogState();
@@ -19,12 +26,16 @@ class ChangeRoleDialog extends StatefulWidget {
 
 class _ChangeRoleDialogState extends State<ChangeRoleDialog> {
   late int? _selectedRoleId = widget.user.role?.id;
+  late int? _selectedPremiseId = widget.user.premise?.id;
 
   bool _isAdminRole(AppRole role) => role.name.toUpperCase() == 'ADMIN';
+  bool _isPremiseManagerRole(AppRole role) =>
+      role.name.toUpperCase() == kManagePremiseRole;
 
   String _displayName(AppRole role) {
     if (_isAdminRole(role)) return 'Administrador';
     if (role.name.toUpperCase() == 'EMPLOYEE') return 'Empleado';
+    if (_isPremiseManagerRole(role)) return 'Gestor de predio';
     return role.name;
   }
 
@@ -36,17 +47,31 @@ class _ChangeRoleDialogState extends State<ChangeRoleDialog> {
     if (role.name.toUpperCase() == 'EMPLOYEE') {
       return 'Solo puede escanear el código QR y registrar sus propias salidas.';
     }
+    if (_isPremiseManagerRole(role)) {
+      return 'Puede generar el código QR del predio asignado.';
+    }
     return 'Rol del sistema.';
   }
 
-  IconData _iconForRole(AppRole role) =>
-      _isAdminRole(role) ? Icons.shield_rounded : Icons.badge_rounded;
+  IconData _iconForRole(AppRole role) => _isAdminRole(role)
+      ? Icons.shield_rounded
+      : _isPremiseManagerRole(role)
+      ? Icons.apartment_rounded
+      : Icons.badge_rounded;
 
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.sizeOf(context).width;
     final dialogWidth = screenWidth < 480 ? screenWidth - 32 : 460.0;
-    final hasChanged = _selectedRoleId != widget.user.role?.id;
+    final matchingRoles = widget.roles
+        .where((role) => role.id == _selectedRoleId)
+        .toList();
+    final selectedRole = matchingRoles.isEmpty ? null : matchingRoles.first;
+    final isPremiseManager =
+        selectedRole != null && _isPremiseManagerRole(selectedRole);
+    final hasChanged =
+        _selectedRoleId != widget.user.role?.id ||
+        _selectedPremiseId != widget.user.premise?.id;
 
     return Dialog(
       shape: RoundedRectangleBorder(
@@ -69,14 +94,19 @@ class _ChangeRoleDialogState extends State<ChangeRoleDialog> {
                     child: Text('Cambiar rol', style: AppText.sectionTitle),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close_rounded, color: AppColors.darkText),
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: AppColors.darkText,
+                    ),
                     tooltip: 'Cerrar',
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
               ),
               Text(
-                widget.user.name.isEmpty ? 'Usuario sin nombre' : widget.user.name,
+                widget.user.name.isEmpty
+                    ? 'Usuario sin nombre'
+                    : widget.user.name,
                 style: TextStyle(fontSize: 16, color: Colors.grey.shade700),
               ),
               const SizedBox(height: 20),
@@ -87,7 +117,30 @@ class _ChangeRoleDialogState extends State<ChangeRoleDialog> {
                   icon: _iconForRole(role),
                   description: _describeRole(role),
                   selected: _selectedRoleId == role.id,
-                  onTap: () => setState(() => _selectedRoleId = role.id),
+                  onTap: () => setState(() {
+                    _selectedRoleId = role.id;
+                    if (!_isPremiseManagerRole(role)) _selectedPremiseId = null;
+                  }),
+                ),
+                const SizedBox(height: 12),
+              ],
+              if (isPremiseManager) ...[
+                DropdownButtonFormField<int>(
+                  key: ValueKey(_selectedPremiseId),
+                  initialValue: _selectedPremiseId,
+                  decoration: const InputDecoration(
+                    labelText: 'Predio asignado',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: [
+                    for (final premise in widget.premises)
+                      DropdownMenuItem(
+                        value: premise.id,
+                        child: Text(premise.name),
+                      ),
+                  ],
+                  onChanged: (value) =>
+                      setState(() => _selectedPremiseId = value),
                 ),
                 const SizedBox(height: 12),
               ],
@@ -96,11 +149,22 @@ class _ChangeRoleDialogState extends State<ChangeRoleDialog> {
               SizedBox(
                 height: AppDimens.buttonHeight,
                 child: ElevatedButton(
-                  onPressed: hasChanged
+                  onPressed:
+                      hasChanged &&
+                          (!isPremiseManager || _selectedPremiseId != null)
                       ? () {
-                          final role = widget.roles
-                              .firstWhere((r) => r.id == _selectedRoleId);
-                          Navigator.pop(context, role);
+                          final role = widget.roles.firstWhere(
+                            (r) => r.id == _selectedRoleId,
+                          );
+                          Navigator.pop(
+                            context,
+                            RoleChangeSelection(
+                              role: role,
+                              premiseId: isPremiseManager
+                                  ? _selectedPremiseId
+                                  : null,
+                            ),
+                          );
                         }
                       : null,
                   style: ElevatedButton.styleFrom(
@@ -124,6 +188,13 @@ class _ChangeRoleDialogState extends State<ChangeRoleDialog> {
       ),
     );
   }
+}
+
+class RoleChangeSelection {
+  final AppRole role;
+  final int? premiseId;
+
+  const RoleChangeSelection({required this.role, required this.premiseId});
 }
 
 class _RoleOption extends StatelessWidget {
@@ -178,13 +249,18 @@ class _RoleOption extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.bold,
-                        color: selected ? AppColors.primaryRed : AppColors.darkText,
+                        color: selected
+                            ? AppColors.primaryRed
+                            : AppColors.darkText,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       description,
-                      style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade700,
+                      ),
                     ),
                   ],
                 ),

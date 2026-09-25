@@ -95,8 +95,16 @@ class _FakeAdapter implements HttpClientAdapter {
     final Object body;
     var statusCode = 200;
 
-    if (path.endsWith('/qr-tokens')) {
-      body = {'status': 0, 'token': 'Predio Central+123e4567', 'TTL': 60};
+    if (path == '/api/manager/qr-token' && method == 'POST') {
+      body = {
+        'status': 0,
+        'token': 'Predio Central+123e4567',
+        'TTL': 60,
+        'expires_at': DateTime.now()
+            .add(const Duration(seconds: 60))
+            .toUtc()
+            .toIso8601String(),
+      };
     } else if (path == '/api/admin/reasons' && method == 'GET') {
       body = {
         'status': 0,
@@ -134,9 +142,13 @@ class _FakeAdapter implements HttpClientAdapter {
       body = {'status': 0};
     }
 
-    return ResponseBody.fromString(jsonEncode(body), statusCode, headers: {
-      Headers.contentTypeHeader: [Headers.jsonContentType],
-    });
+    return ResponseBody.fromString(
+      jsonEncode(body),
+      statusCode,
+      headers: {
+        Headers.contentTypeHeader: [Headers.jsonContentType],
+      },
+    );
   }
 
   @override
@@ -247,11 +259,13 @@ void main() {
 
     testWidgets('QR no desborda en ${entry.key}', (tester) async {
       await setSize(tester);
-      await tester.pumpWidget(MaterialApp(
-        home: QrPage(
-          premise: Premise(id: 1, name: 'Predio Central', reasonNames: []),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: QrPage(
+            premise: Premise(id: 1, name: 'Predio Central', reasonNames: []),
+          ),
         ),
-      ));
+      );
       for (var i = 0; i < 5; i++) {
         await tester.pump(const Duration(milliseconds: 100));
       }
@@ -262,19 +276,23 @@ void main() {
     });
   }
 
-  testWidgets('El acceso directo de Inicio abre el formulario de predio nuevo',
-      (tester) async {
-    await tester.pumpWidget(const MaterialApp(home: AdminDashboardPage()));
-    await tester.pumpAndSettle();
+  testWidgets(
+    'El acceso directo de Inicio abre el formulario de predio nuevo',
+    (tester) async {
+      await tester.pumpWidget(const MaterialApp(home: AdminDashboardPage()));
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Agregar un predio nuevo'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Agregar un predio nuevo'));
+      await tester.pumpAndSettle();
 
-    expect(tester.takeException(), isNull);
-    expect(find.text('Crear predio'), findsOneWidget);
-  });
+      expect(tester.takeException(), isNull);
+      expect(find.text('Crear predio'), findsOneWidget);
+    },
+  );
 
-  testWidgets('Sincronizar motivos desde Inicio muestra confirmación', (tester) async {
+  testWidgets('Sincronizar motivos desde Inicio muestra confirmación', (
+    tester,
+  ) async {
     await tester.pumpWidget(const MaterialApp(home: AdminDashboardPage()));
     await tester.pumpAndSettle();
 
@@ -282,7 +300,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Motivos de salida actualizados correctamente'), findsOneWidget);
+    expect(
+      find.text('Motivos de salida actualizados correctamente'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('Cambiar el rol de un usuario pide confirmación', (tester) async {
@@ -303,8 +324,10 @@ void main() {
     final dialogFinder = find.byType(Dialog);
     expect(dialogFinder, findsOneWidget);
     expect(find.text('Cambiar rol'), findsOneWidget);
-    final adminOptionFinder =
-        find.descendant(of: dialogFinder, matching: find.text('Administrador'));
+    final adminOptionFinder = find.descendant(
+      of: dialogFinder,
+      matching: find.text('Administrador'),
+    );
     expect(adminOptionFinder, findsOneWidget);
     expect(
       find.descendant(of: dialogFinder, matching: find.text('Empleado')),
@@ -312,12 +335,18 @@ void main() {
     );
 
     // El botón de guardar empieza deshabilitado hasta elegir un rol distinto
-    final saveButtonFinder = find.widgetWithText(ElevatedButton, 'Guardar cambio');
+    final saveButtonFinder = find.widgetWithText(
+      ElevatedButton,
+      'Guardar cambio',
+    );
     expect(tester.widget<ElevatedButton>(saveButtonFinder).onPressed, isNull);
 
     await tester.tap(adminOptionFinder);
     await tester.pumpAndSettle();
-    expect(tester.widget<ElevatedButton>(saveButtonFinder).onPressed, isNotNull);
+    expect(
+      tester.widget<ElevatedButton>(saveButtonFinder).onPressed,
+      isNotNull,
+    );
 
     await tester.tap(saveButtonFinder);
     await tester.pumpAndSettle();
