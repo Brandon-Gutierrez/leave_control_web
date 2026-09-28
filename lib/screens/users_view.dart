@@ -7,11 +7,17 @@ import '../services/premise_service.dart';
 import '../services/user_admin_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
+import '../widgets/filter_sidebar.dart';
+import 'manager_password_dialog.dart';
 import 'change_role_dialog.dart';
 import 'create_manager_dialog.dart';
 
 /// Sección "Usuarios" del panel de administración: busca usuarios, gestiona
 /// roles y asigna predios a los gestores, siempre con confirmación.
+enum _RoleFilter { all, employee, admin, manager }
+
+enum _PremiseFilter { any, with_, without }
+
 class UsersView extends StatefulWidget {
   /// Se llama cuando el token de sesión ya no es válido (401).
   final VoidCallback onUnauthorized;
@@ -33,6 +39,9 @@ class UsersViewState extends State<UsersView> {
   List<ManagedUser> _users = [];
   List<AppRole> _roles = [];
   List<UserPremise> _premises = [];
+  final Set<int> _occupiedPremiseIds = {};
+  _RoleFilter _roleFilter = _RoleFilter.all;
+  _PremiseFilter _premiseFilter = _PremiseFilter.any;
   String _searchQuery = '';
   bool _isLoading = true;
   final Set<int> _updatingUserIds = {};
@@ -57,13 +66,51 @@ class UsersViewState extends State<UsersView> {
 
   List<ManagedUser> get _filteredUsers {
     final query = _searchQuery.toLowerCase().trim();
-    if (query.isEmpty) return _users;
-    return _users
-        .where(
-          (u) => u.name.toLowerCase().contains(query) || u.item.contains(query),
-        )
-        .toList();
+    return _users.where((u) {
+      if (query.isNotEmpty &&
+          !u.name.toLowerCase().contains(query) &&
+          !u.item.contains(query)) {
+        return false;
+      }
+      switch (_roleFilter) {
+        case _RoleFilter.all:
+          break;
+        case _RoleFilter.employee:
+          if (u.role?.name.toUpperCase() != 'EMPLOYEE') return false;
+        case _RoleFilter.admin:
+          if (!u.isAdmin) return false;
+        case _RoleFilter.manager:
+          if (!u.managesPremise) return false;
+      }
+      if (_premiseFilter == _PremiseFilter.with_ && u.premise == null) {
+        return false;
+      }
+      if (_premiseFilter == _PremiseFilter.without && u.premise != null) {
+        return false;
+      }
+      return true;
+    }).toList();
   }
+
+  int get _activeFilters =>
+      (_roleFilter == _RoleFilter.all ? 0 : 1) +
+      (_premiseFilter == _PremiseFilter.any ? 0 : 1) +
+      (_searchQuery.trim().isEmpty ? 0 : 1);
+
+  void _clearFilters() => setState(() {
+    _roleFilter = _RoleFilter.all;
+    _premiseFilter = _PremiseFilter.any;
+    _searchQuery = '';
+    _searchController.clear();
+  });
+
+  /// Predios que todavía no tienen responsable (solo puede haber uno por
+  /// predio), más el predio actual de [user] si ya es su responsable.
+  List<UserPremise> _availablePremises([ManagedUser? user]) => _premises
+      .where(
+        (p) => !_occupiedPremiseIds.contains(p.id) || p.id == user?.premise?.id,
+      )
+      .toList();
 
   Future<void> _fetchData() async {
     setState(() => _isLoading = true);
@@ -80,6 +127,13 @@ class UsersViewState extends State<UsersView> {
         _premises = (results[2] as List)
             .map((premise) => UserPremise(id: premise.id, name: premise.name))
             .toList();
+        _occupiedPremiseIds
+          ..clear()
+          ..addAll(
+            (results[2] as List)
+                .where((premise) => premise.manager != null)
+                .map<int>((premise) => premise.id as int),
+          );
       });
     } on ApiException catch (e) {
       if (e.isUnauthorized) {
@@ -108,20 +162,26 @@ class UsersViewState extends State<UsersView> {
   /// Abre el formulario para crear un responsable de predio. Público para que
   /// "Inicio" pueda ofrecerlo como acceso directo.
   Future<void> openCreateManagerDialog() async {
-    if (_premises.isEmpty) {
+    final free = _availablePremises();
+    if (free.isEmpty) {
       _showSnackBar(
-        'Primero cree un predio para poder asignárselo a un responsable.',
+        _premises.isEmpty
+            ? 'Primero cree un predio para poder asignárselo a un responsable.'
+            : 'Todos los predios ya tienen responsable. Cambie el responsable desde Editar predio.',
         Colors.red,
       );
       return;
     }
     final created = await showDialog<CreatedManager>(
       context: context,
-      builder: (context) => CreateManagerDialog(premises: _premises),
+      builder: (context) => CreateManagerDialog(premises: free),
     );
     if (created == null || !mounted) return;
-    setState(() => _users = [..._users, created.user]
-      ..sort((a, b) => a.name.compareTo(b.name)));
+    setState(
+      () =>
+          _users = [..._users, created.user]
+            ..sort((a, b) => a.name.compareTo(b.name)),
+    );
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -134,11 +194,56 @@ class UsersViewState extends State<UsersView> {
 
     final selection = await showDialog<RoleChangeSelection>(
       context: context,
-      builder: (context) =>
-          ChangeRoleDialog(user: user, roles: _roles, premises: _premises),
+      builder: (context) => ChangeRoleDialog(
+        user: user,
+        roles: _roles,
+        premises: _availablePremises(user),
+      ),
     );
     if (selection == null) return;
     await _changeUser(user, selection);
+  }
+
+  Future<void> _openPasswordDialog(ManagedUser user) async {
+    if (_updatingUserIds.contains(user.id)) return;
+    final choice = await showDialog<PasswordChoice>(
+      context: context,
+      builder: (context) => ManagerPasswordDialog(user: user),
+    );
+    if (choice == null || !mounted) return;
+
+    setState(() => _updatingUserIds.add(user.id));
+    try {
+      final generated = await _userAdminService.resetManagerPassword(
+        user.id,
+        password: choice.password,
+      );
+      if (!mounted) return;
+      setState(() => _updatingUserIds.remove(user.id));
+      if (generated == null) {
+        _showSnackBar('Contraseña de ${user.name} actualizada', Colors.green);
+      } else {
+        await showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => ManagerCredentialsDialog(
+            created: CreatedManager(user: user, generatedPassword: generated),
+            title: 'Contraseña actualizada',
+            message:
+                'Nueva contraseña de ${user.name}. Las sesiones abiertas '
+                'de esta cuenta se cerraron.',
+          ),
+        );
+      }
+    } on ApiException catch (e) {
+      if (e.isUnauthorized) {
+        widget.onUnauthorized();
+        return;
+      }
+      _showSnackBar(e.message, Colors.red);
+    } finally {
+      if (mounted) setState(() => _updatingUserIds.remove(user.id));
+    }
   }
 
   Future<void> _changeUser(
@@ -205,98 +310,126 @@ class UsersViewState extends State<UsersView> {
 
   @override
   Widget build(BuildContext context) {
-    return _isLoading
-        ? const Center(child: CircularProgressIndicator(color: primaryRed))
-        : LayoutBuilder(
-            builder: (context, constraints) {
-              final width = constraints.maxWidth;
-              final horizontalPadding = width >= Breakpoints.tablet
-                  ? 32.0
-                  : 16.0;
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator(color: primaryRed));
+    }
+    return FilterSidebarLayout(
+      wideBreakpoint: 1000,
+      search: _buildSearchField(),
+      activeCount: _activeFilters,
+      onClear: _clearFilters,
+      filters: [
+        FilterGroup<_RoleFilter>(
+          title: 'Tipo de usuario',
+          value: _roleFilter,
+          options: const {
+            _RoleFilter.all: 'Todos',
+            _RoleFilter.employee: 'Empleados',
+            _RoleFilter.admin: 'Administradores',
+            _RoleFilter.manager: 'Responsables de predio',
+          },
+          onChanged: (v) => setState(() => _roleFilter = v),
+        ),
+        FilterGroup<_PremiseFilter>(
+          title: 'Predio asignado',
+          value: _premiseFilter,
+          options: const {
+            _PremiseFilter.any: 'Todos',
+            _PremiseFilter.with_: 'Con predio',
+            _PremiseFilter.without: 'Sin predio',
+          },
+          onChanged: (v) => setState(() => _premiseFilter = v),
+        ),
+      ],
+      content: _buildContent(),
+    );
+  }
 
-              return Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 900),
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: horizontalPadding,
-                      vertical: 16.0,
+  Widget _buildContent() {
+    final users = _filteredUsers;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final horizontalPadding = constraints.maxWidth >= Breakpoints.tablet
+            ? 24.0
+            : 16.0;
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 900),
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                horizontalPadding,
+                16,
+                horizontalPadding,
+                0,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(
+                    height: AppDimens.buttonHeight,
+                    child: ElevatedButton.icon(
+                      onPressed: openCreateManagerDialog,
+                      icon: const Icon(Icons.person_add_alt_1_rounded),
+                      label: const Text('Nuevo responsable de predio'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryRed,
+                        foregroundColor: Colors.white,
+                      ),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        SizedBox(
-                          height: AppDimens.buttonHeight,
-                          child: ElevatedButton.icon(
-                            onPressed: openCreateManagerDialog,
-                            icon: const Icon(Icons.person_add_alt_1_rounded),
-                            label: const Text('Nuevo responsable de predio'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: primaryRed,
-                              foregroundColor: Colors.white,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${users.length} de ${_users.length} usuarios · '
                           'Toca a una persona para cambiar su rol.',
                           style: AppText.caption,
                         ),
-                        const SizedBox(height: 12),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Expanded(child: _buildSearchField()),
-                            const SizedBox(width: 8),
-                            IconButton(
-                              icon: const Icon(
-                                Icons.refresh_rounded,
-                                color: darkText,
-                                size: AppDimens.iconSize,
-                              ),
-                              tooltip: 'Actualizar',
-                              onPressed: _isLoading ? null : _fetchData,
-                            ),
-                          ],
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.refresh_rounded,
+                          color: darkText,
+                          size: AppDimens.iconSize,
                         ),
-                        const SizedBox(height: 20),
-
-                        Expanded(
-                          child: _filteredUsers.isEmpty
-                              ? Center(
-                                  child: Text(
-                                    'No se encontraron usuarios.',
-                                    style: AppText.body.copyWith(
-                                      color: Colors.grey.shade600,
-                                    ),
-                                  ),
-                                )
-                              : RefreshIndicator(
-                                  onRefresh: _fetchData,
-                                  color: Colors.white,
-                                  backgroundColor: primaryRed,
-                                  child: ListView.builder(
-                                    physics:
-                                        const AlwaysScrollableScrollPhysics(),
-                                    itemCount: _filteredUsers.length,
-                                    itemBuilder: (context, index) => Padding(
-                                      padding: const EdgeInsets.only(
-                                        bottom: 12,
-                                      ),
-                                      child: _buildUserTile(
-                                        _filteredUsers[index],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                        ),
-                      ],
-                    ),
+                        tooltip: 'Actualizar',
+                        onPressed: _isLoading ? null : _fetchData,
+                      ),
+                    ],
                   ),
-                ),
-              );
-            },
-          );
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: users.isEmpty
+                        ? Center(
+                            child: Text(
+                              'No se encontraron usuarios con esos filtros.',
+                              style: AppText.body.copyWith(
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          )
+                        : RefreshIndicator(
+                            onRefresh: _fetchData,
+                            color: Colors.white,
+                            backgroundColor: primaryRed,
+                            child: ListView.builder(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              itemCount: users.length,
+                              itemBuilder: (context, index) => Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: _buildUserTile(users[index]),
+                              ),
+                            ),
+                          ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Widget _buildSearchField() {
@@ -386,11 +519,25 @@ class UsersViewState extends State<UsersView> {
                         color: primaryRed,
                       ),
                     )
-                  : _RoleBadge(label: roleLabel, isAdmin: isAdmin);
+                  : Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        if (user.managesPremise && user.username != null)
+                          IconButton(
+                            icon: const Icon(
+                              Icons.key_rounded,
+                              color: darkText,
+                            ),
+                            tooltip: 'Cambiar o regenerar contraseña',
+                            onPressed: () => _openPasswordDialog(user),
+                          ),
+                        _RoleBadge(label: roleLabel, isAdmin: isAdmin),
+                      ],
+                    );
 
               // En pantallas muy angostas, la insignia de rol no cabe junto
               // al nombre: se acomoda debajo para que nada se recorte.
-              if (constraints.maxWidth < 340) {
+              if (constraints.maxWidth < 420) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [

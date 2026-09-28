@@ -142,6 +142,14 @@ class _ChangeRoleDialogState extends State<ChangeRoleDialog> {
                   onChanged: (value) =>
                       setState(() => _selectedPremiseId = value),
                 ),
+                if (widget.premises.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      'Todos los predios ya tienen responsable. Solo puede haber uno por predio: cámbielo desde Editar predio.',
+                      style: AppText.caption,
+                    ),
+                  ),
                 const SizedBox(height: 12),
               ],
               const SizedBox(height: 8),

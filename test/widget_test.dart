@@ -4,8 +4,10 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:control_leaves_web/models/auth_user.dart';
 import 'package:control_leaves_web/models/premise_model.dart';
 import 'package:control_leaves_web/screens/admin_dashboard_page.dart';
 import 'package:control_leaves_web/screens/generator_qr_page.dart';
@@ -18,6 +20,9 @@ const _premisesPayload = {
     {
       'id': 1,
       'name': 'Predio 1',
+      'latitude': '-17.3935000',
+      'longitude': '-66.1570000',
+      'manager': {'user_id': 5, 'name': 'Marta Gestora'},
       'reason_names': ['Banco', 'Médico'],
     },
     {
@@ -69,6 +74,15 @@ const _usersPayload = {
       'item': 1002,
       'role_id': 2,
       'role': {'role_id': 2, 'name': 'ADMIN'},
+    },
+    {
+      'user_id': 3,
+      'name': 'Marta Gestora',
+      'item': 1003,
+      'username': 'marta',
+      'role_id': 3,
+      'role': {'role_id': 3, 'name': 'MANAGE_PREMISE'},
+      'premise': {'premise_id': 1, 'name': 'Predio 1'},
     },
   ],
 };
@@ -127,6 +141,11 @@ class _FakeAdapter implements HttpClientAdapter {
       body = _usersPayload;
     } else if (path == '/api/admin/roles' && method == 'GET') {
       body = _rolesPayload;
+    } else if (path == '/api/auth/login' && method == 'POST') {
+      statusCode = 401;
+      body = {'status': 'ERROR', 'message': 'Credenciales inválidas.'};
+    } else if (path.endsWith('/password') && method == 'PUT') {
+      body = {'status': 0, 'generated_password': 'ClaveGenerada-123456'};
     } else if (path.endsWith('/role') && method == 'PUT') {
       body = {
         'status': 0,
@@ -163,7 +182,11 @@ const _sizes = <String, Size>{
 };
 
 void main() {
-  setUp(() => ApiClient().dio.httpClientAdapter = _FakeAdapter());
+  passwordAndLoginTests();
+  filtersTests();
+  setUp(() {
+    ApiClient().dio.httpClientAdapter = _FakeAdapter();
+  });
 
   for (final entry in _sizes.entries) {
     Future<void> setSize(WidgetTester tester) async {
@@ -183,12 +206,23 @@ void main() {
     testWidgets('Inicio no desborda en ${entry.key}', (tester) async {
       await setSize(tester);
       await tester.pumpWidget(
-        const MaterialApp(home: AdminDashboardPage(adminName: 'Ana')),
+        MaterialApp(
+          home: AdminDashboardPage(
+            user: AuthUser(
+              id: 1,
+              name: 'Ana Pérez',
+              item: '1',
+              roleName: 'ADMIN',
+            ),
+          ),
+        ),
       );
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
-      expect(find.textContaining('Hola'), findsOneWidget);
+      expect(find.textContaining('Hola'), findsNothing);
+      expect(find.text('Ana Pérez'), findsOneWidget);
+      expect(find.text('Administrador del sistema'), findsOneWidget);
       expect(find.text('Predios registrados'), findsOneWidget);
       expect(find.text('Agregar un predio nuevo'), findsOneWidget);
       expect(find.text('Actualizar motivos de salida'), findsOneWidget);
@@ -205,11 +239,21 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.text('Predio 1'), findsOneWidget);
 
-      // Expandir una tarjeta
-      await tester.tap(find.text('Predio 1'));
-      await tester.pumpAndSettle();
-      expect(tester.takeException(), isNull);
-      expect(find.text('Motivos de salida permitidos'), findsOneWidget);
+      // Sin lista desplegable: cada predio muestra su botón Editar y su QR
+      expect(find.byType(ExpansionTile), findsNothing);
+      expect(find.text('Editar'), findsWidgets);
+      expect(find.text('QR'), findsNothing); // ya no hay botón de QR
+      expect(find.textContaining('Responsable:'), findsWidgets);
+
+      // Tres tarjetas por fila como mínimo en pantallas anchas
+      if (entry.value.width >= 1366) {
+        final y1 = tester.getTopLeft(find.text('Predio 1')).dy;
+        expect(tester.getTopLeft(find.text('Predio 2')).dy, y1);
+        expect(
+          tester.getTopLeft(find.textContaining('Predio con un nombre')).dy,
+          y1,
+        );
+      }
     });
 
     testWidgets('Usuarios no desborda en ${entry.key}', (tester) async {
@@ -219,7 +263,8 @@ void main() {
 
       await tester.tap(find.text('Usuarios'));
       await tester.pumpAndSettle();
-
+      final ex = tester.takeException();
+      expect(ex, isNull);
       expect(tester.takeException(), isNull);
       expect(find.text('Ana Pérez'), findsOneWidget);
       expect(find.text('Luis Gómez'), findsOneWidget);
@@ -250,6 +295,10 @@ void main() {
 
       // Completa el nombre y confirma
       await tester.enterText(find.byType(TextFormField).first, 'Predio Demo');
+      await tester.tapAt(
+        tester.getCenter(find.byType(FlutterMap)) + const Offset(40, 0),
+      );
+      await tester.pump(const Duration(milliseconds: 600));
       await tester.tap(find.text('Crear predio'));
       await tester.pumpAndSettle();
 
@@ -353,5 +402,151 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.textContaining('ahora es Administrador'), findsOneWidget);
+  });
+}
+
+void filtersTests() {
+  testWidgets('La barra de filtros de predios filtra por responsable', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(const MaterialApp(home: AdminDashboardPage()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Predios'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Filtros'), findsOneWidget); // panel lateral fijo
+    expect(find.text('Predio 2'), findsOneWidget);
+
+    await tester.tap(find.text('Con responsable'));
+    await tester.pumpAndSettle();
+    expect(find.text('Predio 1'), findsOneWidget); // único con responsable
+    expect(find.text('Predio 2'), findsNothing);
+    expect(find.text('1 de 7 predios'), findsOneWidget);
+
+    await tester.tap(find.text('Limpiar filtros'));
+    await tester.pumpAndSettle();
+    expect(find.text('Predio 2'), findsOneWidget);
+  });
+
+  testWidgets('La barra de filtros de usuarios filtra por tipo', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(const MaterialApp(home: AdminDashboardPage()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Usuarios'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ana Pérez'), findsOneWidget);
+    await tester.tap(find.text('Administradores'));
+    await tester.pumpAndSettle();
+    expect(find.text('Ana Pérez'), findsNothing);
+    expect(find.text('Luis Gómez'), findsOneWidget);
+  });
+
+  testWidgets('En teléfono los filtros se despliegan con el botón Filtros', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 740);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(const MaterialApp(home: AdminDashboardPage()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Predios'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Limpiar filtros'), findsNothing);
+    await tester.tap(find.text('Filtros'));
+    await tester.pumpAndSettle();
+    expect(find.text('Limpiar filtros'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+}
+
+void passwordAndLoginTests() {
+  testWidgets(
+    'Tras un error de login la contraseña sigue editable y se puede reintentar',
+    (tester) async {
+      tester.view.physicalSize = const Size(1200, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(const MaterialApp(home: LoginAdminPage()));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextFormField).at(0), 'admin');
+      await tester.enterText(find.byType(TextFormField).at(1), 'mala-clave');
+      await tester.tap(find.text('Ingresar'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Credenciales incorrectas'), findsOneWidget);
+      final passwordField = tester.widget<TextField>(
+        find.byType(TextField).at(1),
+      );
+      expect(passwordField.enabled, isNot(false));
+      expect(
+        passwordField.controller!.text,
+        isEmpty,
+      ); // se vació para reintentar
+      final button = tester.widget<ElevatedButton>(find.byType(ElevatedButton));
+      expect(button.onPressed, isNotNull);
+
+      // Se puede volver a escribir y enviar
+      await tester.enterText(find.byType(TextFormField).at(1), 'otra');
+      expect(passwordField.controller!.text, 'otra');
+      await tester.tap(find.text('Ingresar'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'El admin regenera la contraseña de un responsable y la ve una sola vez',
+    (tester) async {
+      tester.view.physicalSize = const Size(1600, 1000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(const MaterialApp(home: AdminDashboardPage()));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Usuarios'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Cambiar o regenerar contraseña'));
+      await tester.pumpAndSettle();
+      expect(find.text('Cambiar contraseña'), findsOneWidget);
+      await tester.tap(find.text('Cambiar'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Contraseña actualizada'), findsOneWidget);
+      expect(find.text('ClaveGenerada-123456'), findsOneWidget);
+      await tester.tap(find.text('Ya la guardé'));
+      await tester.pumpAndSettle();
+      expect(find.text('ClaveGenerada-123456'), findsNothing);
+    },
+  );
+
+  testWidgets('Una contraseña escrita a mano exige 10 caracteres', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(const MaterialApp(home: AdminDashboardPage()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Usuarios'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Cambiar o regenerar contraseña'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Escribir una contraseña'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField), 'corta');
+    await tester.tap(find.text('Cambiar'));
+    await tester.pumpAndSettle();
+    expect(find.text('Debe tener al menos 10 caracteres'), findsOneWidget);
   });
 }

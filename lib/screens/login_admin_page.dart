@@ -19,6 +19,7 @@ class _LoginAdminPageState extends State<LoginAdminPage> {
   final AuthService _authService = AuthService();
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final FocusNode _passwordFocus = FocusNode();
 
   bool _isLoading = false;
   bool _isPasswordObscured = true;
@@ -31,17 +32,17 @@ class _LoginAdminPageState extends State<LoginAdminPage> {
   void dispose() {
     _usernameController.dispose();
     _passwordController.dispose();
+    _passwordFocus.dispose();
     super.dispose();
   }
 
-  void _login() async {
+  Future<void> _login() async {
     //Si el estado del formulario no es valido o ya hay una peticion en curso
     if (_isLoading || !_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     String? error;
-    String adminName = '';
     AuthUser? user;
     try {
       user = await _authService.login(
@@ -53,16 +54,23 @@ class _LoginAdminPageState extends State<LoginAdminPage> {
           error = 'La cuenta no tiene un predio asignado';
         }
       } else if (!user.isAdmin) {
-        await _authService.logout();
+        try {
+          await _authService.logout();
+        } catch (_) {
+          // Si no se pudo cerrar la sesión igual se rechaza el acceso.
+        }
         error = 'No tiene permisos de administrador';
-      } else {
-        adminName = user.name;
       }
     } on ApiException catch (e) {
       error = e.isUnauthorized ? 'Credenciales incorrectas' : e.message;
+    } catch (_) {
+      // Cualquier otro fallo (red, respuesta inesperada) también debe
+      // devolver el formulario a un estado editable.
+      error = 'No se pudo iniciar sesión. Verifique su conexión e intente de nuevo.';
     }
 
     if (!mounted) return;
+    // Siempre se libera el formulario, haya salido bien o mal.
     setState(() => _isLoading = false);
 
     if (error == null) {
@@ -72,12 +80,14 @@ class _LoginAdminPageState extends State<LoginAdminPage> {
       if (!user!.isPremiseManager) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-            builder: (context) => AdminDashboardPage(adminName: adminName),
-          ),
+          MaterialPageRoute(builder: (context) => const AdminDashboardPage()),
         );
       }
     } else {
+      // Tras un error se vacía la contraseña y se deja el cursor en ella para
+      // reintentar de inmediato.
+      _passwordController.clear();
+      _passwordFocus.requestFocus();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(error), backgroundColor: primaryRed),
       );
@@ -180,6 +190,7 @@ class _LoginAdminPageState extends State<LoginAdminPage> {
                   // Campo Contraseña
                   TextFormField(
                     controller: _passwordController,
+                    focusNode: _passwordFocus,
                     obscureText: _isPasswordObscured,
                     textInputAction: TextInputAction.done,
                     autofillHints: const [AutofillHints.password],

@@ -104,7 +104,7 @@ class _AuthGateState extends State<AuthGate> {
         }
         final user = snapshot.data;
         return user?.isAdmin == true
-            ? AdminDashboardPage(adminName: user!.name)
+            ? AdminDashboardPage(user: user)
             : const LoginAdminPage();
       },
     );

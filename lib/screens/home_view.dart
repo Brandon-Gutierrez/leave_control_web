@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
 
+import '../models/auth_user.dart';
 import '../services/api_client.dart';
 import '../services/premise_service.dart';
 import '../services/user_admin_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
+import '../widgets/user_module.dart';
 
 /// Sección "Inicio": un resumen simple y los tres accesos directos más
 /// usados, pensada como primera pantalla para alguien que recién entra al
 /// panel y no sabe bien por dónde empezar.
 class HomeView extends StatefulWidget {
-  final String adminName;
+  final AuthUser? user;
   final VoidCallback onAddPremise;
   final Future<void> Function() onSyncReasons;
   final VoidCallback onOpenUsers;
@@ -21,7 +23,7 @@ class HomeView extends StatefulWidget {
 
   const HomeView({
     super.key,
-    required this.adminName,
+    required this.user,
     required this.onAddPremise,
     required this.onSyncReasons,
     required this.onOpenUsers,
@@ -108,10 +110,7 @@ class HomeViewState extends State<HomeView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
-                      '¡Hola${widget.adminName.isEmpty ? '' : ', ${widget.adminName}'}!',
-                      style: AppText.heading,
-                    ),
+                    UserModule(user: widget.user),
                     /*const SizedBox(height: 6),
                     Text(
                       'Este es el resumen de hoy.',

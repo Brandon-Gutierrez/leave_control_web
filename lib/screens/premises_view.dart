@@ -5,11 +5,14 @@ import '../services/api_client.dart';
 import '../services/premise_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
-import 'create_premise_dialog.dart';
-import 'generator_qr_page.dart';
+import '../widgets/filter_sidebar.dart';
+import 'premise_form_dialog.dart';
 
 /// Sección "Predios" del panel de administración: búsqueda, listado con sus
-/// motivos permitidos y creación de predios nuevos.
+/// motivos permitidos y creación y edición de predios (nombre, mapa, responsable y motivos).
+/// Estado de un filtro que distingue "tiene / no tiene".
+enum _Presence { any, with_, without }
+
 class PremisesView extends StatefulWidget {
   /// Se llama cuando el token de sesión ya no es válido (401).
   final VoidCallback onUnauthorized;
@@ -34,6 +37,9 @@ class PremisesViewState extends State<PremisesView> {
   List<Reason> _allReasons = [];
   List<Premise> _prediosList = [];
   String _searchQuery = '';
+  _Presence _managerFilter = _Presence.any;
+  _Presence _locationFilter = _Presence.any;
+  _Presence _reasonsFilter = _Presence.any;
   bool _isLoading = true;
   bool _isSyncing = false;
 
@@ -65,11 +71,41 @@ class PremisesViewState extends State<PremisesView> {
 
   List<Premise> get _filteredPredios {
     final query = _searchQuery.toLowerCase().trim();
-    if (query.isEmpty) return _prediosList;
-    return _prediosList
-        .where((p) => p.name.toLowerCase().contains(query))
-        .toList();
+    return _prediosList.where((p) {
+      if (query.isNotEmpty && !p.name.toLowerCase().contains(query)) {
+        return false;
+      }
+      if (_managerFilter == _Presence.with_ && p.manager == null) return false;
+      if (_managerFilter == _Presence.without && p.manager != null) {
+        return false;
+      }
+      if (_locationFilter == _Presence.with_ && !p.hasLocation) return false;
+      if (_locationFilter == _Presence.without && p.hasLocation) return false;
+      if (_reasonsFilter == _Presence.with_ && p.reasonNames.isEmpty) {
+        return false;
+      }
+      if (_reasonsFilter == _Presence.without && p.reasonNames.isNotEmpty) {
+        return false;
+      }
+      return true;
+    }).toList();
   }
+
+  int get _activeFilters =>
+      [
+        _managerFilter,
+        _locationFilter,
+        _reasonsFilter,
+      ].where((f) => f != _Presence.any).length +
+      (_searchQuery.trim().isEmpty ? 0 : 1);
+
+  void _clearFilters() => setState(() {
+    _managerFilter = _Presence.any;
+    _locationFilter = _Presence.any;
+    _reasonsFilter = _Presence.any;
+    _searchQuery = '';
+    _searchController.clear();
+  });
 
   Future<void> _fetchData() async {
     setState(() => _isLoading = true);
@@ -110,7 +146,7 @@ class PremisesViewState extends State<PremisesView> {
   Future<void> _openCreatePremiseDialog() async {
     final created = await showDialog<bool>(
       context: context,
-      builder: (context) => const CreatePremiseDialog(),
+      builder: (context) => const PremiseFormDialog(),
     );
     if (created == true) {
       _showSnackBar('Predio creado correctamente', Colors.green);
@@ -136,214 +172,129 @@ class PremisesViewState extends State<PremisesView> {
     }
   }
 
-  void _navigateToQrPage(Premise premise) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => QrPage(premise: premise)),
-    );
-  }
-
-  Future<void> _editPremiseReasons(Premise premise) async {
+  Future<void> _editPremise(Premise premise) async {
     final updated = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) {
-        final selectedReasons = premise.reasonNames.map((r) => r.name).toSet();
-        var isSaving = false;
-        String? errorMessage;
-
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            Future<void> save() async {
-              setDialogState(() {
-                isSaving = true;
-                errorMessage = null;
-              });
-              try {
-                await _premiseService.updatePremiseReasons(
-                  premise.id,
-                  selectedReasons.toList(),
-                );
-                if (context.mounted) Navigator.pop(context, true);
-              } on ApiException catch (e) {
-                if (!context.mounted) return;
-                if (e.isUnauthorized) {
-                  Navigator.pop(context);
-                  widget.onUnauthorized();
-                  return;
-                }
-                setDialogState(() {
-                  isSaving = false;
-                  errorMessage = e.message;
-                });
-              } catch (_) {
-                if (!context.mounted) return;
-                setDialogState(() {
-                  isSaving = false;
-                  errorMessage = 'No se pudieron actualizar los motivos.';
-                });
-              }
-            }
-
-            return AlertDialog(
-              title: Text('Motivos de ${premise.name}'),
-              content: SizedBox(
-                width: 460,
-                child: _allReasons.isEmpty
-                    ? const Text('No hay motivos disponibles para asignar.')
-                    : SingleChildScrollView(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            for (final reason in _allReasons)
-                              CheckboxListTile(
-                                value: selectedReasons.contains(reason.name),
-                                title: Text(reason.name),
-                                activeColor: primaryRed,
-                                contentPadding: EdgeInsets.zero,
-                                onChanged: isSaving
-                                    ? null
-                                    : (isSelected) {
-                                        setDialogState(() {
-                                          if (isSelected == true) {
-                                            selectedReasons.add(reason.name);
-                                          } else {
-                                            selectedReasons.remove(reason.name);
-                                          }
-                                        });
-                                      },
-                              ),
-                            if (errorMessage != null)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 8),
-                                child: Text(
-                                  errorMessage!,
-                                  style: TextStyle(color: Colors.red.shade700),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: isSaving ? null : () => Navigator.pop(context),
-                  child: const Text('Cancelar'),
-                ),
-                ElevatedButton.icon(
-                  onPressed: isSaving ? null : save,
-                  icon: isSaving
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.save_outlined),
-                  label: const Text('Guardar'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryRed,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      builder: (context) => PremiseFormDialog(premise: premise),
     );
-
     if (updated == true) {
-      _showSnackBar('Motivos actualizados correctamente', Colors.green);
+      _showSnackBar('Predio actualizado correctamente', Colors.green);
       await _fetchData();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return _isLoading
-        ? const Center(child: CircularProgressIndicator(color: primaryRed))
-        : LayoutBuilder(
-            builder: (context, constraints) {
-              final width = constraints.maxWidth;
-              final columns = width >= Breakpoints.desktop
-                  ? 3
-                  : width >= Breakpoints.tablet
-                      ? 2
-                      : 1;
-              final horizontalPadding = width >= Breakpoints.tablet ? 32.0 : 16.0;
-              final isNarrow = width < 560;
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator(color: primaryRed));
+    }
+    return FilterSidebarLayout(
+      wideBreakpoint: 1100,
+      search: _buildSearchField(),
+      activeCount: _activeFilters,
+      onClear: _clearFilters,
+      filters: [
+        FilterGroup<_Presence>(
+          title: 'Responsable',
+          value: _managerFilter,
+          options: const {
+            _Presence.any: 'Todos',
+            _Presence.with_: 'Con responsable',
+            _Presence.without: 'Sin responsable',
+          },
+          onChanged: (v) => setState(() => _managerFilter = v),
+        ),
+        FilterGroup<_Presence>(
+          title: 'Ubicación en el mapa',
+          value: _locationFilter,
+          options: const {
+            _Presence.any: 'Todos',
+            _Presence.with_: 'Con ubicación',
+            _Presence.without: 'Sin ubicación',
+          },
+          onChanged: (v) => setState(() => _locationFilter = v),
+        ),
+        FilterGroup<_Presence>(
+          title: 'Motivos de salida',
+          value: _reasonsFilter,
+          options: const {
+            _Presence.any: 'Todos',
+            _Presence.with_: 'Con motivos',
+            _Presence.without: 'Sin motivos',
+          },
+          onChanged: (v) => setState(() => _reasonsFilter = v),
+        ),
+      ],
+      content: _buildContent(),
+    );
+  }
 
-              return Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1400),
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: horizontalPadding,
-                      vertical: 16.0,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // BARRA DE BÚSQUEDA Y ACCIONES
-                        Center(
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 900),
-                            child: isNarrow
-                                ? Column(
-                                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                                    children: [
-                                      _buildSearchField(),
-                                      const SizedBox(height: 12),
-                                      _buildAddButton(),
-                                    ],
-                                  )
-                                : Row(
-                                    crossAxisAlignment: CrossAxisAlignment.center,
-                                    children: [
-                                      Expanded(child: _buildSearchField()),
-                                      const SizedBox(width: 10),
-                                      IconButton(
-                                        icon: const Icon(Icons.refresh_rounded, color: darkText, size: AppDimens.iconSize),
-                                        tooltip: 'Actualizar',
-                                        onPressed: _isLoading ? null : _fetchData,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      SizedBox(width: 220, child: _buildAddButton()),
-                                    ],
-                                  ),
-                          ),
-                        ),
-                        const SizedBox(height: 20),
+  Widget _buildContent() {
+    final predios = _filteredPredios;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        // Tres columnas como mínimo cuando hay espacio; menos en pantallas
+        // angostas para que las tarjetas sigan siendo legibles.
+        final columns = width >= 1500
+            ? 4
+            : width >= 720
+            ? 3
+            : width >= 480
+            ? 2
+            : 1;
+        final padding = width >= Breakpoints.tablet ? 24.0 : 16.0;
 
-                        // LISTA / GRILLA DE PREDIOS
-                        Expanded(
-                          child: _filteredPredios.isEmpty
-                              ? Center(
-                                  child: Text(
-                                    'No se encontraron predios.',
-                                    style: AppText.body.copyWith(color: Colors.grey.shade600),
-                                  ),
-                                )
-                              : RefreshIndicator(
-                                  onRefresh: _fetchData,
-                                  color: Colors.white,
-                                  backgroundColor: primaryRed,
-                                  child: columns == 1
-                                      ? _buildList()
-                                      : _buildGrid(columns),
-                                ),
-                        ),
-                      ],
+        return Padding(
+          padding: EdgeInsets.fromLTRB(padding, 16, padding, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${predios.length} de ${_prediosList.length} predios',
+                      style: AppText.caption,
                     ),
                   ),
-                ),
-              );
-            },
-          );
+                  IconButton(
+                    icon: const Icon(Icons.refresh_rounded, color: darkText),
+                    tooltip: 'Actualizar',
+                    onPressed: _isLoading ? null : _fetchData,
+                  ),
+                  const SizedBox(width: 6),
+                  SizedBox(width: 200, child: _buildAddButton()),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: predios.isEmpty
+                    ? Center(
+                        child: Text(
+                          'No se encontraron predios con esos filtros.',
+                          style: AppText.body.copyWith(
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      )
+                    : RefreshIndicator(
+                        onRefresh: _fetchData,
+                        color: Colors.white,
+                        backgroundColor: primaryRed,
+                        child: _buildGrid(columns, predios),
+                      ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Widget _buildAddButton() {
     return SizedBox(
-      height: AppDimens.buttonHeight,
+      height: AppDimens.smallButtonHeight,
       child: ElevatedButton.icon(
         onPressed: _openCreatePremiseDialog,
         icon: const Icon(Icons.add_rounded, size: 22),
@@ -362,13 +313,13 @@ class PremisesViewState extends State<PremisesView> {
       onChanged: (value) => setState(() => _searchQuery = value),
       style: AppText.body,
       decoration: InputDecoration(
-        hintText: 'Buscar predio por nombre...',
+        hintText: 'Buscar predio...',
         hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 15),
-        prefixIcon:
-            const Icon(Icons.search_rounded, color: darkText, size: AppDimens.iconSize),
+        prefixIcon: const Icon(Icons.search_rounded, color: darkText),
         filled: true,
         fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(vertical: 16),
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(vertical: 14),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppDimens.fieldRadius),
           borderSide: BorderSide(color: Colors.grey.shade300),
@@ -381,23 +332,8 @@ class PremisesViewState extends State<PremisesView> {
     );
   }
 
-  // Una columna (pantallas angostas)
-  Widget _buildList() {
-    final predios = _filteredPredios;
-    return ListView.builder(
-      physics: const AlwaysScrollableScrollPhysics(),
-      itemCount: predios.length,
-      itemBuilder: (context, index) => Padding(
-        padding: const EdgeInsets.only(bottom: _gap),
-        child: _buildPremiseCard(predios[index]),
-      ),
-    );
-  }
-
-  // Varias columnas (tablet / escritorio). Wrap permite que cada tarjeta
-  // se expanda sin alterar el alto de las demás columnas.
-  Widget _buildGrid(int columns) {
-    final predios = _filteredPredios;
+  // Cuadrícula de tarjetas: cada fila reparte el ancho en partes iguales.
+  Widget _buildGrid(int columns, List<Premise> predios) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final cardWidth =
@@ -410,10 +346,7 @@ class PremisesViewState extends State<PremisesView> {
             runSpacing: _gap,
             children: [
               for (final predio in predios)
-                SizedBox(
-                  width: cardWidth,
-                  child: _buildPremiseCard(predio),
-                ),
+                SizedBox(width: cardWidth, child: _buildPremiseCard(predio)),
             ],
           ),
         );
@@ -422,129 +355,79 @@ class PremisesViewState extends State<PremisesView> {
   }
 
   Widget _buildPremiseCard(Premise predio) {
+    final manager = predio.manager;
     return Container(
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(AppDimens.cardRadius),
         border: Border.all(color: Colors.grey.shade300),
       ),
-      child: Theme(
-        // Elimina las líneas divisorias por defecto del ExpansionTile
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          key: PageStorageKey<int>(predio.id),
-          iconColor: primaryRed,
-          collapsedIconColor: darkText,
-          shape: const RoundedRectangleBorder(),
-          collapsedShape: const RoundedRectangleBorder(),
-          tilePadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          title: Text(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
             predio.name,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: AppText.cardTitle,
           ),
-          subtitle: Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              '${predio.reasonNames.length} de ${_allReasons.length} motivos permitidos',
-              style: AppText.caption,
-            ),
+          const SizedBox(height: 10),
+          _infoRow(
+            Icons.person_outline_rounded,
+            manager == null
+                ? 'Sin responsable'
+                : 'Responsable: ${manager.name}',
+            muted: manager == null,
           ),
-          trailing: ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryRed,
-              foregroundColor: Colors.white,
-              minimumSize: Size.zero,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+          const SizedBox(height: 6),
+          _infoRow(
+            Icons.location_on_outlined,
+            predio.hasLocation
+                ? '${predio.latitude!.toStringAsFixed(5)}, ${predio.longitude!.toStringAsFixed(5)}'
+                : 'Sin ubicación: los escaneos no serán aceptados',
+            muted: !predio.hasLocation,
+          ),
+          const SizedBox(height: 6),
+          _infoRow(
+            Icons.checklist_rounded,
+            '${predio.reasonNames.length} de ${_allReasons.length} motivos permitidos',
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => _editPremise(predio),
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              label: const Text('Editar'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryRed,
+                foregroundColor: Colors.white,
+                minimumSize: const Size.fromHeight(AppDimens.smallButtonHeight),
               ),
             ),
-            icon: const Icon(Icons.qr_code_rounded, size: 18),
-            label: const Text(
-              'QR',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-            ),
-            onPressed: () => _navigateToQrPage(predio),
           ),
-          children: [
-            Divider(height: 1, color: Colors.grey.shade200),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Motivos de salida permitidos',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey.shade800,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: OutlinedButton.icon(
-                      onPressed: () => _editPremiseReasons(predio),
-                      icon: const Icon(Icons.edit_outlined, size: 17),
-                      label: const Text('Editar'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: primaryRed,
-                        side: const BorderSide(color: primaryRed),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 8,
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Lista minimalista de motivos
-                  ..._allReasons.map((reason) {
-                    final isAssigned = predio.reasonNames.any(
-                      (r) => r.name.toLowerCase() == reason.name.toLowerCase(),
-                    );
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 3.0),
-                      child: Row(
-                        children: [
-                          Icon(
-                            isAssigned
-                                ? Icons.check_circle_rounded
-                                : Icons.radio_button_unchecked_rounded,
-                            size: 20,
-                            color: isAssigned
-                                ? primaryRed
-                                : Colors.grey.shade400,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              reason.name,
-                              style: TextStyle(
-                                fontSize: 15,
-                                color: isAssigned
-                                    ? darkText
-                                    : Colors.grey.shade500,
-                                fontWeight: isAssigned
-                                    ? FontWeight.w600
-                                    : FontWeight.normal,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }),
-                ],
-              ),
-            ),
-          ],
-        ),
+        ],
       ),
+    );
+  }
+
+  Widget _infoRow(IconData icon, String text, {bool muted = false}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18, color: muted ? Colors.grey.shade500 : darkText),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 14,
+              color: muted ? Colors.grey.shade600 : darkText,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

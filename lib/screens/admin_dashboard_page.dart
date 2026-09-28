@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../models/auth_user.dart';
 import '../services/auth_service.dart';
 import '../session/session_controller.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
+import '../widgets/user_module.dart';
 import 'home_view.dart';
 import 'login_admin_page.dart';
 import 'premises_view.dart';
@@ -13,10 +15,11 @@ import 'users_view.dart';
 /// secciones "Inicio", "Predios" y "Usuarios", responsiva a teléfono, tablet
 /// y escritorio. Pensada para ser fácil de usar por cualquier persona.
 class AdminDashboardPage extends StatefulWidget {
-  /// Nombre de la persona que inició sesión, para el saludo en "Inicio".
-  final String adminName;
+  /// Persona que inició sesión (módulo de usuario). Si no se indica se toma de
+  /// la sesión compartida.
+  final AuthUser? user;
 
-  const AdminDashboardPage({super.key, this.adminName = ''});
+  const AdminDashboardPage({super.key, this.user});
 
   @override
   State<AdminDashboardPage> createState() => _AdminDashboardPageState();
@@ -39,6 +42,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   final _usersKey = GlobalKey<UsersViewState>();
 
   int _selectedIndex = 0;
+
+  AuthUser? get _user => widget.user ?? SessionController.instance.user.value;
 
   Future<void> _logout() async {
     await _authService.logout();
@@ -90,7 +95,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           index: _selectedIndex,
           children: [
             HomeView(
-              adminName: widget.adminName,
+              user: _user,
               onAddPremise: () => _goToPremises(openCreateDialog: true),
               onSyncReasons: _syncReasonsFromHome,
               onOpenUsers: _goToUsers,
@@ -126,6 +131,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             surfaceTintColor: Colors.transparent,
             elevation: 0,
             actions: [
+              UserModule(user: _user, compact: true),
+              const SizedBox(width: 4),
               IconButton(
                 icon: const Icon(Icons.logout, color: darkText, size: AppDimens.iconSize),
                 tooltip: 'Cerrar sesión',

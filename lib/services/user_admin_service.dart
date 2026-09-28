@@ -80,6 +80,23 @@ class UserAdminService {
     }
   }
 
+  /// Cambia la contraseña de un responsable. Sin [password] el servidor genera
+  /// una nueva y la devuelve (solo se muestra una vez).
+  Future<String?> resetManagerPassword(int userId, {String? password}) async {
+    try {
+      final response = await _dio.put(
+        ApiRoutes.userPassword(userId),
+        data: {if (password != null && password.isNotEmpty) 'password': password},
+      );
+      return response.data['generated_password'] as String?;
+    } on DioException catch (e) {
+      throw ApiException.fromDio(
+        e,
+        fallback: 'No se pudo cambiar la contraseña.',
+      );
+    }
+  }
+
   /// Crea una cuenta de responsable de predio con usuario y contraseña propios.
   Future<CreatedManager> createPremiseManager({
     required String name,

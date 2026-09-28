@@ -245,7 +245,18 @@ class _CreateManagerDialogState extends State<CreateManagerDialog> {
 class ManagerCredentialsDialog extends StatelessWidget {
   final CreatedManager created;
 
-  const ManagerCredentialsDialog({super.key, required this.created});
+  /// Título del diálogo ("Cuenta creada" o "Contraseña actualizada").
+  final String title;
+
+  /// Texto bajo el título; por defecto indica el predio del responsable.
+  final String? message;
+
+  const ManagerCredentialsDialog({
+    super.key,
+    required this.created,
+    this.title = 'Cuenta creada',
+    this.message,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -267,18 +278,19 @@ class ManagerCredentialsDialog extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Row(
+              Row(
                 children: [
-                  Icon(Icons.check_circle_rounded, color: Colors.green, size: 28),
-                  SizedBox(width: 10),
+                  const Icon(Icons.check_circle_rounded, color: Colors.green, size: 28),
+                  const SizedBox(width: 10),
                   Expanded(
-                    child: Text('Cuenta creada', style: AppText.sectionTitle),
+                    child: Text(title, style: AppText.sectionTitle),
                   ),
                 ],
               ),
               const SizedBox(height: 8),
               Text(
-                '${created.user.name} es responsable de '
+                message ??
+                    '${created.user.name} es responsable de '
                 '${created.user.premise?.name ?? 'su predio'}.',
                 style: AppText.body,
               ),

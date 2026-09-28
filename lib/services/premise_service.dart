@@ -68,19 +68,55 @@ class PremiseService {
     }
   }
 
-  /// Crea un predio y, opcionalmente, le asigna motivos de salida por nombre
-  Future<Premise> createPremise(String name, List<String> reasonNames) async {
+  /// Crea un predio con su ubicación, responsable y motivos permitidos.
+  Future<Premise> createPremise({
+    required String name,
+    required double latitude,
+    required double longitude,
+    List<String> reasonNames = const [],
+    int? managerUserId,
+  }) async {
     try {
       final response = await _dio.post(
         ApiRoutes.premises,
         data: {
           'name': name,
+          'latitude': latitude,
+          'longitude': longitude,
           if (reasonNames.isNotEmpty) 'reasons': reasonNames,
+          'manager_user_id': ?managerUserId,
         },
       );
       return Premise.fromJson(response.data['data']);
     } on DioException catch (e) {
       throw ApiException.fromDio(e, fallback: 'Error al crear el predio.');
+    }
+  }
+
+  /// Actualiza en una sola petición nombre, ubicación, motivos y responsable
+  /// (`managerUserId` null deja el predio sin responsable).
+  Future<Premise> updatePremise(
+    int premiseId, {
+    required String name,
+    required double latitude,
+    required double longitude,
+    required List<String> reasonNames,
+    required int? managerUserId,
+  }) async {
+    try {
+      final response = await _dio.put(
+        ApiRoutes.premise(premiseId),
+        data: {
+          'name': name,
+          'latitude': latitude,
+          'longitude': longitude,
+          'reasons': reasonNames,
+          'manager_user_id': managerUserId,
+        },
+      );
+      return Premise.fromJson(response.data['data']);
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e, fallback: 'Error al guardar el predio.');
     }
   }
 

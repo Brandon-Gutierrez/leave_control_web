@@ -12,6 +12,7 @@ class ApiRoutes {
   static const String reasons = '/api/admin/reasons';
   static const String syncReasons = '/api/admin/reasons/sync';
 
+  static String premise(int premiseId) => '/api/admin/premises/$premiseId';
   static String premiseReasons(int premiseId) =>
       '/api/admin/premises/$premiseId/reasons';
 
@@ -24,6 +25,7 @@ class ApiRoutes {
   static String userRole(int userId) => '/api/admin/users/$userId/role';
 
   static String userPremise(int userId) => '/api/admin/users/$userId/premise';
+  static String userPassword(int userId) => '/api/admin/users/$userId/password';
 
   static const String premiseManagers = '/api/admin/users/premise-managers';
 }

@@ -209,10 +209,15 @@ class _QrPageState extends State<QrPage> {
                         ),
                         if (_qrToken != null) ...[
                           const SizedBox(width: 12),
-                          Text(
-                            'Se actualiza en: $_secondsRemaining s',
-                            style: AppText.cardTitle.copyWith(
-                              color: AppColors.darkText,
+                          Flexible(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                'Se actualiza en: $_secondsRemaining s',
+                                style: AppText.cardTitle.copyWith(
+                                  color: AppColors.darkText,
+                                ),
+                              ),
                             ),
                           ),
                         ],

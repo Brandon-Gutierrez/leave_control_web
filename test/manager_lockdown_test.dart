@@ -205,7 +205,7 @@ void main() {
       await _settle(tester);
 
       expect(find.byType(QrImageView), findsOneWidget);
-      expect(find.text('Predio Central'), findsWidgets);
+      expect(find.textContaining('Predio Central'), findsWidgets);
       // Nada de navegación ni de cierre de sesión.
       expect(find.byTooltip('Cerrar sesión'), findsNothing);
       expect(find.text('Cerrar sesión'), findsNothing);
