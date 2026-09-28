@@ -26,6 +26,13 @@ class ApiRoutes {
 
   static String userPremise(int userId) => '/api/admin/users/$userId/premise';
   static String userPassword(int userId) => '/api/admin/users/$userId/password';
+  static String userDeviceReset(int userId) =>
+      '/api/admin/users/$userId/device/reset';
+  static String userLeavePolicy(int userId) =>
+      '/api/admin/users/$userId/leave-policy';
 
   static const String premiseManagers = '/api/admin/users/premise-managers';
+
+  // Administración - configuración
+  static const String settingsQr = '/api/admin/settings/qr';
 }

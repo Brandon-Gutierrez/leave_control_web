@@ -97,6 +97,56 @@ class UserAdminService {
     }
   }
 
+  /// Obtiene el límite de salidas configurado para un empleado, o `null` si
+  /// no tiene ninguno configurado.
+  Future<LeavePolicy?> getLeavePolicy(int userId) async {
+    try {
+      final response = await _dio.get(ApiRoutes.userLeavePolicy(userId));
+      final data = response.data['data'];
+      return data is Map<String, dynamic>
+          ? LeavePolicy.fromJson(data)
+          : null;
+    } on DioException catch (e) {
+      throw ApiException.fromDio(
+        e,
+        fallback: 'No se pudo obtener el límite de salidas.',
+      );
+    }
+  }
+
+  /// Crea o actualiza el límite de salidas de un empleado.
+  Future<LeavePolicy> updateLeavePolicy(int userId, LeavePolicy policy) async {
+    try {
+      final response = await _dio.put(
+        ApiRoutes.userLeavePolicy(userId),
+        data: {
+          'period': policy.period,
+          'max_exits': policy.maxExits,
+          'max_exits_per_premise': policy.maxExitsPerPremise,
+        },
+      );
+      return LeavePolicy.fromJson(response.data['data']);
+    } on DioException catch (e) {
+      throw ApiException.fromDio(
+        e,
+        fallback: 'No se pudo guardar el límite de salidas.',
+      );
+    }
+  }
+
+  /// Desvincula el dispositivo anterior de un empleado y cierra su sesión
+  /// activa, para que pueda iniciar sesión desde un dispositivo nuevo.
+  Future<void> resetUserDevice(int userId) async {
+    try {
+      await _dio.post(ApiRoutes.userDeviceReset(userId));
+    } on DioException catch (e) {
+      throw ApiException.fromDio(
+        e,
+        fallback: 'No se pudo desvincular el dispositivo.',
+      );
+    }
+  }
+
   /// Crea una cuenta de responsable de predio con usuario y contraseña propios.
   Future<CreatedManager> createPremiseManager({
     required String name,

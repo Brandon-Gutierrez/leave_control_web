@@ -11,6 +11,7 @@ import '../widgets/filter_sidebar.dart';
 import 'manager_password_dialog.dart';
 import 'change_role_dialog.dart';
 import 'create_manager_dialog.dart';
+import 'leave_policy_dialog.dart';
 
 /// Sección "Usuarios" del panel de administración: busca usuarios, gestiona
 /// roles y asigna predios a los gestores, siempre con confirmación.
@@ -202,6 +203,99 @@ class UsersViewState extends State<UsersView> {
     );
     if (selection == null) return;
     await _changeUser(user, selection);
+  }
+
+  Future<void> _openDeviceResetDialog(ManagedUser user) async {
+    if (_updatingUserIds.contains(user.id)) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Desvincular dispositivo'),
+        content: Text(
+          'El dispositivo actual de ${user.name} dejará de funcionar y su '
+          'sesión activa se cerrará. Podrá iniciar sesión de nuevo desde '
+          'un dispositivo nuevo.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryRed,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Desvincular'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _updatingUserIds.add(user.id));
+    try {
+      await _userAdminService.resetUserDevice(user.id);
+      if (!mounted) return;
+      setState(() {
+        final index = _users.indexWhere((u) => u.id == user.id);
+        if (index != -1) {
+          _users[index] = _users[index].copyWith(deviceBoundAt: null);
+        }
+      });
+      _showSnackBar(
+        'Dispositivo de ${user.name} desvinculado. Ya puede entrar desde uno nuevo.',
+        Colors.green,
+      );
+    } on ApiException catch (e) {
+      if (e.isUnauthorized) {
+        widget.onUnauthorized();
+        return;
+      }
+      _showSnackBar(e.message, Colors.red);
+    } finally {
+      if (mounted) setState(() => _updatingUserIds.remove(user.id));
+    }
+  }
+
+  Future<void> _openLeavePolicyDialog(ManagedUser user) async {
+    if (_updatingUserIds.contains(user.id)) return;
+    setState(() => _updatingUserIds.add(user.id));
+    LeavePolicy? current;
+    try {
+      current = await _userAdminService.getLeavePolicy(user.id);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      if (e.isUnauthorized) {
+        widget.onUnauthorized();
+        return;
+      }
+      _showSnackBar(e.message, Colors.red);
+    } finally {
+      if (mounted) setState(() => _updatingUserIds.remove(user.id));
+    }
+    if (!mounted) return;
+
+    final selection = await showDialog<LeavePolicy>(
+      context: context,
+      builder: (context) => LeavePolicyDialog(userName: user.name, initial: current),
+    );
+    if (selection == null || !mounted) return;
+
+    setState(() => _updatingUserIds.add(user.id));
+    try {
+      await _userAdminService.updateLeavePolicy(user.id, selection);
+      _showSnackBar('Límite de salidas de ${user.name} actualizado', Colors.green);
+    } on ApiException catch (e) {
+      if (e.isUnauthorized) {
+        widget.onUnauthorized();
+        return;
+      }
+      _showSnackBar(e.message, Colors.red);
+    } finally {
+      if (mounted) setState(() => _updatingUserIds.remove(user.id));
+    }
   }
 
   Future<void> _openPasswordDialog(ManagedUser user) async {
@@ -508,6 +602,19 @@ class UsersViewState extends State<UsersView> {
                       overflow: TextOverflow.ellipsis,
                       style: AppText.caption,
                     ),
+                  if (user.isEmployee)
+                    Text(
+                      user.hasBoundDevice
+                          ? 'Dispositivo vinculado'
+                          : 'Sin dispositivo vinculado',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.caption.copyWith(
+                        color: user.hasBoundDevice
+                            ? Colors.grey.shade700
+                            : Colors.orange.shade900,
+                      ),
+                    ),
                 ],
               );
               final indicator = isUpdating
@@ -530,6 +637,24 @@ class UsersViewState extends State<UsersView> {
                             ),
                             tooltip: 'Cambiar o regenerar contraseña',
                             onPressed: () => _openPasswordDialog(user),
+                          ),
+                        if (user.isEmployee && user.hasBoundDevice)
+                          IconButton(
+                            icon: const Icon(
+                              Icons.phonelink_erase_rounded,
+                              color: darkText,
+                            ),
+                            tooltip: 'Desvincular dispositivo',
+                            onPressed: () => _openDeviceResetDialog(user),
+                          ),
+                        if (user.isEmployee)
+                          IconButton(
+                            icon: const Icon(
+                              Icons.rule_rounded,
+                              color: darkText,
+                            ),
+                            tooltip: 'Límite de salidas',
+                            onPressed: () => _openLeavePolicyDialog(user),
                           ),
                         _RoleBadge(label: roleLabel, isAdmin: isAdmin),
                       ],

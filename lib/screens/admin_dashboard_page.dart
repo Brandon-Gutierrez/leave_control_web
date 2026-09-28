@@ -9,6 +9,7 @@ import '../widgets/user_module.dart';
 import 'home_view.dart';
 import 'login_admin_page.dart';
 import 'premises_view.dart';
+import 'qr_settings_dialog.dart';
 import 'users_view.dart';
 
 /// Estructura (shell) del panel de administración: navegación entre las
@@ -85,6 +86,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     await _premisesKey.currentState?.syncReasons();
   }
 
+  Future<void> _openQrSettings() async {
+    await showDialog<bool>(
+      context: context,
+      builder: (context) => const QrSettingsDialog(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -133,6 +141,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             actions: [
               UserModule(user: _user, compact: true),
               const SizedBox(width: 4),
+              IconButton(
+                icon: const Icon(Icons.qr_code_2_rounded, color: darkText, size: AppDimens.iconSize),
+                tooltip: 'Tiempo de vida del QR',
+                onPressed: _openQrSettings,
+              ),
               IconButton(
                 icon: const Icon(Icons.logout, color: darkText, size: AppDimens.iconSize),
                 tooltip: 'Cerrar sesión',

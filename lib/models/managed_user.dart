@@ -34,6 +34,10 @@ class ManagedUser {
   /// Usuario de acceso (solo las cuentas locales de responsable lo tienen).
   final String? username;
 
+  /// Fecha en la que la cuenta quedó vinculada a un dispositivo (app móvil).
+  /// Null si nunca inició sesión o si administración desvinculó el anterior.
+  final DateTime? deviceBoundAt;
+
   ManagedUser({
     required this.id,
     required this.name,
@@ -41,10 +45,13 @@ class ManagedUser {
     this.role,
     this.premise,
     this.username,
+    this.deviceBoundAt,
   });
 
   bool get isAdmin => role?.name.toUpperCase() == 'ADMIN';
   bool get managesPremise => role?.name.toUpperCase() == kManagePremiseRole;
+  bool get isEmployee => role?.name.toUpperCase() == 'EMPLOYEE';
+  bool get hasBoundDevice => deviceBoundAt != null;
 
   factory ManagedUser.fromJson(Map<String, dynamic> json) {
     final roleJson = json['role'];
@@ -58,15 +65,61 @@ class ManagedUser {
           : null,
       premise: premiseJson is Map ? UserPremise.fromJson(premiseJson) : null,
       username: json['username'] as String?,
+      deviceBoundAt: json['device_bound_at'] != null
+          ? DateTime.tryParse(json['device_bound_at'].toString())
+          : null,
     );
   }
 
-  ManagedUser copyWith({AppRole? role, UserPremise? premise}) => ManagedUser(
+  ManagedUser copyWith({
+    AppRole? role,
+    UserPremise? premise,
+    Object? deviceBoundAt = _unset,
+  }) => ManagedUser(
     id: id,
     name: name,
     item: item,
     role: role ?? this.role,
     premise: premise ?? this.premise,
     username: username,
+    deviceBoundAt: deviceBoundAt == _unset
+        ? this.deviceBoundAt
+        : deviceBoundAt as DateTime?,
   );
+}
+
+const _unset = Object();
+
+/// Límite de salidas de un empleado: cuántas veces puede salir (en total y a
+/// un mismo predio) dentro del período elegido. `null` en un límite significa
+/// "sin tope".
+class LeavePolicy {
+  final String period;
+  final int? maxExits;
+  final int? maxExitsPerPremise;
+
+  const LeavePolicy({
+    required this.period,
+    this.maxExits,
+    this.maxExitsPerPremise,
+  });
+
+  bool get hasLimits => maxExits != null || maxExitsPerPremise != null;
+
+  static const List<String> periods = ['day', 'week', 'month'];
+
+  static String periodLabel(String period) => switch (period) {
+    'day' => 'Por día',
+    'week' => 'Por semana',
+    'month' => 'Por mes',
+    _ => period,
+  };
+
+  factory LeavePolicy.fromJson(Map<String, dynamic> json) => LeavePolicy(
+    period: (json['period'] ?? 'day').toString(),
+    maxExits: (json['max_exits'] as num?)?.toInt(),
+    maxExitsPerPremise: (json['max_exits_per_premise'] as num?)?.toInt(),
+  );
+
+  static const empty = LeavePolicy(period: 'day');
 }
