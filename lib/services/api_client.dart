@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import '../config/api_config.dart';
 import '../config/api_routes.dart';
 import 'platform/browser_http.dart';
+import 'platform/device_storage.dart';
 
 /// Error de API con un mensaje listo para mostrar al usuario.
 class ApiException implements Exception {
@@ -33,7 +34,12 @@ class ApiClient {
     dio = Dio(
       BaseOptions(
         baseUrl: ApiConfig.baseUrl,
-        headers: {'Accept': 'application/json'},
+        headers: {
+          'Accept': 'application/json',
+          // El backend decide qué roles entran según la aplicación: en la
+          // web, ADMIN y MANAGE_PREMISE (los empleados usan la app móvil).
+          'X-Client-Platform': 'web',
+        },
       ),
     );
 
@@ -42,6 +48,9 @@ class ApiClient {
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
+          // Cada cuenta queda vinculada a un único navegador: el servidor lo
+          // comprueba en todas las peticiones, no solo al iniciar sesión.
+          options.headers['DeviceId'] = readDeviceId();
           if (_requiresCsrf(options.method)) {
             var xsrfToken = readCookie('XSRF-TOKEN');
             if (xsrfToken == null) {

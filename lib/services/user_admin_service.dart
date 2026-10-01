@@ -134,11 +134,14 @@ class UserAdminService {
     }
   }
 
-  /// Desvincula el dispositivo anterior de un empleado y cierra su sesión
-  /// activa, para que pueda iniciar sesión desde un dispositivo nuevo.
-  Future<void> resetUserDevice(int userId) async {
+  /// Desvincula el dispositivo de una cuenta en [platform] y cierra su sesión
+  /// ahí, para que pueda iniciar sesión desde un dispositivo nuevo.
+  Future<void> resetUserDevice(int userId, ClientPlatform platform) async {
     try {
-      await _dio.post(ApiRoutes.userDeviceReset(userId));
+      await _dio.post(
+        ApiRoutes.userDeviceReset(userId),
+        data: {'platform': platform.apiValue},
+      );
     } on DioException catch (e) {
       throw ApiException.fromDio(
         e,

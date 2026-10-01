@@ -35,4 +35,6 @@ class ApiRoutes {
 
   // Administración - configuración
   static const String settingsQr = '/api/admin/settings/qr';
+  
 }
+

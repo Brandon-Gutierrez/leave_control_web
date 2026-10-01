@@ -34,9 +34,10 @@ class ManagedUser {
   /// Usuario de acceso (solo las cuentas locales de responsable lo tienen).
   final String? username;
 
-  /// Fecha en la que la cuenta quedó vinculada a un dispositivo (app móvil).
-  /// Null si nunca inició sesión o si administración desvinculó el anterior.
-  final DateTime? deviceBoundAt;
+  /// Dispositivo vinculado en cada aplicación ([ClientPlatform]) y desde
+  /// cuándo. Si una aplicación no aparece, la cuenta aún no tiene dispositivo
+  /// ahí (nunca entró, o administración desvinculó el anterior).
+  final Map<ClientPlatform, DateTime> devices;
 
   ManagedUser({
     required this.id,
@@ -45,17 +46,29 @@ class ManagedUser {
     this.role,
     this.premise,
     this.username,
-    this.deviceBoundAt,
+    this.devices = const {},
   });
 
   bool get isAdmin => role?.name.toUpperCase() == 'ADMIN';
   bool get managesPremise => role?.name.toUpperCase() == kManagePremiseRole;
   bool get isEmployee => role?.name.toUpperCase() == 'EMPLOYEE';
-  bool get hasBoundDevice => deviceBoundAt != null;
+
+  /// Aplicaciones que puede usar según su rol (mismas reglas que el servidor).
+  List<ClientPlatform> get platforms => [
+    if (isAdmin || managesPremise) ClientPlatform.web,
+    if (isAdmin || isEmployee) ClientPlatform.mobile,
+  ];
 
   factory ManagedUser.fromJson(Map<String, dynamic> json) {
     final roleJson = json['role'];
     final premiseJson = json['premise'];
+    final devices = <ClientPlatform, DateTime>{};
+    for (final device in (json['devices'] as List? ?? const [])) {
+      if (device is! Map) continue;
+      final platform = ClientPlatform.fromApi(device['platform']?.toString());
+      final boundAt = DateTime.tryParse('${device['bound_at']}');
+      if (platform != null && boundAt != null) devices[platform] = boundAt;
+    }
     return ManagedUser(
       id: json['user_id'] ?? 0,
       name: (json['name'] ?? '').toString().trim(),
@@ -65,16 +78,14 @@ class ManagedUser {
           : null,
       premise: premiseJson is Map ? UserPremise.fromJson(premiseJson) : null,
       username: json['username'] as String?,
-      deviceBoundAt: json['device_bound_at'] != null
-          ? DateTime.tryParse(json['device_bound_at'].toString())
-          : null,
+      devices: devices,
     );
   }
 
   ManagedUser copyWith({
     AppRole? role,
     UserPremise? premise,
-    Object? deviceBoundAt = _unset,
+    Map<ClientPlatform, DateTime>? devices,
   }) => ManagedUser(
     id: id,
     name: name,
@@ -82,13 +93,29 @@ class ManagedUser {
     role: role ?? this.role,
     premise: premise ?? this.premise,
     username: username,
-    deviceBoundAt: deviceBoundAt == _unset
-        ? this.deviceBoundAt
-        : deviceBoundAt as DateTime?,
+    devices: devices ?? this.devices,
   );
 }
 
-const _unset = Object();
+/// Aplicación desde la que se usa una cuenta; cada una tiene su propio
+/// dispositivo autorizado.
+enum ClientPlatform {
+  web('web', 'Panel web', 'navegador'),
+  mobile('mobile', 'App móvil', 'teléfono');
+
+  const ClientPlatform(this.apiValue, this.label, this.deviceNoun);
+
+  final String apiValue;
+  final String label;
+  final String deviceNoun;
+
+  static ClientPlatform? fromApi(String? value) {
+    for (final p in values) {
+      if (p.apiValue == value) return p;
+    }
+    return null;
+  }
+}
 
 /// Límite de salidas de un empleado: cuántas veces puede salir (en total y a
 /// un mismo predio) dentro del período elegido. `null` en un límite significa

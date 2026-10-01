@@ -11,6 +11,7 @@ import '../widgets/filter_sidebar.dart';
 import 'manager_password_dialog.dart';
 import 'change_role_dialog.dart';
 import 'create_manager_dialog.dart';
+import 'devices_dialog.dart';
 import 'leave_policy_dialog.dart';
 
 /// Sección "Usuarios" del panel de administración: busca usuarios, gestiona
@@ -205,16 +206,23 @@ class UsersViewState extends State<UsersView> {
     await _changeUser(user, selection);
   }
 
-  Future<void> _openDeviceResetDialog(ManagedUser user) async {
+  Future<void> _openDevicesDialog(ManagedUser user) async {
     if (_updatingUserIds.contains(user.id)) return;
+    final platform = await showDialog<ClientPlatform>(
+      context: context,
+      builder: (context) => DevicesDialog(user: user),
+    );
+    if (platform == null || !mounted) return;
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Desvincular dispositivo'),
+        title: Text('Desvincular ${platform.deviceNoun}'),
         content: Text(
-          'El dispositivo actual de ${user.name} dejará de funcionar y su '
-          'sesión activa se cerrará. Podrá iniciar sesión de nuevo desde '
-          'un dispositivo nuevo.',
+          'El ${platform.deviceNoun} actual de ${user.name} dejará de '
+          'funcionar en ${platform.label.toLowerCase()} y su sesión ahí se '
+          'cerrará. El próximo inicio de sesión quedará vinculado al nuevo '
+          '${platform.deviceNoun}.',
         ),
         actions: [
           TextButton(
@@ -236,16 +244,18 @@ class UsersViewState extends State<UsersView> {
 
     setState(() => _updatingUserIds.add(user.id));
     try {
-      await _userAdminService.resetUserDevice(user.id);
+      await _userAdminService.resetUserDevice(user.id, platform);
       if (!mounted) return;
       setState(() {
         final index = _users.indexWhere((u) => u.id == user.id);
         if (index != -1) {
-          _users[index] = _users[index].copyWith(deviceBoundAt: null);
+          final devices = Map.of(_users[index].devices)..remove(platform);
+          _users[index] = _users[index].copyWith(devices: devices);
         }
       });
       _showSnackBar(
-        'Dispositivo de ${user.name} desvinculado. Ya puede entrar desde uno nuevo.',
+        '${platform.label}: ${platform.deviceNoun} de ${user.name} '
+        'desvinculado. Ya puede entrar desde uno nuevo.',
         Colors.green,
       );
     } on ApiException catch (e) {
@@ -602,18 +612,17 @@ class UsersViewState extends State<UsersView> {
                       overflow: TextOverflow.ellipsis,
                       style: AppText.caption,
                     ),
-                  if (user.isEmployee)
+                  if (user.platforms.isNotEmpty)
                     Text(
-                      user.hasBoundDevice
-                          ? 'Dispositivo vinculado'
-                          : 'Sin dispositivo vinculado',
-                      maxLines: 1,
+                      user.platforms
+                          .map(
+                            (p) =>
+                                '${p.label}: ${user.devices.containsKey(p) ? 'vinculado' : 'sin vincular'}',
+                          )
+                          .join(' · '),
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: AppText.caption.copyWith(
-                        color: user.hasBoundDevice
-                            ? Colors.grey.shade700
-                            : Colors.orange.shade900,
-                      ),
+                      style: AppText.caption,
                     ),
                 ],
               );
@@ -638,14 +647,14 @@ class UsersViewState extends State<UsersView> {
                             tooltip: 'Cambiar o regenerar contraseña',
                             onPressed: () => _openPasswordDialog(user),
                           ),
-                        if (user.isEmployee && user.hasBoundDevice)
+                        if (user.platforms.isNotEmpty)
                           IconButton(
                             icon: const Icon(
-                              Icons.phonelink_erase_rounded,
+                              Icons.devices_rounded,
                               color: darkText,
                             ),
-                            tooltip: 'Desvincular dispositivo',
-                            onPressed: () => _openDeviceResetDialog(user),
+                            tooltip: 'Dispositivos',
+                            onPressed: () => _openDevicesDialog(user),
                           ),
                         if (user.isEmployee)
                           IconButton(
