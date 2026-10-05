@@ -20,23 +20,40 @@ class UserModule extends StatelessWidget {
     final cargo = user?.cargo ?? 'Administrador del sistema';
 
     if (compact) {
-      return Tooltip(
-        message: '$name · $cargo',
-        child: UserAvatar(photoUrl: user?.photoUrl, radius: 18),
+      return Row(
+        children: [
+          UserAvatar(photoUrl: user?.photoUrl, radius: 20),
+          const SizedBox(width: 10),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                ),
+                Text(
+                  cargo,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.caption.copyWith(fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+        ],
       );
     }
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppDimens.cardRadius),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
-          UserAvatar(photoUrl: user?.photoUrl, radius: 34),
-          const SizedBox(width: 16),
+          UserAvatar(photoUrl: user?.photoUrl, radius: 28),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -45,7 +62,7 @@ class UserModule extends StatelessWidget {
                   name,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: AppText.heading.copyWith(fontSize: 22),
+                  style: AppText.heading.copyWith(fontSize: 17),
                 ),
                 const SizedBox(height: 4),
                 Row(
@@ -68,6 +85,13 @@ class UserModule extends StatelessWidget {
                     ),
                   ],
                 ),
+                if (user?.jobTitle != null && user!.jobTitle!.isNotEmpty)
+                  Text(
+                    user!.jobTitle!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.caption.copyWith(fontSize: 13),
+                  ),
               ],
             ),
           ),
@@ -100,6 +124,9 @@ class UserAvatar extends StatelessWidget {
     return ClipOval(
       child: Image.network(
         url,
+        // La foto es de otro dominio sin CORS: en web se dibuja como <img> del
+        // navegador, que no lo exige.
+        webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
         width: radius * 2,
         height: radius * 2,
         fit: BoxFit.cover,

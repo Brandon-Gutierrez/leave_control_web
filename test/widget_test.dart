@@ -295,8 +295,10 @@ void main() {
 
       // Completa el nombre y confirma
       await tester.enterText(find.byType(TextFormField).first, 'Predio Demo');
+      await tester.ensureVisible(find.byType(FlutterMap));
+      await tester.pumpAndSettle();
       await tester.tapAt(
-        tester.getCenter(find.byType(FlutterMap)) + const Offset(40, 0),
+        tester.getTopLeft(find.byType(FlutterMap)) + const Offset(150, 80),
       );
       await tester.pump(const Duration(milliseconds: 600));
       await tester.tap(find.text('Crear predio'));
@@ -331,6 +333,7 @@ void main() {
       await tester.pumpWidget(const MaterialApp(home: AdminDashboardPage()));
       await tester.pumpAndSettle();
 
+      await tester.ensureVisible(find.text('Agregar un predio nuevo'));
       await tester.tap(find.text('Agregar un predio nuevo'));
       await tester.pumpAndSettle();
 
@@ -345,6 +348,7 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: AdminDashboardPage()));
     await tester.pumpAndSettle();
 
+    await tester.ensureVisible(find.text('Actualizar motivos de salida'));
     await tester.tap(find.text('Actualizar motivos de salida'));
     await tester.pumpAndSettle();
 
@@ -385,15 +389,15 @@ void main() {
 
     // El botón de guardar empieza deshabilitado hasta elegir un rol distinto
     final saveButtonFinder = find.widgetWithText(
-      ElevatedButton,
+      FilledButton,
       'Guardar cambio',
     );
-    expect(tester.widget<ElevatedButton>(saveButtonFinder).onPressed, isNull);
+    expect(tester.widget<FilledButton>(saveButtonFinder).onPressed, isNull);
 
     await tester.tap(adminOptionFinder);
     await tester.pumpAndSettle();
     expect(
-      tester.widget<ElevatedButton>(saveButtonFinder).onPressed,
+      tester.widget<FilledButton>(saveButtonFinder).onPressed,
       isNotNull,
     );
 

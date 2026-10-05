@@ -97,42 +97,6 @@ class UserAdminService {
     }
   }
 
-  /// Obtiene el límite de salidas configurado para un empleado, o `null` si
-  /// no tiene ninguno configurado.
-  Future<LeavePolicy?> getLeavePolicy(int userId) async {
-    try {
-      final response = await _dio.get(ApiRoutes.userLeavePolicy(userId));
-      final data = response.data['data'];
-      return data is Map<String, dynamic>
-          ? LeavePolicy.fromJson(data)
-          : null;
-    } on DioException catch (e) {
-      throw ApiException.fromDio(
-        e,
-        fallback: 'No se pudo obtener el límite de salidas.',
-      );
-    }
-  }
-
-  /// Crea o actualiza el límite de salidas de un empleado.
-  Future<LeavePolicy> updateLeavePolicy(int userId, LeavePolicy policy) async {
-    try {
-      final response = await _dio.put(
-        ApiRoutes.userLeavePolicy(userId),
-        data: {
-          'period': policy.period,
-          'max_exits': policy.maxExits,
-          'max_exits_per_premise': policy.maxExitsPerPremise,
-        },
-      );
-      return LeavePolicy.fromJson(response.data['data']);
-    } on DioException catch (e) {
-      throw ApiException.fromDio(
-        e,
-        fallback: 'No se pudo guardar el límite de salidas.',
-      );
-    }
-  }
 
   /// Desvincula el dispositivo de una cuenta en [platform] y cierra su sesión
   /// ahí, para que pueda iniciar sesión desde un dispositivo nuevo.

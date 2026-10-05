@@ -6,6 +6,9 @@ import '../services/api_client.dart';
 import '../services/user_admin_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
+import '../widgets/app_popup.dart';
+import '../widgets/app_modal.dart';
+import '../widgets/dialog_header.dart';
 
 /// Formulario para crear la cuenta de un responsable de predio: una persona que
 /// solo verá el código QR del predio que se le asigne aquí.
@@ -82,47 +85,27 @@ class _CreateManagerDialogState extends State<CreateManagerDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.sizeOf(context).width;
-    final dialogWidth = screenWidth < 480 ? screenWidth - 32 : 460.0;
-
-    return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppDimens.cardRadius),
-      ),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: dialogWidth,
-          maxHeight: MediaQuery.sizeOf(context).height * 0.9,
+    return AppModal(
+      tone: DialogTone.create,
+      icon: Icons.person_add_alt_1_rounded,
+      title: 'Nuevo responsable de predio',
+      subtitle: 'Solo verá el código QR de su predio y no podrá cerrar sesión',
+      actions: [
+        ModalButton(label: 'Cancelar', onPressed: _isSaving ? null : () => Navigator.pop(context)),
+        ModalButton(
+          label: 'Crear cuenta',
+          primary: true,
+          color: AppColors.success,
+          isLoading: _isSaving,
+          onPressed: _submit,
         ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
+      ],
+      child: Form(
+          key: _formKey,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Row(
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        'Nuevo responsable de predio',
-                        style: AppText.sectionTitle,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded),
-                      tooltip: 'Cerrar',
-                      onPressed: _isSaving ? null : () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
-                Text(
-                  'Solo podrá ver el código QR de su predio. No podrá cerrar '
-                  'sesión ni entrar a otras secciones.',
-                  style: AppText.caption,
-                ),
-                const SizedBox(height: 20),
                 TextFormField(
                   controller: _nameController,
                   textInputAction: TextInputAction.next,
@@ -202,39 +185,8 @@ class _CreateManagerDialogState extends State<CreateManagerDialog> {
                     ),
                   ),
                 ],
-                const SizedBox(height: 20),
-                SizedBox(
-                  height: AppDimens.buttonHeight,
-                  child: ElevatedButton(
-                    onPressed: _isSaving ? null : _submit,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryRed,
-                      foregroundColor: Colors.white,
-                    ),
-                    child: _isSaving
-                        ? const SizedBox(
-                            height: 22,
-                            width: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text('Crear cuenta'),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  height: AppDimens.smallButtonHeight,
-                  child: OutlinedButton(
-                    onPressed: _isSaving ? null : () => Navigator.pop(context),
-                    child: const Text('Cancelar'),
-                  ),
-                ),
               ],
             ),
-          ),
-        ),
       ),
     );
   }
@@ -262,65 +214,52 @@ class ManagerCredentialsDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final username = created.user.username ?? '';
     final password = created.generatedPassword;
-    final screenWidth = MediaQuery.sizeOf(context).width;
 
-    return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppDimens.cardRadius),
-      ),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: screenWidth < 480 ? screenWidth - 32 : 460,
+    return AppModal(
+      tone: DialogTone.create,
+      icon: Icons.check_circle_rounded,
+      title: title,
+      subtitle: message ??
+          '${created.user.name} es responsable de ${created.user.premise?.name ?? 'su predio'}.',
+      maxWidth: 480,
+      onClose: () => Navigator.pop(context),
+      actions: [
+        ModalButton(
+          label: password != null ? 'Ya la guardé' : 'Listo',
+          primary: true,
+          color: AppColors.success,
+          onPressed: () => Navigator.pop(context),
         ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
+      ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _CredentialRow(label: 'Usuario', value: username),
+          if (password != null) ...[
+            const SizedBox(height: 10),
+            _CredentialRow(label: 'Contraseña', value: password),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: const BoxDecoration(
+                color: AppColors.warningBg,
+                border: Border(left: BorderSide(color: AppColors.warning, width: 5)),
+              ),
+              child: const Row(
                 children: [
-                  const Icon(Icons.check_circle_rounded, color: Colors.green, size: 28),
-                  const SizedBox(width: 10),
+                  Icon(Icons.warning_rounded, color: AppColors.warning),
+                  SizedBox(width: 10),
                   Expanded(
-                    child: Text(title, style: AppText.sectionTitle),
+                    child: Text(
+                      'Guárdela ahora y entréguela de forma segura: por seguridad no se volverá a mostrar.',
+                      style: TextStyle(fontSize: 15),
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              Text(
-                message ??
-                    '${created.user.name} es responsable de '
-                '${created.user.premise?.name ?? 'su predio'}.',
-                style: AppText.body,
-              ),
-              const SizedBox(height: 16),
-              _CredentialRow(label: 'Usuario', value: username),
-              if (password != null) ...[
-                const SizedBox(height: 10),
-                _CredentialRow(label: 'Contraseña', value: password),
-                const SizedBox(height: 12),
-                Text(
-                  'Guárdela ahora y entréguela de forma segura: por seguridad '
-                  'no se volverá a mostrar.',
-                  style: AppText.caption.copyWith(color: AppColors.primaryRed),
-                ),
-              ],
-              const SizedBox(height: 20),
-              SizedBox(
-                height: AppDimens.buttonHeight,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryRed,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: Text(password != null ? 'Ya la guardé' : 'Listo'),
-                ),
-              ),
-            ],
-          ),
-        ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -361,9 +300,7 @@ class _CredentialRow extends StatelessWidget {
             onPressed: () async {
               await Clipboard.setData(ClipboardData(text: value));
               if (!context.mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('$label copiado')),
-              );
+              showAppPopup(context, '$label copiado');
             },
           ),
         ],

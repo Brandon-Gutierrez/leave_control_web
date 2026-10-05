@@ -28,8 +28,7 @@ class ApiRoutes {
   static String userPassword(int userId) => '/api/admin/users/$userId/password';
   static String userDeviceReset(int userId) =>
       '/api/admin/users/$userId/device/reset';
-  static String userLeavePolicy(int userId) =>
-      '/api/admin/users/$userId/leave-policy';
+  static const String settingsLeaveLimits = '/api/admin/settings/leave-limits';
 
   static const String premiseManagers = '/api/admin/users/premise-managers';
 

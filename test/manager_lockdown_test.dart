@@ -420,19 +420,19 @@ void main() {
       await tester.tap(find.text('Ana Pérez'));
       await _settle(tester);
 
-      final save = find.widgetWithText(ElevatedButton, 'Guardar cambio');
+      final save = find.widgetWithText(FilledButton, 'Guardar cambio');
       final dialog = find.byType(Dialog);
       await tester.tap(find.descendant(of: dialog, matching: find.text('Gestor de predio')));
       await _settle(tester);
 
       // Con el rol elegido pero sin predio no se puede guardar.
-      expect(tester.widget<ElevatedButton>(save).onPressed, isNull);
+      expect(tester.widget<FilledButton>(save).onPressed, isNull);
 
       await tester.tap(find.byType(DropdownButtonFormField<int>));
       await _settle(tester);
       await tester.tap(find.text('Predio Norte').last);
       await _settle(tester);
-      expect(tester.widget<ElevatedButton>(save).onPressed, isNotNull);
+      expect(tester.widget<FilledButton>(save).onPressed, isNotNull);
 
       await tester.tap(save);
       await _settle(tester);

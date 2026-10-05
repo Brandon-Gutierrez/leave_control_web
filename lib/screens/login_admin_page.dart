@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../models/auth_user.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/app_popup.dart';
 import 'admin_dashboard_page.dart';
 import '../session/session_controller.dart';
 
@@ -23,6 +25,7 @@ class _LoginAdminPageState extends State<LoginAdminPage> {
 
   bool _isLoading = false;
   bool _isPasswordObscured = true;
+  int _passwordFieldKey = 0;
 
   static const Color primaryRed = AppColors.primaryRed;
   static const Color darkText = Color(0xFF1A1A1A);
@@ -84,13 +87,18 @@ class _LoginAdminPageState extends State<LoginAdminPage> {
         );
       }
     } else {
-      // Tras un error se vacía la contraseña y se deja el cursor en ella para
-      // reintentar de inmediato.
-      _passwordController.clear();
-      _passwordFocus.requestFocus();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error), backgroundColor: primaryRed),
-      );
+      // El navegador deja el campo de contraseña "congelado" si se vacía por
+      // código tras un error: se reconstruye con una llave nueva (campo
+      // limpio y editable) y se cierra el contexto de autocompletado.
+      TextInput.finishAutofillContext(shouldSave: false);
+      setState(() {
+        _passwordFieldKey++;
+        _passwordController.text = '';
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _passwordFocus.requestFocus();
+      });
+      showAppPopup(context, error, kind: PopupKind.error);
     }
   }
 
@@ -189,6 +197,7 @@ class _LoginAdminPageState extends State<LoginAdminPage> {
 
                   // Campo Contraseña
                   TextFormField(
+                    key: ValueKey('password-$_passwordFieldKey'),
                     controller: _passwordController,
                     focusNode: _passwordFocus,
                     obscureText: _isPasswordObscured,

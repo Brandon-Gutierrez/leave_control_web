@@ -5,6 +5,7 @@ import '../services/api_client.dart';
 import '../services/premise_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
+import '../widgets/app_popup.dart';
 import '../widgets/filter_sidebar.dart';
 import 'premise_form_dialog.dart';
 
@@ -134,12 +135,10 @@ class PremisesViewState extends State<PremisesView> {
 
   void _showSnackBar(String message, Color color) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: color,
-        duration: const Duration(seconds: 2),
-      ),
+    showAppPopup(
+      context,
+      message,
+      kind: color == Colors.red ? PopupKind.error : PopupKind.success,
     );
   }
 
@@ -356,12 +355,22 @@ class PremisesViewState extends State<PremisesView> {
 
   Widget _buildPremiseCard(Premise predio) {
     final manager = predio.manager;
+    // El color de la franja resume el estado sin tener que leer nada.
+    final statusColor = !predio.hasLocation
+        ? AppColors.danger
+        : (manager == null || predio.reasonNames.isEmpty)
+        ? AppColors.warning
+        : AppColors.success;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(AppDimens.cardRadius),
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border(
+          left: BorderSide(color: statusColor, width: 6),
+          top: const BorderSide(color: AppColors.line),
+          right: const BorderSide(color: AppColors.line),
+          bottom: const BorderSide(color: AppColors.line),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -378,7 +387,7 @@ class PremisesViewState extends State<PremisesView> {
             manager == null
                 ? 'Sin responsable'
                 : 'Responsable: ${manager.name}',
-            muted: manager == null,
+            alert: manager == null ? AppColors.warning : null,
           ),
           const SizedBox(height: 6),
           _infoRow(
@@ -386,7 +395,7 @@ class PremisesViewState extends State<PremisesView> {
             predio.hasLocation
                 ? '${predio.latitude!.toStringAsFixed(5)}, ${predio.longitude!.toStringAsFixed(5)}'
                 : 'Sin ubicación: los escaneos no serán aceptados',
-            muted: !predio.hasLocation,
+            alert: predio.hasLocation ? null : AppColors.danger,
           ),
           const SizedBox(height: 6),
           _infoRow(
@@ -412,18 +421,19 @@ class PremisesViewState extends State<PremisesView> {
     );
   }
 
-  Widget _infoRow(IconData icon, String text, {bool muted = false}) {
+  Widget _infoRow(IconData icon, String text, {Color? alert}) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 18, color: muted ? Colors.grey.shade500 : darkText),
+        Icon(icon, size: 18, color: alert ?? darkText),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
             text,
             style: TextStyle(
               fontSize: 14,
-              color: muted ? Colors.grey.shade600 : darkText,
+              fontWeight: alert == null ? FontWeight.w400 : FontWeight.w700,
+              color: alert ?? darkText,
             ),
           ),
         ),

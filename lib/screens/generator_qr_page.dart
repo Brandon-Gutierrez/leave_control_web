@@ -49,6 +49,7 @@ class _QrPageState extends State<QrPage> {
   Timer? _timer;
   Timer? _retryTimer;
   int _secondsRemaining = 0;
+  int _totalSeconds = 0;
 
   bool get _isManager => !widget.showNavigation;
 
@@ -83,6 +84,7 @@ class _QrPageState extends State<QrPage> {
         _premiseName = qr.premiseName ?? _premiseName;
         _expiresAt = qr.expiresAt;
         _secondsRemaining = qr.ttl;
+        _totalSeconds = qr.ttl;
         _isLoading = false;
       });
       _startAutoRefreshTimer();
@@ -141,10 +143,19 @@ class _QrPageState extends State<QrPage> {
     });
   }
 
+  Color get _timeColor {
+    if (_totalSeconds <= 0) return AppColors.success;
+    final ratio = _secondsRemaining / _totalSeconds;
+    if (ratio > 0.5) return AppColors.success;
+    if (ratio > 0.2) return AppColors.warning;
+    return AppColors.danger;
+  }
+
+
   @override
   Widget build(BuildContext context) {
     final scaffold = Scaffold(
-      backgroundColor: AppColors.loginBg,
+      backgroundColor: Colors.white,
       appBar: widget.showNavigation
           ? AppBar(
               leading: IconButton(
@@ -154,120 +165,35 @@ class _QrPageState extends State<QrPage> {
               ),
               title: const Text('Código QR', style: AppText.sectionTitle),
               centerTitle: true,
-              backgroundColor: AppColors.lightBg,
+              backgroundColor: Colors.white,
               surfaceTintColor: Colors.transparent,
               elevation: 0,
+              shape: const Border(bottom: BorderSide(color: AppColors.line)),
             )
           : null,
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final qrSize = [
-              constraints.maxWidth - 64,
-              constraints.maxHeight - 182,
-            ].reduce((a, b) => a < b ? a : b).clamp(160.0, 900.0);
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth >= 900;
+          final name = _premiseName ?? widget.premise.name;
 
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-              child: Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 13,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.lightBg,
-                      borderRadius: BorderRadius.circular(AppDimens.cardRadius),
-                      border: Border.all(
-                        color: AppColors.qrBackground,
-                        width: 1.0,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Image.asset(
-                          'rsc/comteco.png',
-                          width: 44,
-                          height: 44,
-                          fit: BoxFit.contain,
-                          errorBuilder: (_, _, _) => const Icon(
-                            Icons.apartment_rounded,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'PREDIO: ${_premiseName ?? widget.premise.name}',
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppText.cardTitle.copyWith(
-                              color: AppColors.darkText,
-                            ),
-                          ),
-                        ),
-                        if (_qrToken != null) ...[
-                          const SizedBox(width: 12),
-                          Flexible(
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Text(
-                                'Se actualiza en: $_secondsRemaining s',
-                                style: AppText.cardTitle.copyWith(
-                                  color: AppColors.darkText,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: Center(
-                      child: _isLoading
-                          ? const CircularProgressIndicator(
-                              color: AppColors.primaryRed,
-                            )
-                          : _errorMessage != null
-                          ? _buildErrorState()
-                          : _qrToken == null
-                          ? const SizedBox.shrink()
-                          : Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(
-                                  AppDimens.cardRadius,
-                                ),
-                                border: Border.all(
-                                  color: AppColors.primaryRed,
-                                  width: 3,
-                                ),
-                                boxShadow: const [
-                                  BoxShadow(
-                                    color: Color(0x26000000),
-                                    blurRadius: 16,
-                                    offset: Offset(0, 8),
-                                  ),
-                                ],
-                              ),
-                              child: QrImageView(
-                                data: _qrToken!,
-                                version: QrVersions.auto,
-                                size: qrSize,
-                                backgroundColor: Colors.white,
-                              ),
-                            ),
-                    ),
-                  ),
-                ],
-              ),
+          if (wide) {
+            final panelWidth = (constraints.maxWidth * 0.36).clamp(380.0, 640.0);
+            return Row(
+              children: [
+                SizedBox(width: panelWidth, child: _buildBrandPanel(name, wide: true)),
+                Expanded(child: _buildQrArea(constraints, wide: true, panelWidth: panelWidth)),
+              ],
             );
-          },
-        ),
+          }
+          return SafeArea(
+            child: Column(
+              children: [
+                _buildBrandPanel(name, wide: false),
+                Expanded(child: _buildQrArea(constraints, wide: false, panelWidth: 0)),
+              ],
+            ),
+          );
+        },
       ),
     );
 
@@ -275,6 +201,165 @@ class _QrPageState extends State<QrPage> {
     return _isManager
         ? PopScope(canPop: false, child: scaffold)
         : scaffold;
+  }
+
+  /// Panel de marca: predio en grande, cómo usar el código y tiempo restante.
+  Widget _buildBrandPanel(String name, {required bool wide}) {
+    // En pantallas bajas (laptop) todo se compacta para que nada se corte.
+    final compact = MediaQuery.sizeOf(context).height < 860;
+    final progress = _totalSeconds > 0
+        ? (_secondsRemaining / _totalSeconds).clamp(0.0, 1.0)
+        : 0.0;
+    final pad = wide ? (compact ? 32.0 : 48.0) : 20.0;
+
+    const steps = [
+      'Abra la aplicación móvil',
+      'Toque «Registrar mi salida» o «mi retorno»',
+      'Apunte la cámara a este código',
+    ];
+
+    return Container(
+      color: AppColors.primaryRed,
+      padding: EdgeInsets.all(pad),
+      child: Column(
+        mainAxisSize: wide ? MainAxisSize.max : MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            color: Colors.white,
+            child: Image.asset(
+              'rsc/comteco.png',
+              height: wide ? 40 : 30,
+              fit: BoxFit.contain,
+              errorBuilder: (_, _, _) => const Icon(Icons.apartment_rounded),
+            ),
+          ),
+          SizedBox(height: wide ? (compact ? 28 : 48) : 14),
+          const Text(
+            'PREDIO',
+            style: TextStyle(
+              color: Colors.white70,
+              letterSpacing: 3,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            name,
+            maxLines: 4,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: wide ? (compact ? 42 : 56) : 30,
+              fontWeight: FontWeight.w900,
+              height: 1.05,
+              letterSpacing: -1,
+            ),
+          ),
+          if (wide) ...[
+            SizedBox(height: compact ? 24 : 40),
+            for (var i = 0; i < steps.length; i++)
+              Padding(
+                padding: EdgeInsets.only(bottom: compact ? 12 : 18),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      alignment: Alignment.center,
+                      color: Colors.white,
+                      child: Text(
+                        '${i + 1}',
+                        style: const TextStyle(
+                          color: AppColors.primaryRed,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text(
+                        steps[i],
+                        style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            const Spacer(),
+          ] else
+            const SizedBox(height: 14),
+          if (_qrToken != null) ...[
+            Row(
+              children: [
+                const Icon(Icons.timer_rounded, color: Colors.white, size: 30),
+                const SizedBox(width: 10),
+                Flexible(
+                  child: Text(
+                    'Se actualiza en: $_secondsRemaining s',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: wide ? 30 : 20,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            LinearProgressIndicator(
+              value: progress,
+              minHeight: wide ? 14 : 10,
+              color: Colors.white,
+              backgroundColor: Colors.white24,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQrArea(BoxConstraints constraints, {required bool wide, required double panelWidth}) {
+    final color = _timeColor;
+    final frame = wide ? 64.0 + 24 : 40.0 + 16;
+
+    return LayoutBuilder(builder: (context, box) {
+    final qrSize = [box.maxWidth - frame, box.maxHeight - frame]
+        .reduce((a, b) => a < b ? a : b)
+        .clamp(120.0, 1100.0);
+    return Container(
+      color: const Color(0xFFF4F4F4),
+      child: Center(
+        child: _isLoading
+            ? const CircularProgressIndicator(color: AppColors.primaryRed)
+            : _errorMessage != null
+            ? _buildErrorState()
+            : _qrToken == null
+            ? const SizedBox.shrink()
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(wide ? 20 : 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(color: color, width: wide ? 12 : 8),
+                    ),
+                    child: QrImageView(
+                      data: _qrToken!,
+                      version: QrVersions.auto,
+                      size: qrSize,
+                      backgroundColor: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
+    });
   }
 
   Widget _buildErrorState() {
@@ -286,7 +371,7 @@ class _QrPageState extends State<QrPage> {
           const SizedBox(height: 12),
           Text(
             _errorMessage!,
-            style: AppText.body.copyWith(color: Colors.red.shade700),
+            style: AppText.body.copyWith(color: AppColors.danger, fontWeight: FontWeight.w700),
             textAlign: TextAlign.center,
           ),
           if (_isManager) ...[

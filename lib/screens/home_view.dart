@@ -1,22 +1,24 @@
 import 'package:flutter/material.dart';
 
 import '../models/auth_user.dart';
+import '../models/managed_user.dart';
+import '../models/premise_model.dart';
 import '../services/api_client.dart';
 import '../services/premise_service.dart';
 import '../services/user_admin_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
-import '../widgets/user_module.dart';
 
-/// Sección "Inicio": un resumen simple y los tres accesos directos más
-/// usados, pensada como primera pantalla para alguien que recién entra al
-/// panel y no sabe bien por dónde empezar.
+/// Sección "Inicio": le dice a la persona qué falta resolver, con colores
+/// (rojo = urgente, ámbar = pendiente, azul = informativo, verde = todo bien)
+/// y un botón directo para resolverlo.
 class HomeView extends StatefulWidget {
   final AuthUser? user;
   final VoidCallback onAddPremise;
   final Future<void> Function() onSyncReasons;
   final VoidCallback onOpenUsers;
   final VoidCallback onUnauthorized;
+  final VoidCallback? onOpenPremises;
 
   /// Acceso directo para crear la cuenta de un responsable de predio.
   final VoidCallback? onAddManager;
@@ -28,6 +30,7 @@ class HomeView extends StatefulWidget {
     required this.onSyncReasons,
     required this.onOpenUsers,
     required this.onUnauthorized,
+    this.onOpenPremises,
     this.onAddManager,
   });
 
@@ -35,15 +38,28 @@ class HomeView extends StatefulWidget {
   State<HomeView> createState() => HomeViewState();
 }
 
+enum _Level { urgent, pending, info }
+
+class _Issue {
+  final _Level level;
+  final int count;
+  final String title;
+  final String help;
+  final String action;
+  final VoidCallback onTap;
+
+  const _Issue(this.level, this.count, this.title, this.help, this.action, this.onTap);
+}
+
 class HomeViewState extends State<HomeView> {
   final PremiseService _premiseService = PremiseService();
   final UserAdminService _userAdminService = UserAdminService();
 
   bool _isLoading = true;
+  bool _loadFailed = false;
   bool _isSyncing = false;
-  int _premiseCount = 0;
-  int _userCount = 0;
-  int _adminCount = 0;
+  List<Premise> _premises = [];
+  List<ManagedUser> _users = [];
 
   @override
   void initState() {
@@ -51,31 +67,29 @@ class HomeViewState extends State<HomeView> {
     _fetchSummary();
   }
 
-  /// Vuelve a calcular los números del resumen. Público para que se pueda
-  /// refrescar después de crear un predio o sincronizar motivos.
+  /// Vuelve a calcular el resumen. Público para refrescarlo desde fuera.
   Future<void> refresh() => _fetchSummary();
 
   Future<void> _fetchSummary() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _loadFailed = false;
+    });
     try {
       final results = await Future.wait([
         _premiseService.getPremisesWithReasons(),
         _userAdminService.getUsers(),
       ]);
       if (!mounted) return;
-      final users = results[1] as List;
       setState(() {
-        _premiseCount = (results[0] as List).length;
-        _userCount = users.length;
-        _adminCount = users
-            .cast<dynamic>()
-            .where((u) => (u.isAdmin as bool) == true)
-            .length;
+        _premises = results[0] as List<Premise>;
+        _users = results[1] as List<ManagedUser>;
       });
     } on ApiException catch (e) {
       if (e.isUnauthorized) widget.onUnauthorized();
+      if (mounted) setState(() => _loadFailed = true);
     } catch (_) {
-      // El resumen es informativo: si falla, simplemente se muestran guiones.
+      if (mounted) setState(() => _loadFailed = true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -90,12 +104,80 @@ class HomeViewState extends State<HomeView> {
     _fetchSummary();
   }
 
+  void _openPremises() => (widget.onOpenPremises ?? widget.onAddPremise).call();
+
+  List<_Issue> get _issues {
+    final noLocation = _premises.where((p) => !p.hasLocation).length;
+    final noManager = _premises.where((p) => p.manager == null).length;
+    final noReasons = _premises.where((p) => p.reasonNames.isEmpty).length;
+    final managersWithoutPremise =
+        _users.where((u) => u.managesPremise && u.premise == null).length;
+    final employeesUnbound = _users
+        .where((u) => u.isEmployee && !u.devices.containsKey(ClientPlatform.mobile))
+        .length;
+
+    return [
+      if (noLocation > 0)
+        _Issue(
+          _Level.urgent,
+          noLocation,
+          noLocation == 1 ? 'Predio sin ubicación en el mapa' : 'Predios sin ubicación en el mapa',
+          'Nadie puede registrar salidas ahí hasta que se marque su ubicación.',
+          'Marcar ubicación',
+          _openPremises,
+        ),
+      if (managersWithoutPremise > 0)
+        _Issue(
+          _Level.urgent,
+          managersWithoutPremise,
+          managersWithoutPremise == 1
+              ? 'Responsable sin predio asignado'
+              : 'Responsables sin predio asignado',
+          'No pueden iniciar sesión hasta que se les asigne un predio.',
+          'Asignar predio',
+          widget.onOpenUsers,
+        ),
+      if (noReasons > 0)
+        _Issue(
+          _Level.pending,
+          noReasons,
+          noReasons == 1 ? 'Predio sin motivos de salida' : 'Predios sin motivos de salida',
+          'Los empleados no tendrán opciones para elegir al salir.',
+          'Elegir motivos',
+          _openPremises,
+        ),
+      if (noManager > 0)
+        _Issue(
+          _Level.pending,
+          noManager,
+          noManager == 1 ? 'Predio sin responsable' : 'Predios sin responsable',
+          'Nadie podrá mostrar el código QR de ese predio.',
+          'Asignar responsable',
+          _openPremises,
+        ),
+      if (employeesUnbound > 0)
+        _Issue(
+          _Level.info,
+          employeesUnbound,
+          employeesUnbound == 1
+              ? 'Empleado que aún no usa la app'
+              : 'Empleados que aún no usan la app',
+          'Su teléfono se vincula solo la primera vez que inician sesión.',
+          'Ver usuarios',
+          widget.onOpenUsers,
+        ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        final horizontalPadding = width >= Breakpoints.tablet ? 32.0 : 16.0;
+        final wide = constraints.maxWidth >= 980;
+        final pad = constraints.maxWidth >= Breakpoints.tablet ? 32.0 : 16.0;
+
+        final attention = _buildAttention();
+        final actions = _buildActions();
 
         return RefreshIndicator(
           onRefresh: _fetchSummary,
@@ -103,57 +185,28 @@ class HomeViewState extends State<HomeView> {
           backgroundColor: AppColors.primaryRed,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 20),
+            padding: EdgeInsets.symmetric(horizontal: pad, vertical: 24),
             child: Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 900),
+                constraints: const BoxConstraints(maxWidth: 1100),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    UserModule(user: widget.user),
-                    /*const SizedBox(height: 6),
-                    Text(
-                      'Este es el resumen de hoy.',
-                      style: AppText.body.copyWith(color: Colors.grey.shade700),
-                    ),*/
-                    const SizedBox(height: 24),
-
-                    _buildStatsRow(width),
-                    const SizedBox(height: 32),
-
-                    const Text('¿Qué deseas hacer?', style: AppText.sectionTitle),
-                    const SizedBox(height: 14),
-
-                    _ActionRow(
-                      icon: Icons.add_business_rounded,
-                      title: 'Agregar un predio nuevo',
-                      subtitle: 'Registra una nueva sede o sucursal del sistema.',
-                      onTap: widget.onAddPremise,
-                    ),
-                    const SizedBox(height: 12),
-                    _ActionRow(
-                      icon: Icons.sync_rounded,
-                      title: 'Actualizar motivos de salida',
-                      subtitle: 'Trae los motivos más recientes desde el sistema.',
-                      onTap: _handleSync,
-                      isLoading: _isSyncing,
-                    ),
-                    const SizedBox(height: 12),
-                    _ActionRow(
-                      icon: Icons.people_alt_rounded,
-                      title: 'Administrar usuarios',
-                      subtitle: 'Otorga o quita permisos de administrador.',
-                      onTap: widget.onOpenUsers,
-                    ),
-                    if (widget.onAddManager != null) ...[
-                      const SizedBox(height: 12),
-                      _ActionRow(
-                        icon: Icons.person_add_alt_1_rounded,
-                        title: 'Crear un responsable de predio',
-                        subtitle:
-                            'Una cuenta que solo muestra el código QR de su predio.',
-                        onTap: widget.onAddManager!,
-                      ),
+                    _buildTotals(),
+                    const SizedBox(height: 28),
+                    if (wide)
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(flex: 3, child: attention),
+                          const SizedBox(width: 32),
+                          Expanded(flex: 2, child: actions),
+                        ],
+                      )
+                    else ...[
+                      attention,
+                      const SizedBox(height: 28),
+                      actions,
                     ],
                   ],
                 ),
@@ -165,174 +218,269 @@ class HomeViewState extends State<HomeView> {
     );
   }
 
-  Widget _buildStatsRow(double width) {
-    final isNarrow = width < 560;
-    final cards = [
-      _StatCard(
-        icon: Icons.apartment_rounded,
-        value: _premiseCount,
-        label: 'Predios registrados',
-        isLoading: _isLoading,
+  // Números en una franja simple separada por líneas, no en tarjetas.
+  Widget _buildTotals() {
+    final admins = _users.where((u) => u.isAdmin).length;
+    final narrow = MediaQuery.sizeOf(context).width < 640;
+    Widget item(IconData icon, int value, String label) => Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            if (!narrow) ...[
+              Icon(icon, size: 30, color: Colors.grey.shade700),
+              const SizedBox(width: 12),
+            ],
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _isLoading ? '–' : '$value',
+                    style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, height: 1),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(label, style: AppText.caption, maxLines: 2),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
-      _StatCard(
-        icon: Icons.groups_rounded,
-        value: _userCount,
-        label: 'Personas registradas',
-        isLoading: _isLoading,
-      ),
-      _StatCard(
-        icon: Icons.shield_rounded,
-        value: _adminCount,
-        label: 'Administradores',
-        isLoading: _isLoading,
-      ),
-    ];
+    );
 
-    if (isNarrow) {
-      return Column(
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
+      decoration: const BoxDecoration(
+        border: Border.symmetric(horizontal: BorderSide(color: AppColors.line)),
+      ),
+      child: Row(
         children: [
-          for (final card in cards) ...[
-            card,
-            if (card != cards.last) const SizedBox(height: 12),
+          item(Icons.apartment_rounded, _premises.length, 'Predios registrados'),
+          item(Icons.groups_rounded, _users.length, 'Personas registradas'),
+          item(Icons.shield_rounded, admins, 'Administradores'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAttention() {
+    final Widget body;
+    if (_isLoading && _premises.isEmpty && _users.isEmpty) {
+      body = const Padding(
+        padding: EdgeInsets.symmetric(vertical: 40),
+        child: Center(child: CircularProgressIndicator(color: AppColors.primaryRed)),
+      );
+    } else if (_loadFailed) {
+      body = _Banner(
+        color: AppColors.danger,
+        background: AppColors.dangerBg,
+        icon: Icons.cloud_off_rounded,
+        title: 'No se pudo cargar el resumen',
+        help: 'Revise su conexión e intente de nuevo.',
+        action: 'Reintentar',
+        onTap: _fetchSummary,
+      );
+    } else if (_issues.isEmpty) {
+      body = const _Banner(
+        color: AppColors.success,
+        background: AppColors.successBg,
+        icon: Icons.check_circle_rounded,
+        title: 'Todo está en orden',
+        help: 'Todos los predios tienen ubicación, motivos y responsable.',
+      );
+    } else {
+      body = Column(
+        children: [
+          for (final issue in _issues) ...[
+            _IssueRow(issue: issue),
+            const SizedBox(height: 10),
           ],
         ],
       );
     }
 
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final card in cards) ...[
-          Expanded(child: card),
-          if (card != cards.last) const SizedBox(width: 12),
-        ],
+        const Text('Requiere su atención', style: AppText.sectionTitle),
+        const SizedBox(height: 4),
+        Text('Lo más urgente aparece primero.', style: AppText.caption),
+        const SizedBox(height: 14),
+        body,
+      ],
+    );
+  }
+
+  Widget _buildActions() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text('Acciones rápidas', style: AppText.sectionTitle),
+        const SizedBox(height: 14),
+        _QuickAction(
+          icon: Icons.add_location_alt_rounded,
+          label: 'Agregar un predio nuevo',
+          onTap: widget.onAddPremise,
+        ),
+        if (widget.onAddManager != null)
+          _QuickAction(
+            icon: Icons.person_add_alt_1_rounded,
+            label: 'Crear responsable de predio',
+            onTap: widget.onAddManager!,
+          ),
+        _QuickAction(
+          icon: Icons.sync_rounded,
+          label: 'Actualizar motivos de salida',
+          onTap: _handleSync,
+          isLoading: _isSyncing,
+        ),
+        _QuickAction(
+          icon: Icons.people_alt_rounded,
+          label: 'Administrar usuarios',
+          onTap: widget.onOpenUsers,
+        ),
       ],
     );
   }
 }
 
-class _StatCard extends StatelessWidget {
-  final IconData icon;
-  final int value;
-  final String label;
-  final bool isLoading;
+class _IssueRow extends StatelessWidget {
+  final _Issue issue;
 
-  const _StatCard({
+  const _IssueRow({required this.issue});
+
+  @override
+  Widget build(BuildContext context) {
+    final (color, bg, icon) = switch (issue.level) {
+      _Level.urgent => (AppColors.danger, AppColors.dangerBg, Icons.error_rounded),
+      _Level.pending => (AppColors.warning, AppColors.warningBg, Icons.warning_rounded),
+      _Level.info => (AppColors.info, AppColors.infoBg, Icons.info_rounded),
+    };
+    return _Banner(
+      color: color,
+      background: bg,
+      icon: icon,
+      title: '${issue.count} · ${issue.title}',
+      help: issue.help,
+      action: issue.action,
+      onTap: issue.onTap,
+    );
+  }
+}
+
+/// Franja de color con ícono, mensaje y un botón de acción opcional.
+class _Banner extends StatelessWidget {
+  final Color color;
+  final Color background;
+  final IconData icon;
+  final String title;
+  final String help;
+  final String? action;
+  final VoidCallback? onTap;
+
+  const _Banner({
+    required this.color,
+    required this.background,
     required this.icon,
-    required this.value,
-    required this.label,
-    required this.isLoading,
+    required this.title,
+    required this.help,
+    this.action,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppDimens.cardRadius),
-        border: Border.all(color: Colors.grey.shade300),
+        color: background,
+        border: Border(left: BorderSide(color: color, width: 6)),
       ),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppColors.primaryRed.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: AppColors.primaryRed, size: 26),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, color: color, size: 30),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: color),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(help, style: AppText.body.copyWith(fontSize: 15)),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                isLoading
-                    ? const SizedBox(
-                        height: 22,
-                        width: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.primaryRed),
-                      )
-                    : Text(
-                        '$value',
-                        style: const TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.darkText,
-                        ),
-                      ),
-                const SizedBox(height: 2),
-                Text(label, style: AppText.caption),
-              ],
+          if (action != null) ...[
+            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.only(left: 42),
+              child: FilledButton(
+                onPressed: onTap,
+                style: FilledButton.styleFrom(
+                  backgroundColor: color,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(0, 44),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                ),
+                child: Text(action!),
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
   }
 }
 
-class _ActionRow extends StatelessWidget {
+class _QuickAction extends StatelessWidget {
   final IconData icon;
-  final String title;
-  final String subtitle;
+  final String label;
   final VoidCallback onTap;
   final bool isLoading;
 
-  const _ActionRow({
+  const _QuickAction({
     required this.icon,
-    required this.title,
-    required this.subtitle,
+    required this.label,
     required this.onTap,
     this.isLoading = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(AppDimens.cardRadius),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(AppDimens.cardRadius),
-        onTap: isLoading ? null : onTap,
-        child: Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppDimens.cardRadius),
-            border: Border.all(color: Colors.grey.shade300),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryRed.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: AppColors.primaryRed, size: 28),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: AppText.cardTitle.copyWith(fontSize: 18)),
-                    const SizedBox(height: 4),
-                    Text(subtitle, style: AppText.caption),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              if (isLoading)
-                const SizedBox(
-                  height: 24,
-                  width: 24,
-                  child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.primaryRed),
-                )
-              else
-                Icon(Icons.chevron_right_rounded, color: Colors.grey.shade400, size: 28),
-            ],
-          ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: OutlinedButton(
+        onPressed: isLoading ? null : onTap,
+        style: OutlinedButton.styleFrom(
+          alignment: Alignment.centerLeft,
+          minimumSize: const Size.fromHeight(54),
+          foregroundColor: AppColors.darkText,
+          side: const BorderSide(color: AppColors.line),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+        ),
+        child: Row(
+          children: [
+            isLoading
+                ? const SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.primaryRed),
+                  )
+                : Icon(icon, color: AppColors.primaryRed, size: 26),
+            const SizedBox(width: 14),
+            Expanded(child: Text(label, style: AppText.body.copyWith(fontWeight: FontWeight.w600))),
+          ],
         ),
       ),
     );

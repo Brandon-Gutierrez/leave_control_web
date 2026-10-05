@@ -7,12 +7,14 @@ import '../services/premise_service.dart';
 import '../services/user_admin_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
+import '../widgets/app_modal.dart';
+import '../widgets/app_popup.dart';
+import '../widgets/dialog_header.dart';
 import '../widgets/filter_sidebar.dart';
 import 'manager_password_dialog.dart';
 import 'change_role_dialog.dart';
 import 'create_manager_dialog.dart';
 import 'devices_dialog.dart';
-import 'leave_policy_dialog.dart';
 
 /// Sección "Usuarios" del panel de administración: busca usuarios, gestiona
 /// roles y asigna predios a los gestores, siempre con confirmación.
@@ -152,12 +154,10 @@ class UsersViewState extends State<UsersView> {
 
   void _showSnackBar(String message, Color color) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: color,
-        duration: const Duration(seconds: 2),
-      ),
+    showAppPopup(
+      context,
+      message,
+      kind: color == Colors.red ? PopupKind.error : PopupKind.success,
     );
   }
 
@@ -216,28 +216,28 @@ class UsersViewState extends State<UsersView> {
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Desvincular ${platform.deviceNoun}'),
-        content: Text(
+      builder: (context) => AppModal(
+        tone: DialogTone.danger,
+        icon: Icons.link_off_rounded,
+        title: 'Desvincular ${platform.deviceNoun}',
+        subtitle: user.name,
+        maxWidth: 460,
+        actions: [
+          ModalButton(label: 'Cancelar', onPressed: () => Navigator.pop(context, false)),
+          ModalButton(
+            label: 'Desvincular',
+            primary: true,
+            color: AppColors.danger,
+            onPressed: () => Navigator.pop(context, true),
+          ),
+        ],
+        child: Text(
           'El ${platform.deviceNoun} actual de ${user.name} dejará de '
           'funcionar en ${platform.label.toLowerCase()} y su sesión ahí se '
           'cerrará. El próximo inicio de sesión quedará vinculado al nuevo '
           '${platform.deviceNoun}.',
+          style: AppText.body,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryRed,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Desvincular'),
-          ),
-        ],
       ),
     );
     if (confirmed != true || !mounted) return;
@@ -258,45 +258,6 @@ class UsersViewState extends State<UsersView> {
         'desvinculado. Ya puede entrar desde uno nuevo.',
         Colors.green,
       );
-    } on ApiException catch (e) {
-      if (e.isUnauthorized) {
-        widget.onUnauthorized();
-        return;
-      }
-      _showSnackBar(e.message, Colors.red);
-    } finally {
-      if (mounted) setState(() => _updatingUserIds.remove(user.id));
-    }
-  }
-
-  Future<void> _openLeavePolicyDialog(ManagedUser user) async {
-    if (_updatingUserIds.contains(user.id)) return;
-    setState(() => _updatingUserIds.add(user.id));
-    LeavePolicy? current;
-    try {
-      current = await _userAdminService.getLeavePolicy(user.id);
-    } on ApiException catch (e) {
-      if (!mounted) return;
-      if (e.isUnauthorized) {
-        widget.onUnauthorized();
-        return;
-      }
-      _showSnackBar(e.message, Colors.red);
-    } finally {
-      if (mounted) setState(() => _updatingUserIds.remove(user.id));
-    }
-    if (!mounted) return;
-
-    final selection = await showDialog<LeavePolicy>(
-      context: context,
-      builder: (context) => LeavePolicyDialog(userName: user.name, initial: current),
-    );
-    if (selection == null || !mounted) return;
-
-    setState(() => _updatingUserIds.add(user.id));
-    try {
-      await _userAdminService.updateLeavePolicy(user.id, selection);
-      _showSnackBar('Límite de salidas de ${user.name} actualizado', Colors.green);
     } on ApiException catch (e) {
       if (e.isUnauthorized) {
         widget.onUnauthorized();
@@ -655,15 +616,6 @@ class UsersViewState extends State<UsersView> {
                             ),
                             tooltip: 'Dispositivos',
                             onPressed: () => _openDevicesDialog(user),
-                          ),
-                        if (user.isEmployee)
-                          IconButton(
-                            icon: const Icon(
-                              Icons.rule_rounded,
-                              color: darkText,
-                            ),
-                            tooltip: 'Límite de salidas',
-                            onPressed: () => _openLeavePolicyDialog(user),
                           ),
                         _RoleBadge(label: roleLabel, isAdmin: isAdmin),
                       ],

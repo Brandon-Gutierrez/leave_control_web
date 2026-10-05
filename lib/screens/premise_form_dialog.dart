@@ -8,6 +8,8 @@ import '../services/api_client.dart';
 import '../services/premise_service.dart';
 import '../services/user_admin_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/app_modal.dart';
+import '../widgets/dialog_header.dart';
 import '../widgets/location_picker.dart';
 
 /// Formulario para crear o editar un predio: nombre, ubicación en el mapa,
@@ -196,99 +198,63 @@ class _PremiseFormDialogState extends State<PremiseFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final screen = MediaQuery.sizeOf(context);
-    final width = screen.width < 640 ? screen.width - 24 : 620.0;
-
-    return Dialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: width,
-          maxHeight: screen.height * 0.92,
+    return AppModal(
+      tone: _isEditing ? DialogTone.configure : DialogTone.create,
+      icon: _isEditing ? Icons.edit_location_alt_rounded : Icons.add_location_alt_rounded,
+      title: _isEditing ? 'Editar predio' : 'Nuevo predio',
+      subtitle: _isEditing
+          ? widget.premise!.name
+          : 'Nombre, ubicación en el mapa, responsable y motivos',
+      maxWidth: 760,
+      onClose: _isSaving ? () {} : () => Navigator.pop(context, false),
+      actions: [
+        ModalButton(
+          label: 'Cancelar',
+          onPressed: _isSaving ? null : () => Navigator.pop(context, false),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
+        ModalButton(
+          label: _isEditing ? 'Guardar cambios' : 'Crear predio',
+          primary: true,
+          color: _isEditing ? AppColors.info : AppColors.success,
+          isLoading: _isSaving,
+          onPressed: (_isSaving || _isLoading || _loadError != null) ? null : _submit,
+        ),
+      ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (_isLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 48),
+              child: Center(child: CircularProgressIndicator(color: primaryRed)),
+            )
+          else if (_loadError != null)
+            _buildLoadError()
+          else
+            _buildForm(),
+          if (_submitError != null) ...[
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: const BoxDecoration(
+                color: AppColors.dangerBg,
+                border: Border(left: BorderSide(color: AppColors.danger, width: 5)),
+              ),
+              child: Row(
                 children: [
+                  const Icon(Icons.error_rounded, color: AppColors.danger),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      _isEditing ? 'Editar predio' : 'Nuevo predio',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: darkText,
-                      ),
+                      _submitError!,
+                      style: const TextStyle(color: AppColors.danger, fontWeight: FontWeight.w700),
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded, color: darkText),
-                    tooltip: 'Cerrar',
-                    onPressed: _isSaving
-                        ? null
-                        : () => Navigator.pop(context, false),
                   ),
                 ],
               ),
-              Flexible(
-                child: _isLoading
-                    ? const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 48),
-                        child: Center(
-                          child: CircularProgressIndicator(color: primaryRed),
-                        ),
-                      )
-                    : _loadError != null
-                    ? _buildLoadError()
-                    : _buildForm(),
-              ),
-              if (_submitError != null) ...[
-                const SizedBox(height: 10),
-                Text(
-                  _submitError!,
-                  style: const TextStyle(color: primaryRed, fontSize: 13),
-                ),
-              ],
-              const SizedBox(height: 14),
-              SizedBox(
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: (_isSaving || _isLoading || _loadError != null)
-                      ? null
-                      : _submit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryRed,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: _isSaving
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : Text(
-                          _isEditing ? 'Guardar cambios' : 'Crear predio',
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                ),
-              ),
-            ],
-          ),
-        ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -309,8 +275,7 @@ class _PremiseFormDialogState extends State<PremiseFormDialog> {
 
   Widget _buildForm() {
     final warning = _managerWarning;
-    return SingleChildScrollView(
-      child: Form(
+    return Form(
         key: _formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -376,7 +341,6 @@ class _PremiseFormDialogState extends State<PremiseFormDialog> {
             _sectionTitle('Motivos de salida permitidos'),
             _buildReasonsPicker(),
           ],
-        ),
       ),
     );
   }

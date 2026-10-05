@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../models/auth_user.dart' show kManagePremiseRole;
 import '../models/managed_user.dart';
 import '../theme/app_colors.dart';
+import '../widgets/app_modal.dart';
+import '../widgets/dialog_header.dart';
 import '../theme/app_text_styles.dart';
 
 /// Diálogo con opciones grandes y explicadas para cambiar el rol de un
@@ -73,126 +75,75 @@ class _ChangeRoleDialogState extends State<ChangeRoleDialog> {
         _selectedRoleId != widget.user.role?.id ||
         _selectedPremiseId != widget.user.premise?.id;
 
-    return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppDimens.cardRadius),
-      ),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: dialogWidth,
-          maxHeight: MediaQuery.sizeOf(context).height * 0.85,
+    void save() {
+      final role = widget.roles.firstWhere((r) => r.id == _selectedRoleId);
+      Navigator.pop(
+        context,
+        RoleChangeSelection(
+          role: role,
+          premiseId: isPremiseManager ? _selectedPremiseId : null,
         ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text('Cambiar rol', style: AppText.sectionTitle),
-                  ),
-                  IconButton(
-                    icon: const Icon(
-                      Icons.close_rounded,
-                      color: AppColors.darkText,
-                    ),
-                    tooltip: 'Cerrar',
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-              Text(
-                widget.user.name.isEmpty
-                    ? 'Usuario sin nombre'
-                    : widget.user.name,
-                style: TextStyle(fontSize: 16, color: Colors.grey.shade700),
-              ),
-              const SizedBox(height: 20),
+      );
+    }
 
-              for (final role in widget.roles) ...[
-                _RoleOption(
-                  title: _displayName(role),
-                  icon: _iconForRole(role),
-                  description: _describeRole(role),
-                  selected: _selectedRoleId == role.id,
-                  onTap: () => setState(() {
-                    _selectedRoleId = role.id;
-                    if (!_isPremiseManagerRole(role)) _selectedPremiseId = null;
-                  }),
-                ),
-                const SizedBox(height: 12),
-              ],
-              if (isPremiseManager) ...[
-                DropdownButtonFormField<int>(
-                  key: ValueKey(_selectedPremiseId),
-                  initialValue: _selectedPremiseId,
-                  decoration: const InputDecoration(
-                    labelText: 'Predio asignado',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: [
-                    for (final premise in widget.premises)
-                      DropdownMenuItem(
-                        value: premise.id,
-                        child: Text(premise.name),
-                      ),
-                  ],
-                  onChanged: (value) =>
-                      setState(() => _selectedPremiseId = value),
-                ),
-                if (widget.premises.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Text(
-                      'Todos los predios ya tienen responsable. Solo puede haber uno por predio: cámbielo desde Editar predio.',
-                      style: AppText.caption,
-                    ),
-                  ),
-                const SizedBox(height: 12),
-              ],
-              const SizedBox(height: 8),
-
-              SizedBox(
-                height: AppDimens.buttonHeight,
-                child: ElevatedButton(
-                  onPressed:
-                      hasChanged &&
-                          (!isPremiseManager || _selectedPremiseId != null)
-                      ? () {
-                          final role = widget.roles.firstWhere(
-                            (r) => r.id == _selectedRoleId,
-                          );
-                          Navigator.pop(
-                            context,
-                            RoleChangeSelection(
-                              role: role,
-                              premiseId: isPremiseManager
-                                  ? _selectedPremiseId
-                                  : null,
-                            ),
-                          );
-                        }
-                      : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryRed,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: const Text('Guardar cambio'),
-                ),
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                height: AppDimens.smallButtonHeight,
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancelar'),
-                ),
-              ),
-            ],
-          ),
+    return AppModal(
+      tone: DialogTone.caution,
+      icon: Icons.admin_panel_settings_rounded,
+      title: 'Cambiar rol',
+      subtitle: widget.user.name.isEmpty ? 'Usuario sin nombre' : widget.user.name,
+      maxWidth: dialogWidth,
+      actions: [
+        ModalButton(label: 'Cancelar', onPressed: () => Navigator.pop(context)),
+        ModalButton(
+          label: 'Guardar cambio',
+          primary: true,
+          color: AppColors.warning,
+          onPressed: hasChanged && (!isPremiseManager || _selectedPremiseId != null)
+              ? save
+              : null,
         ),
+      ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final role in widget.roles) ...[
+            _RoleOption(
+              title: _displayName(role),
+              icon: _iconForRole(role),
+              description: _describeRole(role),
+              selected: _selectedRoleId == role.id,
+              onTap: () => setState(() {
+                _selectedRoleId = role.id;
+                if (!_isPremiseManagerRole(role)) _selectedPremiseId = null;
+              }),
+            ),
+            const SizedBox(height: 10),
+          ],
+          if (isPremiseManager) ...[
+            const SizedBox(height: 4),
+            DropdownButtonFormField<int>(
+              key: ValueKey(_selectedPremiseId),
+              initialValue: _selectedPremiseId,
+              decoration: const InputDecoration(
+                labelText: 'Predio asignado',
+                border: OutlineInputBorder(),
+              ),
+              items: [
+                for (final premise in widget.premises)
+                  DropdownMenuItem(value: premise.id, child: Text(premise.name)),
+              ],
+              onChanged: (value) => setState(() => _selectedPremiseId = value),
+            ),
+            if (widget.premises.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  'Todos los predios ya tienen responsable. Solo puede haber uno por predio: cámbielo desde Editar predio.',
+                  style: AppText.caption,
+                ),
+              ),
+          ],
+        ],
       ),
     );
   }

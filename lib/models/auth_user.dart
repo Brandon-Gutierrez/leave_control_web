@@ -11,6 +11,9 @@ class AuthUser {
   /// Foto de perfil si el servidor la envía; null usa la imagen predeterminada.
   final String? photoUrl;
 
+  /// Cargo real de la persona según el sistema de RR.HH. (p. ej. Funcionario).
+  final String? jobTitle;
+
   AuthUser({
     required this.id,
     required this.name,
@@ -18,6 +21,7 @@ class AuthUser {
     this.roleName,
     this.premise,
     this.photoUrl,
+    this.jobTitle,
   });
 
   bool get isAdmin => roleName?.toUpperCase() == 'ADMIN';
@@ -49,6 +53,7 @@ class AuthUser {
       roleName: role is Map ? role['name'] as String? : null,
       premise: premise is Map ? AssignedPremise.fromJson(premise) : null,
       photoUrl: _photo(json['photo_url'] ?? json['photo'] ?? json['avatar']),
+      jobTitle: _photo(json['job_title']),
     );
   }
 }

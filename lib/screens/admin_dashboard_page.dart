@@ -9,12 +9,13 @@ import '../widgets/user_module.dart';
 import 'home_view.dart';
 import 'login_admin_page.dart';
 import 'premises_view.dart';
+import 'leave_limits_dialog.dart';
 import 'qr_settings_dialog.dart';
 import 'users_view.dart';
 
-/// Estructura (shell) del panel de administración: navegación entre las
-/// secciones "Inicio", "Predios" y "Usuarios", responsiva a teléfono, tablet
-/// y escritorio. Pensada para ser fácil de usar por cualquier persona.
+/// Estructura del panel: en pantallas anchas una barra lateral fija con la
+/// persona que inició sesión, las secciones y los ajustes; en teléfono, una
+/// barra superior con la persona y navegación abajo.
 class AdminDashboardPage extends StatefulWidget {
   /// Persona que inició sesión (módulo de usuario). Si no se indica se toma de
   /// la sesión compartida.
@@ -93,6 +94,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     );
   }
 
+  Future<void> _openLeaveLimits() async {
+    await showDialog<bool>(
+      context: context,
+      builder: (context) => const LeaveLimitsDialog(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -105,6 +113,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             HomeView(
               user: _user,
               onAddPremise: () => _goToPremises(openCreateDialog: true),
+              onOpenPremises: _goToPremises,
               onSyncReasons: _syncReasonsFromHome,
               onOpenUsers: _goToUsers,
               onAddManager: () => _goToUsers(openCreateManager: true),
@@ -115,98 +124,238 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           ],
         );
 
+        if (isWide) {
+          return Scaffold(
+            backgroundColor: lightBg,
+            body: Row(
+              children: [
+                _Sidebar(
+                  user: _user,
+                  selectedIndex: _selectedIndex,
+                  titles: _titles,
+                  icons: _destinationIcons,
+                  onSelect: _selectSection,
+                  onQrSettings: _openQrSettings,
+                  onLeaveLimits: _openLeaveLimits,
+                  onLogout: _logout,
+                ),
+                Expanded(
+                  child: Column(
+                    children: [
+                      _SectionHeader(title: _titles[_selectedIndex]),
+                      Expanded(child: content),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
         return Scaffold(
           backgroundColor: lightBg,
           appBar: AppBar(
-            leadingWidth: 64,
-            leading: Padding(
-              padding: const EdgeInsets.all(10),
-              child: Image.asset(
-                'rsc/comteco.png',
-                fit: BoxFit.contain,
-                errorBuilder: (_, _, _) => const Icon(
-                  Icons.business_rounded,
-                  color: darkText,
-                ),
-              ),
-            ),
-            title: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(_titles[_selectedIndex], style: AppText.sectionTitle),
-            ),
-            centerTitle: true,
-            backgroundColor: lightBg,
+            backgroundColor: Colors.white,
             surfaceTintColor: Colors.transparent,
             elevation: 0,
+            toolbarHeight: 64,
+            shape: const Border(bottom: BorderSide(color: AppColors.line)),
+            title: UserModule(user: _user, compact: true),
             actions: [
-              UserModule(user: _user, compact: true),
-              const SizedBox(width: 4),
+              IconButton(
+                icon: const Icon(Icons.rule_rounded, color: darkText, size: AppDimens.iconSize),
+                tooltip: 'Límite de salidas',
+                onPressed: _openLeaveLimits,
+              ),
               IconButton(
                 icon: const Icon(Icons.qr_code_2_rounded, color: darkText, size: AppDimens.iconSize),
                 tooltip: 'Tiempo de vida del QR',
                 onPressed: _openQrSettings,
               ),
               IconButton(
-                icon: const Icon(Icons.logout, color: darkText, size: AppDimens.iconSize),
+                icon: const Icon(Icons.logout, color: AppColors.danger, size: AppDimens.iconSize),
                 tooltip: 'Cerrar sesión',
                 onPressed: _logout,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 4),
             ],
           ),
-          body: SafeArea(
-            child: isWide
-                ? Row(
-                    children: [
-                      NavigationRail(
-                        selectedIndex: _selectedIndex,
-                        onDestinationSelected: _selectSection,
-                        backgroundColor: lightBg,
-                        labelType: NavigationRailLabelType.all,
-                        useIndicator: true,
-                        indicatorColor: primaryRed.withValues(alpha: 0.12),
-                        selectedIconTheme: const IconThemeData(color: primaryRed, size: 28),
-                        selectedLabelTextStyle: const TextStyle(
-                          color: primaryRed,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                        unselectedIconTheme: IconThemeData(color: Colors.grey.shade600, size: 26),
-                        unselectedLabelTextStyle: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-                        destinations: [
-                          for (var i = 0; i < _titles.length; i++)
-                            NavigationRailDestination(
-                              icon: Icon(_destinationIcons[i].$1),
-                              selectedIcon: Icon(_destinationIcons[i].$2),
-                              label: Text(_titles[i]),
-                            ),
-                        ],
-                      ),
-                      VerticalDivider(width: 1, color: Colors.grey.shade300),
-                      Expanded(child: content),
-                    ],
-                  )
-                : content,
-          ),
-          bottomNavigationBar: isWide
-              ? null
-              : NavigationBar(
-                  selectedIndex: _selectedIndex,
-                  onDestinationSelected: _selectSection,
-                  backgroundColor: Colors.white,
-                  indicatorColor: primaryRed.withValues(alpha: 0.12),
-                  height: 68,
-                  destinations: [
-                    for (var i = 0; i < _titles.length; i++)
-                      NavigationDestination(
-                        icon: Icon(_destinationIcons[i].$1),
-                        selectedIcon: Icon(_destinationIcons[i].$2, color: primaryRed),
-                        label: _titles[i],
-                      ),
-                  ],
+          body: SafeArea(child: content),
+          bottomNavigationBar: NavigationBar(
+            selectedIndex: _selectedIndex,
+            onDestinationSelected: _selectSection,
+            backgroundColor: Colors.white,
+            indicatorColor: primaryRed.withValues(alpha: 0.14),
+            height: 72,
+            destinations: [
+              for (var i = 0; i < _titles.length; i++)
+                NavigationDestination(
+                  icon: Icon(_destinationIcons[i].$1),
+                  selectedIcon: Icon(_destinationIcons[i].$2, color: primaryRed),
+                  label: _titles[i],
                 ),
+            ],
+          ),
         );
       },
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  final String title;
+
+  const _SectionHeader({required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 64,
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 32),
+      alignment: Alignment.centerLeft,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: AppColors.line)),
+      ),
+      child: Text(title, style: AppText.heading.copyWith(fontSize: 24)),
+    );
+  }
+}
+
+class _Sidebar extends StatelessWidget {
+  final AuthUser? user;
+  final int selectedIndex;
+  final List<String> titles;
+  final List<(IconData, IconData)> icons;
+  final ValueChanged<int> onSelect;
+  final VoidCallback onQrSettings;
+  final VoidCallback onLeaveLimits;
+  final VoidCallback onLogout;
+
+  const _Sidebar({
+    required this.user,
+    required this.selectedIndex,
+    required this.titles,
+    required this.icons,
+    required this.onSelect,
+    required this.onQrSettings,
+    required this.onLeaveLimits,
+    required this.onLogout,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 270,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(right: BorderSide(color: AppColors.line)),
+      ),
+      child: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+              child: Image.asset(
+                'rsc/comteco.png',
+                height: 38,
+                alignment: Alignment.centerLeft,
+                fit: BoxFit.contain,
+                errorBuilder: (_, _, _) => const Icon(Icons.business_rounded, color: AppColors.darkText),
+              ),
+            ),
+            UserModule(user: user),
+            const Divider(height: 28, color: AppColors.line),
+            for (var i = 0; i < titles.length; i++)
+              _NavItem(
+                icon: selectedIndex == i ? icons[i].$2 : icons[i].$1,
+                label: titles[i],
+                selected: selectedIndex == i,
+                onTap: () => onSelect(i),
+              ),
+            const Spacer(),
+            const Divider(height: 1, color: AppColors.line),
+            _NavItem(
+              icon: Icons.rule_rounded,
+              label: 'Límite de salidas',
+              selected: false,
+              onTap: onLeaveLimits,
+            ),
+            _NavItem(
+              icon: Icons.qr_code_2_rounded,
+              label: 'Tiempo de vida del QR',
+              selected: false,
+              onTap: onQrSettings,
+            ),
+            _NavItem(
+              icon: Icons.logout_rounded,
+              label: 'Cerrar sesión',
+              selected: false,
+              color: AppColors.danger,
+              onTap: onLogout,
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NavItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final Color? color;
+  final VoidCallback onTap;
+
+  const _NavItem({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = selected ? AppColors.primaryRed : (color ?? AppColors.darkText);
+    return Tooltip(
+      message: label,
+      child: InkWell(
+      onTap: onTap,
+      child: Container(
+        height: 54,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primaryRed.withValues(alpha: 0.08) : null,
+          border: Border(
+            left: BorderSide(
+              color: selected ? AppColors.primaryRed : Colors.transparent,
+              width: 5,
+            ),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: fg, size: 26),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                  color: fg,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      ),
     );
   }
 }

@@ -27,7 +27,8 @@ class SettingsService {
 
   SettingsService([ApiClient? apiClient]) : _apiClient = apiClient ?? ApiClient();
 
-  Dio get _dio => _apiClient.dio;
+  Dio get dio => _apiClient.dio;
+  Dio get _dio => dio;
 
   Future<QrSettings> getQrSettings() async {
     try {
@@ -49,6 +50,57 @@ class SettingsService {
         e,
         fallback: 'No se pudo actualizar el tiempo de vida del QR.',
       );
+    }
+  }
+}
+
+/// Límite de salidas general: se aplica igual a todas las personas.
+class LeaveLimits {
+  final String period;
+  final int? maxExits;
+  final int? maxExitsPerPremise;
+
+  const LeaveLimits({required this.period, this.maxExits, this.maxExitsPerPremise});
+
+  factory LeaveLimits.fromJson(Map<String, dynamic> json) => LeaveLimits(
+    period: (json['period'] ?? 'day').toString(),
+    maxExits: (json['max_exits'] as num?)?.toInt(),
+    maxExitsPerPremise: (json['max_exits_per_premise'] as num?)?.toInt(),
+  );
+
+  static const periods = ['day', 'week', 'month'];
+
+  static String periodLabel(String p) => switch (p) {
+    'day' => 'Cada día',
+    'week' => 'Cada semana',
+    'month' => 'Cada mes',
+    _ => p,
+  };
+}
+
+extension LeaveLimitsApi on SettingsService {
+  Future<LeaveLimits> getLeaveLimits() async {
+    try {
+      final r = await dio.get(ApiRoutes.settingsLeaveLimits);
+      return LeaveLimits.fromJson(r.data['data']);
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e, fallback: 'No se pudo obtener el límite de salidas.');
+    }
+  }
+
+  Future<LeaveLimits> updateLeaveLimits(LeaveLimits limits) async {
+    try {
+      final r = await dio.put(
+        ApiRoutes.settingsLeaveLimits,
+        data: {
+          'period': limits.period,
+          'max_exits': limits.maxExits,
+          'max_exits_per_premise': limits.maxExitsPerPremise,
+        },
+      );
+      return LeaveLimits.fromJson(r.data['data']);
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e, fallback: 'No se pudo guardar el límite de salidas.');
     }
   }
 }
