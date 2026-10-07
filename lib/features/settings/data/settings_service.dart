@@ -1,39 +1,20 @@
 import 'package:dio/dio.dart';
 
-import '../config/api_routes.dart';
-import 'api_client.dart';
-
-/// Representa esta entidad.
-class QrSettings {
-  final int ttlSeconds;
-  final int minSeconds;
-  final int maxSeconds;
-
-  /// Ejecuta la tarea.
-  const QrSettings({
-    required this.ttlSeconds,
-    required this.minSeconds,
-    required this.maxSeconds,
-  });
-
-  /// Ejecuta la tarea.
-  factory QrSettings.fromJson(Map<String, dynamic> json) => QrSettings(
-    ttlSeconds: (json['qr_ttl_seconds'] as num?)?.toInt() ?? 300,
-    minSeconds: (json['qr_ttl_seconds_min'] as num?)?.toInt() ?? 30,
-    maxSeconds: (json['qr_ttl_seconds_max'] as num?)?.toInt() ?? 3600,
-  );
-}
+import '../../../core/config/api_routes.dart';
+import '../../../core/network/api_client.dart';
+import '../../../core/network/api_exception.dart';
+import '../models/leave_limits.dart';
+import '../models/qr_settings.dart';
 
 /// Configuración global del sistema editable desde el panel de administración.
 class SettingsService {
   final ApiClient _apiClient;
 
-  SettingsService([ApiClient? apiClient]) : _apiClient = apiClient ?? ApiClient();
+  SettingsService([ApiClient? apiClient])
+    : _apiClient = apiClient ?? ApiClient();
 
-  Dio get dio => _apiClient.dio;
-  Dio get _dio => dio;
+  Dio get _dio => _apiClient.dio;
 
-  /// Ejecuta la tarea.
   Future<QrSettings> getQrSettings() async {
     try {
       final response = await _dio.get(ApiRoutes.settingsQr);
@@ -46,10 +27,12 @@ class SettingsService {
     }
   }
 
-  /// Ejecuta la tarea.
   Future<void> updateQrTtl(int ttlSeconds) async {
     try {
-      await _dio.put(ApiRoutes.settingsQr, data: {'qr_ttl_seconds': ttlSeconds});
+      await _dio.put(
+        ApiRoutes.settingsQr,
+        data: {'qr_ttl_seconds': ttlSeconds},
+      );
     } on DioException catch (e) {
       throw ApiException.fromDio(
         e,
@@ -57,51 +40,22 @@ class SettingsService {
       );
     }
   }
-}
 
-/// Límite de salidas general: se aplica igual a todas las personas.
-class LeaveLimits {
-  final String period;
-  final int? maxExits;
-  final int? maxExitsPerPremise;
-
-  /// Ejecuta la tarea.
-  const LeaveLimits({required this.period, this.maxExits, this.maxExitsPerPremise});
-
-  /// Ejecuta la tarea.
-  factory LeaveLimits.fromJson(Map<String, dynamic> json) => LeaveLimits(
-    period: (json['period'] ?? 'day').toString(),
-    maxExits: (json['max_exits'] as num?)?.toInt(),
-    maxExitsPerPremise: (json['max_exits_per_premise'] as num?)?.toInt(),
-  );
-
-  static const periods = ['day', 'week', 'month'];
-
-  /// Ejecuta la tarea.
-  static String periodLabel(String p) => switch (p) {
-    'day' => 'Cada día',
-    'week' => 'Cada semana',
-    'month' => 'Cada mes',
-    _ => p,
-  };
-}
-
-/// Representa esta entidad.
-extension LeaveLimitsApi on SettingsService {
-  /// Ejecuta la tarea.
   Future<LeaveLimits> getLeaveLimits() async {
     try {
-      final r = await dio.get(ApiRoutes.settingsLeaveLimits);
-      return LeaveLimits.fromJson(r.data['data']);
+      final response = await _dio.get(ApiRoutes.settingsLeaveLimits);
+      return LeaveLimits.fromJson(response.data['data']);
     } on DioException catch (e) {
-      throw ApiException.fromDio(e, fallback: 'No se pudo obtener el límite de salidas.');
+      throw ApiException.fromDio(
+        e,
+        fallback: 'No se pudo obtener el límite de salidas.',
+      );
     }
   }
 
-  /// Ejecuta la tarea.
   Future<LeaveLimits> updateLeaveLimits(LeaveLimits limits) async {
     try {
-      final r = await dio.put(
+      final response = await _dio.put(
         ApiRoutes.settingsLeaveLimits,
         data: {
           'period': limits.period,
@@ -109,9 +63,12 @@ extension LeaveLimitsApi on SettingsService {
           'max_exits_per_premise': limits.maxExitsPerPremise,
         },
       );
-      return LeaveLimits.fromJson(r.data['data']);
+      return LeaveLimits.fromJson(response.data['data']);
     } on DioException catch (e) {
-      throw ApiException.fromDio(e, fallback: 'No se pudo guardar el límite de salidas.');
+      throw ApiException.fromDio(
+        e,
+        fallback: 'No se pudo guardar el límite de salidas.',
+      );
     }
   }
 }

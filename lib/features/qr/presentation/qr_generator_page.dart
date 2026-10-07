@@ -3,30 +3,30 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
-import '../models/premise_model.dart';
-import '../services/api_client.dart';
-import '../services/premise_service.dart';
-import '../session/session_controller.dart';
-import '../theme/app_colors.dart';
-import '../theme/app_text_styles.dart';
-import 'login_admin_page.dart';
+import '../../../core/network/api_exception.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_text_styles.dart';
+import '../../auth/presentation/admin_login_page.dart';
+import '../../auth/state/session_controller.dart';
+import '../../premises/models/premise.dart';
+import '../data/qr_service.dart';
 
 /// Pantalla con el código QR de un predio.
 ///
 /// Dos modos:
-///  * Administrador ([QrPage.new]): se llega desde el panel y se puede volver.
-///  * Responsable de predio ([QrPage.forPremiseManager]): es la única pantalla
+///  * Administrador ([QrGeneratorPage.new]): se llega desde el panel y se puede volver.
+///  * Responsable de predio ([QrGeneratorPage.forPremiseManager]): es la única pantalla
 ///    de su cuenta. No tiene botón de volver ni de cerrar sesión, no reacciona
 ///    al botón "atrás" y el QR siempre es el del predio asignado en el servidor.
-class QrPage extends StatefulWidget {
+class QrGeneratorPage extends StatefulWidget {
   final Premise premise;
   final bool showNavigation;
 
   /// Crea la pantalla QR para administración.
-  const QrPage({super.key, required this.premise}) : showNavigation = true;
+  const QrGeneratorPage({super.key, required this.premise}) : showNavigation = true;
 
   /// Crea la pantalla QR para el responsable del predio.
-  QrPage.forPremiseManager({
+  QrGeneratorPage.forPremiseManager({
     super.key,
     required int premiseId,
     required String premiseName,
@@ -35,15 +35,15 @@ class QrPage extends StatefulWidget {
 
   /// Crea el estado de la pantalla QR.
   @override
-  State<QrPage> createState() => _QrPageState();
+  State<QrGeneratorPage> createState() => _QrGeneratorPageState();
 }
 
 /// Gestiona la carga, caducidad y presentación del QR.
-class _QrPageState extends State<QrPage> {
+class _QrGeneratorPageState extends State<QrGeneratorPage> {
   /// Cada cuánto se reintenta sola la pantalla del responsable si falla.
   static const Duration _managerRetryDelay = Duration(seconds: 10);
 
-  final PremiseService _premiseService = PremiseService();
+  final QrService _qrService = QrService();
 
   String? _qrToken;
   String? _premiseName;
@@ -84,7 +84,7 @@ class _QrPageState extends State<QrPage> {
     });
 
     try {
-      final qr = await _premiseService.createQrToken();
+      final qr = await _qrService.createQrToken();
       if (!mounted) return;
       setState(() {
         _qrToken = qr.token;
@@ -123,7 +123,7 @@ class _QrPageState extends State<QrPage> {
       return;
     }
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LoginAdminPage()),
+      MaterialPageRoute(builder: (_) => const AdminLoginPage()),
       (_) => false,
     );
   }

@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/network/api_exception.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/app_modal.dart';
+import '../../../core/widgets/app_popup.dart';
+import '../../../core/widgets/dialog_tone.dart';
+import '../data/user_admin_service.dart';
 import '../models/managed_user.dart';
-import '../services/api_client.dart';
-import '../services/user_admin_service.dart';
-import '../theme/app_colors.dart';
-import '../theme/app_text_styles.dart';
-import '../widgets/app_popup.dart';
-import '../widgets/app_modal.dart';
-import '../widgets/dialog_header.dart';
 
 /// Formulario para crear la cuenta de un responsable de predio: una persona que
 /// solo verá el código QR del predio que se le asigne aquí.
@@ -17,15 +17,12 @@ class CreateManagerDialog extends StatefulWidget {
   final List<UserPremise> premises;
   final UserAdminService? service;
 
-  /// Ejecuta la tarea.
   const CreateManagerDialog({super.key, required this.premises, this.service});
 
-  /// Crea el estado del widget.
   @override
   State<CreateManagerDialog> createState() => _CreateManagerDialogState();
 }
 
-/// Representa esta entidad.
 class _CreateManagerDialogState extends State<CreateManagerDialog> {
   static final RegExp _usernamePattern = RegExp(r'^[A-Za-z0-9_-]+$');
 
@@ -40,7 +37,6 @@ class _CreateManagerDialogState extends State<CreateManagerDialog> {
   bool _obscure = true;
   String? _submitError;
 
-  /// Libera los recursos.
   @override
   void dispose() {
     _nameController.dispose();
@@ -49,7 +45,6 @@ class _CreateManagerDialogState extends State<CreateManagerDialog> {
     super.dispose();
   }
 
-  /// Ejecuta la tarea.
   Future<void> _submit() async {
     if (_isSaving || !_formKey.currentState!.validate()) return;
     setState(() {
@@ -74,7 +69,6 @@ class _CreateManagerDialogState extends State<CreateManagerDialog> {
     }
   }
 
-  /// Ejecuta la tarea.
   InputDecoration _decoration(String label, {String? helper, Widget? suffix}) {
     return InputDecoration(
       labelText: label,
@@ -89,7 +83,6 @@ class _CreateManagerDialogState extends State<CreateManagerDialog> {
     );
   }
 
-  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     return AppModal(
@@ -210,7 +203,6 @@ class ManagerCredentialsDialog extends StatelessWidget {
   /// Texto bajo el título; por defecto indica el predio del responsable.
   final String? message;
 
-  /// Ejecuta la tarea.
   const ManagerCredentialsDialog({
     super.key,
     required this.created,
@@ -218,7 +210,6 @@ class ManagerCredentialsDialog extends StatelessWidget {
     this.message,
   });
 
-  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     final username = created.user.username ?? '';
@@ -274,15 +265,12 @@ class ManagerCredentialsDialog extends StatelessWidget {
   }
 }
 
-/// Representa esta entidad.
 class _CredentialRow extends StatelessWidget {
   final String label;
   final String value;
 
-  /// Ejecuta la tarea.
   const _CredentialRow({required this.label, required this.value});
 
-  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     return Container(

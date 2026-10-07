@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 
-/// Define los valores posibles.
 enum PopupKind { success, error, warning }
 
 /// Aviso flotante único de la app (éxito, error o advertencia). Se cierra
@@ -15,7 +14,6 @@ void showAppPopup(BuildContext context, String message, {PopupKind kind = PopupK
   if (overlay == null) return;
   late OverlayEntry entry;
 
-  /// Ejecuta la tarea.
   void remove() {
     if (entry.mounted) entry.remove();
   }
@@ -26,45 +24,33 @@ void showAppPopup(BuildContext context, String message, {PopupKind kind = PopupK
   overlay.insert(entry);
 }
 
-/// Ejecuta la tarea.
-void showSuccessPopup(BuildContext c, String m) => showAppPopup(c, m);
-/// Ejecuta la tarea.
-void showErrorPopup(BuildContext c, String m) => showAppPopup(c, m, kind: PopupKind.error);
-
-/// Representa esta entidad.
 class _PopupCard extends StatefulWidget {
   final String message;
   final PopupKind kind;
   final VoidCallback onClose;
 
-  /// Ejecuta la tarea.
   const _PopupCard({required this.message, required this.kind, required this.onClose});
 
-  /// Crea el estado del widget.
   @override
   State<_PopupCard> createState() => _PopupCardState();
 }
 
-/// Representa esta entidad.
 class _PopupCardState extends State<_PopupCard> {
-  // El temporizador vive con la tarjeta: se cancela solo si la pantalla se cierra.
-  late final Timer _timer = Timer(const Duration(seconds: 7), widget.onClose);
+  late final Timer _timer;
 
-  /// Inicializa el estado.
   @override
   void initState() {
     super.initState();
-    _timer;
+    // El temporizador vive con la tarjeta: se cancela si la pantalla se cierra.
+    _timer = Timer(const Duration(seconds: 7), widget.onClose);
   }
 
-  /// Libera los recursos.
   @override
   void dispose() {
     _timer.cancel();
     super.dispose();
   }
 
-  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     final message = widget.message;

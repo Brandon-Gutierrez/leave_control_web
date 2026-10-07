@@ -1,25 +1,23 @@
 import 'package:flutter/material.dart';
 
-import '../models/auth_user.dart';
-import '../theme/app_colors.dart';
-import '../theme/app_text_styles.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_text_styles.dart';
+import '../../auth/models/auth_user.dart';
 
-/// Módulo de usuario: foto, nombre y cargo de quien inició sesión. Si la
+/// Módulo de usuario: foto, nombre y roleTitle de quien inició sesión. Si la
 /// persona no tiene foto se muestra una imagen predeterminada.
-class UserModule extends StatelessWidget {
+class UserProfileHeader extends StatelessWidget {
   final AuthUser? user;
 
   /// Versión pequeña (solo foto) para la barra superior.
   final bool compact;
 
-  /// Ejecuta la tarea.
-  const UserModule({super.key, required this.user, this.compact = false});
+  const UserProfileHeader({super.key, required this.user, this.compact = false});
 
-  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     final name = (user?.name.isNotEmpty ?? false) ? user!.name : 'Usuario';
-    final cargo = user?.cargo ?? 'Administrador del sistema';
+    final roleTitle = user?.roleTitle ?? 'Administrador del sistema';
 
     if (compact) {
       return Row(
@@ -38,7 +36,7 @@ class UserModule extends StatelessWidget {
                   style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
                 ),
                 Text(
-                  cargo,
+                  roleTitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppText.caption.copyWith(fontSize: 13),
@@ -77,7 +75,7 @@ class UserModule extends StatelessWidget {
                     const SizedBox(width: 6),
                     Flexible(
                       child: Text(
-                        cargo,
+                        roleTitle,
                         overflow: TextOverflow.ellipsis,
                         style: AppText.body.copyWith(
                           color: Colors.grey.shade700,
@@ -108,10 +106,8 @@ class UserAvatar extends StatelessWidget {
   final String? photoUrl;
   final double radius;
 
-  /// Ejecuta la tarea.
   const UserAvatar({super.key, required this.photoUrl, required this.radius});
 
-  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     final fallback = CircleAvatar(

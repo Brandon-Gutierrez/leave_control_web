@@ -2,38 +2,12 @@ import 'package:dio/dio.dart';
 
 import '../config/api_config.dart';
 import '../config/api_routes.dart';
-import 'platform/browser_http.dart';
-import 'platform/device_storage.dart';
-
-/// Error de API con un mensaje listo para mostrar al usuario.
-class ApiException implements Exception {
-  final int? statusCode;
-  final String message;
-
-  /// Ejecuta la tarea.
-  ApiException(this.message, {this.statusCode});
-
-  bool get isUnauthorized => statusCode == 401;
-
-  /// Ejecuta la tarea.
-  factory ApiException.fromDio(DioException e, {String? fallback}) {
-    final data = e.response?.data;
-    final serverMessage = data is Map ? data['message'] as String? : null;
-    return ApiException(
-      serverMessage ?? fallback ?? 'Error de conexión con el servidor.',
-      statusCode: e.response?.statusCode,
-    );
-  }
-
-  /// Devuelve la representaci?n en texto.
-  @override
-  String toString() => message;
-}
+import '../platform/browser_http.dart';
+import '../platform/device_storage.dart';
 
 /// Cliente HTTP único para la app web. Usa las cookies del navegador
 /// (sesión de Laravel Sanctum) y envía el encabezado X-XSRF-TOKEN.
 class ApiClient {
-  /// Ejecuta la tarea.
   ApiClient._internal() {
     dio = Dio(
       BaseOptions(
@@ -73,7 +47,6 @@ class ApiClient {
 
   static final ApiClient _instance = ApiClient._internal();
 
-  /// Ejecuta la tarea.
   factory ApiClient() => _instance;
 
   late final Dio dio;
@@ -85,7 +58,6 @@ class ApiClient {
     await csrfDio.get(ApiRoutes.csrfCookie);
   }
 
-  /// Ejecuta la tarea.
   bool _requiresCsrf(String method) {
     final m = method.toUpperCase();
     return m != 'GET' && m != 'HEAD' && m != 'OPTIONS';

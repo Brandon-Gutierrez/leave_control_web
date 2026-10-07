@@ -1,29 +1,11 @@
 import 'package:dio/dio.dart';
 
-import '../config/api_routes.dart';
-import '../models/premise_model.dart';
-import 'api_client.dart';
+import '../../../core/config/api_routes.dart';
+import '../../../core/network/api_client.dart';
+import '../../../core/network/api_exception.dart';
+import '../models/premise.dart';
+import '../models/reason.dart';
 
-/// Representa esta entidad.
-class QrToken {
-  final String token;
-  final int ttl;
-  final DateTime expiresAt;
-
-  /// Nombre del predio con el que el servidor generó el QR (puede cambiar si
-  /// administración reasigna al responsable).
-  final String? premiseName;
-
-  /// Ejecuta la tarea.
-  QrToken({
-    required this.token,
-    required this.ttl,
-    required this.expiresAt,
-    this.premiseName,
-  });
-}
-
-/// Representa esta entidad.
 class PremiseService {
   final ApiClient _apiClient;
 
@@ -51,23 +33,6 @@ class PremiseService {
       return reasonsList.map((reason) => Reason.fromJson(reason)).toList();
     } on DioException catch (e) {
       throw ApiException.fromDio(e, fallback: 'Error al obtener motivos.');
-    }
-  }
-
-  /// Genera un token para el predio del usuario autenticado.
-  Future<QrToken> createQrToken() async {
-    try {
-      final response = await _dio.post(ApiRoutes.managerQrToken);
-      return QrToken(
-        token: response.data['token'] as String,
-        ttl: (response.data['TTL'] as num?)?.toInt() ?? 0,
-        expiresAt: DateTime.parse(response.data['expires_at'] as String),
-        premiseName: (response.data['premise'] is Map)
-            ? (response.data['premise']['name'] as String?)
-            : null,
-      );
-    } on DioException catch (e) {
-      throw ApiException.fromDio(e, fallback: 'Error al generar el QR.');
     }
   }
 
@@ -120,24 +85,6 @@ class PremiseService {
       return Premise.fromJson(response.data['data']);
     } on DioException catch (e) {
       throw ApiException.fromDio(e, fallback: 'Error al guardar el predio.');
-    }
-  }
-
-  /// Reemplaza los motivos de salida asignados a un predio.
-  Future<void> updatePremiseReasons(
-    int premiseId,
-    List<String> reasonNames,
-  ) async {
-    try {
-      await _dio.put(
-        ApiRoutes.premiseReasons(premiseId),
-        data: {'reasons': reasonNames},
-      );
-    } on DioException catch (e) {
-      throw ApiException.fromDio(
-        e,
-        fallback: 'Error al actualizar los motivos del predio.',
-      );
     }
   }
 

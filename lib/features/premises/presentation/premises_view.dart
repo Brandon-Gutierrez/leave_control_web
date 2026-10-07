@@ -1,33 +1,32 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
-import '../models/premise_model.dart';
-import '../services/api_client.dart';
-import '../services/premise_service.dart';
-import '../theme/app_colors.dart';
-import '../theme/app_text_styles.dart';
-import '../widgets/app_popup.dart';
-import '../widgets/filter_sidebar.dart';
+import '../../../core/network/api_exception.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/app_popup.dart';
+import '../../../core/widgets/filter_sidebar.dart';
+import '../data/premise_service.dart';
+import '../models/premise.dart';
+import '../models/reason.dart';
 import 'premise_form_dialog.dart';
 
 /// Sección "Predios" del panel de administración: búsqueda, listado con sus
 /// motivos permitidos y creación y edición de predios (nombre, mapa, responsable y motivos).
 /// Estado de un filtro que distingue "tiene / no tiene".
-enum _Presence { any, with_, without }
+enum _Presence { any, present, absent }
 
-/// Representa esta entidad.
 class PremisesView extends StatefulWidget {
   /// Se llama cuando el token de sesión ya no es válido (401).
   final VoidCallback onUnauthorized;
 
-  /// Ejecuta la tarea.
   const PremisesView({super.key, required this.onUnauthorized});
 
-  /// Crea el estado del widget.
   @override
   State<PremisesView> createState() => PremisesViewState();
 }
 
-/// Representa esta entidad.
 class PremisesViewState extends State<PremisesView> {
   // Paleta de colores unificada
   static const primaryRed = AppColors.primaryRed;
@@ -40,7 +39,7 @@ class PremisesViewState extends State<PremisesView> {
   final PremiseService _premiseService = PremiseService();
 
   List<Reason> _allReasons = [];
-  List<Premise> _prediosList = [];
+  List<Premise> _premises = [];
   String _searchQuery = '';
   _Presence _managerFilter = _Presence.any;
   _Presence _locationFilter = _Presence.any;
@@ -48,14 +47,12 @@ class PremisesViewState extends State<PremisesView> {
   bool _isLoading = true;
   bool _isSyncing = false;
 
-  /// Inicializa el estado.
   @override
   void initState() {
     super.initState();
     _fetchData();
   }
 
-  /// Libera los recursos.
   @override
   void dispose() {
     _searchController.dispose();
@@ -74,24 +71,22 @@ class PremisesViewState extends State<PremisesView> {
   /// resultado y refresca los datos. Público para que "Inicio" lo use.
   Future<void> syncReasons() => _syncReasons();
 
-  int get premiseCount => _prediosList.length;
-
-  List<Premise> get _filteredPredios {
+  List<Premise> get _filteredPremises {
     final query = _searchQuery.toLowerCase().trim();
-    return _prediosList.where((p) {
+    return _premises.where((p) {
       if (query.isNotEmpty && !p.name.toLowerCase().contains(query)) {
         return false;
       }
-      if (_managerFilter == _Presence.with_ && p.manager == null) return false;
-      if (_managerFilter == _Presence.without && p.manager != null) {
+      if (_managerFilter == _Presence.present && p.manager == null) return false;
+      if (_managerFilter == _Presence.absent && p.manager != null) {
         return false;
       }
-      if (_locationFilter == _Presence.with_ && !p.hasLocation) return false;
-      if (_locationFilter == _Presence.without && p.hasLocation) return false;
-      if (_reasonsFilter == _Presence.with_ && p.reasonNames.isEmpty) {
+      if (_locationFilter == _Presence.present && !p.hasLocation) return false;
+      if (_locationFilter == _Presence.absent && p.hasLocation) return false;
+      if (_reasonsFilter == _Presence.present && p.reasonNames.isEmpty) {
         return false;
       }
-      if (_reasonsFilter == _Presence.without && p.reasonNames.isNotEmpty) {
+      if (_reasonsFilter == _Presence.absent && p.reasonNames.isNotEmpty) {
         return false;
       }
       return true;
@@ -106,7 +101,6 @@ class PremisesViewState extends State<PremisesView> {
       ].where((f) => f != _Presence.any).length +
       (_searchQuery.trim().isEmpty ? 0 : 1);
 
-  /// Ejecuta la tarea.
   void _clearFilters() => setState(() {
     _managerFilter = _Presence.any;
     _locationFilter = _Presence.any;
@@ -115,7 +109,6 @@ class PremisesViewState extends State<PremisesView> {
     _searchController.clear();
   });
 
-  /// Ejecuta la tarea.
   Future<void> _fetchData() async {
     setState(() => _isLoading = true);
     try {
@@ -125,7 +118,7 @@ class PremisesViewState extends State<PremisesView> {
       ]);
       if (!mounted) return;
       setState(() {
-        _prediosList = results[0] as List<Premise>;
+        _premises = results[0] as List<Premise>;
         _allReasons = results[1] as List<Reason>;
       });
     } on ApiException catch (e) {
@@ -141,7 +134,6 @@ class PremisesViewState extends State<PremisesView> {
     }
   }
 
-  /// Ejecuta la tarea.
   void _showSnackBar(String message, Color color) {
     if (!mounted) return;
     showAppPopup(
@@ -151,7 +143,6 @@ class PremisesViewState extends State<PremisesView> {
     );
   }
 
-  /// Ejecuta la tarea.
   Future<void> _openCreatePremiseDialog() async {
     final created = await showDialog<bool>(
       context: context,
@@ -159,11 +150,10 @@ class PremisesViewState extends State<PremisesView> {
     );
     if (created == true) {
       _showSnackBar('Predio creado correctamente', Colors.green);
-      _fetchData();
+      unawaited(_fetchData());
     }
   }
 
-  /// Ejecuta la tarea.
   Future<void> _syncReasons() async {
     if (_isSyncing) return;
     setState(() => _isSyncing = true);
@@ -182,7 +172,6 @@ class PremisesViewState extends State<PremisesView> {
     }
   }
 
-  /// Ejecuta la tarea.
   Future<void> _editPremise(Premise premise) async {
     final updated = await showDialog<bool>(
       context: context,
@@ -194,7 +183,6 @@ class PremisesViewState extends State<PremisesView> {
     }
   }
 
-  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -211,8 +199,8 @@ class PremisesViewState extends State<PremisesView> {
           value: _managerFilter,
           options: const {
             _Presence.any: 'Todos',
-            _Presence.with_: 'Con responsable',
-            _Presence.without: 'Sin responsable',
+            _Presence.present: 'Con responsable',
+            _Presence.absent: 'Sin responsable',
           },
           onChanged: (v) => setState(() => _managerFilter = v),
         ),
@@ -221,8 +209,8 @@ class PremisesViewState extends State<PremisesView> {
           value: _locationFilter,
           options: const {
             _Presence.any: 'Todos',
-            _Presence.with_: 'Con ubicación',
-            _Presence.without: 'Sin ubicación',
+            _Presence.present: 'Con ubicación',
+            _Presence.absent: 'Sin ubicación',
           },
           onChanged: (v) => setState(() => _locationFilter = v),
         ),
@@ -231,8 +219,8 @@ class PremisesViewState extends State<PremisesView> {
           value: _reasonsFilter,
           options: const {
             _Presence.any: 'Todos',
-            _Presence.with_: 'Con motivos',
-            _Presence.without: 'Sin motivos',
+            _Presence.present: 'Con motivos',
+            _Presence.absent: 'Sin motivos',
           },
           onChanged: (v) => setState(() => _reasonsFilter = v),
         ),
@@ -241,9 +229,8 @@ class PremisesViewState extends State<PremisesView> {
     );
   }
 
-  /// Ejecuta la tarea.
   Widget _buildContent() {
-    final predios = _filteredPredios;
+    final visiblePremises = _filteredPremises;
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
@@ -267,7 +254,7 @@ class PremisesViewState extends State<PremisesView> {
                 children: [
                   Expanded(
                     child: Text(
-                      '${predios.length} de ${_prediosList.length} predios',
+                      '${visiblePremises.length} de ${_premises.length} predios',
                       style: AppText.caption,
                     ),
                   ),
@@ -282,7 +269,7 @@ class PremisesViewState extends State<PremisesView> {
               ),
               const SizedBox(height: 12),
               Expanded(
-                child: predios.isEmpty
+                child: visiblePremises.isEmpty
                     ? Center(
                         child: Text(
                           'No se encontraron predios con esos filtros.',
@@ -295,7 +282,7 @@ class PremisesViewState extends State<PremisesView> {
                         onRefresh: _fetchData,
                         color: Colors.white,
                         backgroundColor: primaryRed,
-                        child: _buildGrid(columns, predios),
+                        child: _buildGrid(columns, visiblePremises),
                       ),
               ),
             ],
@@ -305,7 +292,6 @@ class PremisesViewState extends State<PremisesView> {
     );
   }
 
-  /// Ejecuta la tarea.
   Widget _buildAddButton() {
     return SizedBox(
       height: AppDimens.smallButtonHeight,
@@ -321,7 +307,6 @@ class PremisesViewState extends State<PremisesView> {
     );
   }
 
-  /// Ejecuta la tarea.
   Widget _buildSearchField() {
     return TextField(
       controller: _searchController,
@@ -348,8 +333,7 @@ class PremisesViewState extends State<PremisesView> {
   }
 
   // Cuadrícula de tarjetas: cada fila reparte el ancho en partes iguales.
-  /// Ejecuta la tarea.
-  Widget _buildGrid(int columns, List<Premise> predios) {
+  Widget _buildGrid(int columns, List<Premise> premises) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final cardWidth =
@@ -361,8 +345,8 @@ class PremisesViewState extends State<PremisesView> {
             spacing: _gap,
             runSpacing: _gap,
             children: [
-              for (final predio in predios)
-                SizedBox(width: cardWidth, child: _buildPremiseCard(predio)),
+              for (final premise in premises)
+                SizedBox(width: cardWidth, child: _buildPremiseCard(premise)),
             ],
           ),
         );
@@ -370,13 +354,12 @@ class PremisesViewState extends State<PremisesView> {
     );
   }
 
-  /// Ejecuta la tarea.
-  Widget _buildPremiseCard(Premise predio) {
-    final manager = predio.manager;
+  Widget _buildPremiseCard(Premise premise) {
+    final manager = premise.manager;
     // El color de la franja resume el estado sin tener que leer nada.
-    final statusColor = !predio.hasLocation
+    final statusColor = !premise.hasLocation
         ? AppColors.danger
-        : (manager == null || predio.reasonNames.isEmpty)
+        : (manager == null || premise.reasonNames.isEmpty)
         ? AppColors.warning
         : AppColors.success;
     return Container(
@@ -394,7 +377,7 @@ class PremisesViewState extends State<PremisesView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            predio.name,
+            premise.name,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: AppText.cardTitle,
@@ -410,21 +393,21 @@ class PremisesViewState extends State<PremisesView> {
           const SizedBox(height: 6),
           _infoRow(
             Icons.location_on_outlined,
-            predio.hasLocation
-                ? '${predio.latitude!.toStringAsFixed(5)}, ${predio.longitude!.toStringAsFixed(5)}'
+            premise.hasLocation
+                ? '${premise.latitude!.toStringAsFixed(5)}, ${premise.longitude!.toStringAsFixed(5)}'
                 : 'Sin ubicación: los escaneos no serán aceptados',
-            alert: predio.hasLocation ? null : AppColors.danger,
+            alert: premise.hasLocation ? null : AppColors.danger,
           ),
           const SizedBox(height: 6),
           _infoRow(
             Icons.checklist_rounded,
-            '${predio.reasonNames.length} de ${_allReasons.length} motivos permitidos',
+            '${premise.reasonNames.length} de ${_allReasons.length} motivos permitidos',
           ),
           const SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: () => _editPremise(predio),
+              onPressed: () => _editPremise(premise),
               icon: const Icon(Icons.edit_outlined, size: 18),
               label: const Text('Editar'),
               style: ElevatedButton.styleFrom(
@@ -439,7 +422,6 @@ class PremisesViewState extends State<PremisesView> {
     );
   }
 
-  /// Ejecuta la tarea.
   Widget _infoRow(IconData icon, String text, {Color? alert}) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,

@@ -1,26 +1,23 @@
 import 'package:flutter/material.dart';
 
-import '../services/api_client.dart';
-import '../services/settings_service.dart';
-import '../theme/app_colors.dart';
-import '../widgets/app_modal.dart';
-import '../widgets/dialog_header.dart';
-import '../theme/app_text_styles.dart';
+import '../../../core/network/api_exception.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/app_modal.dart';
+import '../../../core/widgets/dialog_tone.dart';
+import '../data/settings_service.dart';
 
 /// Permite a administración cambiar cuántos segundos dura visible el código
 /// QR antes de vencer.
 class QrSettingsDialog extends StatefulWidget {
   final SettingsService? service;
 
-  /// Ejecuta la tarea.
   const QrSettingsDialog({super.key, this.service});
 
-  /// Crea el estado del widget.
   @override
   State<QrSettingsDialog> createState() => _QrSettingsDialogState();
 }
 
-/// Representa esta entidad.
 class _QrSettingsDialogState extends State<QrSettingsDialog> {
 
   late final SettingsService _service = widget.service ?? SettingsService();
@@ -32,21 +29,18 @@ class _QrSettingsDialogState extends State<QrSettingsDialog> {
   int _min = 30;
   int _max = 3600;
 
-  /// Inicializa el estado.
   @override
   void initState() {
     super.initState();
     _load();
   }
 
-  /// Libera los recursos.
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
 
-  /// Ejecuta la tarea.
   Future<void> _load() async {
     setState(() {
       _isLoading = true;
@@ -70,7 +64,6 @@ class _QrSettingsDialogState extends State<QrSettingsDialog> {
     }
   }
 
-  /// Ejecuta la tarea.
   Future<void> _save() async {
     final value = int.tryParse(_controller.text.trim());
     if (value == null || value < _min || value > _max) {
@@ -94,7 +87,6 @@ class _QrSettingsDialogState extends State<QrSettingsDialog> {
     }
   }
 
-  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     return AppModal(
@@ -156,14 +148,11 @@ class _QrSettingsDialogState extends State<QrSettingsDialog> {
   }
 }
 
-/// Representa esta entidad.
 class _ErrorLine extends StatelessWidget {
   final String message;
 
-  /// Ejecuta la tarea.
   const _ErrorLine(this.message);
 
-  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     return Container(

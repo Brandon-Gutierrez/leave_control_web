@@ -1,13 +1,12 @@
 import 'dart:typed_data';
 
-import 'package:control_leaves_web/models/managed_user.dart';
-import 'package:control_leaves_web/screens/devices_dialog.dart';
-import 'package:control_leaves_web/services/api_client.dart';
+import 'package:control_leaves_web/core/network/api_client.dart';
+import 'package:control_leaves_web/features/users/models/managed_user.dart';
+import 'package:control_leaves_web/features/users/presentation/devices_dialog.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// Representa esta entidad.
 class _RecordingAdapter implements HttpClientAdapter {
   RequestOptions? lastRequest;
 
@@ -33,7 +32,6 @@ class _RecordingAdapter implements HttpClientAdapter {
   void close({bool force = false}) {}
 }
 
-/// Ejecuta la tarea.
 ManagedUser _user(String role, {Map<ClientPlatform, DateTime> devices = const {}}) =>
     ManagedUser(
       id: 7,
@@ -43,7 +41,6 @@ ManagedUser _user(String role, {Map<ClientPlatform, DateTime> devices = const {}
       devices: devices,
     );
 
-/// Ejecuta la tarea.
 Future<void> _openDialog(WidgetTester tester, ManagedUser user) async {
   await tester.pumpWidget(
     MaterialApp(

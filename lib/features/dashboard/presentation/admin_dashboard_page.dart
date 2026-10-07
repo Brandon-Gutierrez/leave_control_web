@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 
-import '../models/auth_user.dart';
-import '../services/auth_service.dart';
-import '../session/session_controller.dart';
-import '../theme/app_colors.dart';
-import '../theme/app_text_styles.dart';
-import '../widgets/user_module.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_text_styles.dart';
+import '../../auth/data/auth_service.dart';
+import '../../auth/models/auth_user.dart';
+import '../../auth/presentation/admin_login_page.dart';
+import '../../auth/state/session_controller.dart';
+import '../../premises/presentation/premises_view.dart';
+import '../../settings/presentation/leave_limits_dialog.dart';
+import '../../settings/presentation/qr_settings_dialog.dart';
+import '../../users/presentation/users_view.dart';
 import 'home_view.dart';
-import 'login_admin_page.dart';
-import 'premises_view.dart';
-import 'leave_limits_dialog.dart';
-import 'qr_settings_dialog.dart';
-import 'users_view.dart';
+import 'user_profile_header.dart';
 
 /// Estructura del panel: en pantallas anchas una barra lateral fija con la
 /// persona que inició sesión, las secciones y los ajustes; en teléfono, una
@@ -21,15 +21,12 @@ class AdminDashboardPage extends StatefulWidget {
   /// la sesión compartida.
   final AuthUser? user;
 
-  /// Ejecuta la tarea.
   const AdminDashboardPage({super.key, this.user});
 
-  /// Crea el estado del widget.
   @override
   State<AdminDashboardPage> createState() => _AdminDashboardPageState();
 }
 
-/// Representa esta entidad.
 class _AdminDashboardPageState extends State<AdminDashboardPage> {
   static const primaryRed = AppColors.primaryRed;
   static const darkText = AppColors.darkText;
@@ -50,30 +47,26 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   AuthUser? get _user => widget.user ?? SessionController.instance.user.value;
 
-  /// Ejecuta la tarea.
   Future<void> _logout() async {
     await _authService.logout();
     _goToLogin();
   }
 
-  /// Ejecuta la tarea.
   void _goToLogin() {
     SessionController.instance.clear();
     if (!mounted) return;
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (context) => const LoginAdminPage()),
+      MaterialPageRoute(builder: (context) => const AdminLoginPage()),
       (route) => false,
     );
   }
 
-  /// Ejecuta la tarea.
   void _selectSection(int index) {
     if (index == _selectedIndex) return;
     setState(() => _selectedIndex = index);
   }
 
-  /// Ejecuta la tarea.
   void _goToPremises({bool openCreateDialog = false}) {
     setState(() => _selectedIndex = 1);
     if (openCreateDialog) {
@@ -83,7 +76,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     }
   }
 
-  /// Ejecuta la tarea.
   void _goToUsers({bool openCreateManager = false}) {
     setState(() => _selectedIndex = 2);
     if (openCreateManager) {
@@ -91,12 +83,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     }
   }
 
-  /// Ejecuta la tarea.
   Future<void> _syncReasonsFromHome() async {
     await _premisesKey.currentState?.syncReasons();
   }
 
-  /// Ejecuta la tarea.
   Future<void> _openQrSettings() async {
     await showDialog<bool>(
       context: context,
@@ -104,7 +94,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     );
   }
 
-  /// Ejecuta la tarea.
   Future<void> _openLeaveLimits() async {
     await showDialog<bool>(
       context: context,
@@ -112,7 +101,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     );
   }
 
-  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -172,7 +160,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             elevation: 0,
             toolbarHeight: 64,
             shape: const Border(bottom: BorderSide(color: AppColors.line)),
-            title: UserModule(user: _user, compact: true),
+            title: UserProfileHeader(user: _user, compact: true),
             actions: [
               IconButton(
                 icon: const Icon(Icons.rule_rounded, color: darkText, size: AppDimens.iconSize),
@@ -214,14 +202,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   }
 }
 
-/// Representa esta entidad.
 class _SectionHeader extends StatelessWidget {
   final String title;
 
-  /// Ejecuta la tarea.
   const _SectionHeader({required this.title});
 
-  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -238,7 +223,6 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-/// Representa esta entidad.
 class _Sidebar extends StatelessWidget {
   final AuthUser? user;
   final int selectedIndex;
@@ -249,7 +233,6 @@ class _Sidebar extends StatelessWidget {
   final VoidCallback onLeaveLimits;
   final VoidCallback onLogout;
 
-  /// Ejecuta la tarea.
   const _Sidebar({
     required this.user,
     required this.selectedIndex,
@@ -261,7 +244,6 @@ class _Sidebar extends StatelessWidget {
     required this.onLogout,
   });
 
-  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -284,7 +266,7 @@ class _Sidebar extends StatelessWidget {
                 errorBuilder: (_, _, _) => const Icon(Icons.business_rounded, color: AppColors.darkText),
               ),
             ),
-            UserModule(user: user),
+            UserProfileHeader(user: user),
             const Divider(height: 28, color: AppColors.line),
             for (var i = 0; i < titles.length; i++)
               _NavItem(
@@ -322,7 +304,6 @@ class _Sidebar extends StatelessWidget {
   }
 }
 
-/// Representa esta entidad.
 class _NavItem extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -330,7 +311,6 @@ class _NavItem extends StatelessWidget {
   final Color? color;
   final VoidCallback onTap;
 
-  /// Ejecuta la tarea.
   const _NavItem({
     required this.icon,
     required this.label,
@@ -339,7 +319,6 @@ class _NavItem extends StatelessWidget {
     this.color,
   });
 
-  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     final fg = selected ? AppColors.primaryRed : (color ?? AppColors.darkText);

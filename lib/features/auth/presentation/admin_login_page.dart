@@ -1,26 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/network/api_exception.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_popup.dart';
+import '../../dashboard/presentation/admin_dashboard_page.dart';
+import '../data/auth_service.dart';
 import '../models/auth_user.dart';
-import '../services/api_client.dart';
-import '../services/auth_service.dart';
-import '../theme/app_colors.dart';
-import '../widgets/app_popup.dart';
-import 'admin_dashboard_page.dart';
-import '../session/session_controller.dart';
+import '../state/session_controller.dart';
 
-/// Representa esta entidad.
-class LoginAdminPage extends StatefulWidget {
-  /// Ejecuta la tarea.
-  const LoginAdminPage({super.key});
+class AdminLoginPage extends StatefulWidget {
+  const AdminLoginPage({super.key});
 
-  /// Crea el estado del widget.
   @override
-  State<LoginAdminPage> createState() => _LoginAdminPageState();
+  State<AdminLoginPage> createState() => _AdminLoginPageState();
 }
 
-/// Representa esta entidad.
-class _LoginAdminPageState extends State<LoginAdminPage> {
+class _AdminLoginPageState extends State<AdminLoginPage> {
   final _formKey = GlobalKey<FormState>();
   final AuthService _authService = AuthService();
   final TextEditingController _usernameController = TextEditingController();
@@ -35,7 +31,6 @@ class _LoginAdminPageState extends State<LoginAdminPage> {
   static const Color darkText = Color(0xFF1A1A1A);
   static const Color lightBg = AppColors.loginBg;
 
-  /// Libera los recursos.
   @override
   void dispose() {
     _usernameController.dispose();
@@ -44,7 +39,6 @@ class _LoginAdminPageState extends State<LoginAdminPage> {
     super.dispose();
   }
 
-  /// Ejecuta la tarea.
   Future<void> _login() async {
     //Si el estado del formulario no es valido o ya hay una peticion en curso
     if (_isLoading || !_formKey.currentState!.validate()) return;
@@ -108,7 +102,6 @@ class _LoginAdminPageState extends State<LoginAdminPage> {
     }
   }
 
-  /// Ejecuta la tarea.
   InputDecoration _inputDecoration({
     required String hint,
     required IconData icon,
@@ -141,7 +134,6 @@ class _LoginAdminPageState extends State<LoginAdminPage> {
     );
   }
 
-  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     return Scaffold(

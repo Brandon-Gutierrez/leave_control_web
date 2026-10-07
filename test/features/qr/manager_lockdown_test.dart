@@ -2,17 +2,16 @@
 // predio y administración de estas cuentas desde el panel (datos falsos).
 import 'dart:convert';
 
+import 'package:control_leaves_web/app/app.dart';
+import 'package:control_leaves_web/core/network/api_client.dart';
+import 'package:control_leaves_web/features/auth/models/auth_user.dart';
+import 'package:control_leaves_web/features/auth/state/session_controller.dart';
+import 'package:control_leaves_web/features/dashboard/presentation/admin_dashboard_page.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-
-import 'package:control_leaves_web/main.dart';
-import 'package:control_leaves_web/models/auth_user.dart';
-import 'package:control_leaves_web/screens/admin_dashboard_page.dart';
-import 'package:control_leaves_web/services/api_client.dart';
-import 'package:control_leaves_web/session/session_controller.dart';
 
 Map<String, dynamic> _manager({Map<String, dynamic>? premise}) => {
   'user_id': 50,
@@ -45,7 +44,6 @@ class _Backend implements HttpClientAdapter {
   final List<String> calls = [];
   Map<String, dynamic>? lastBody;
 
-  /// Ejecuta la tarea.
   int count(String call) => calls.where((c) => c == call).length;
 
   /// Obtiene los datos.
@@ -166,14 +164,12 @@ class _Backend implements HttpClientAdapter {
   void close({bool force = false}) {}
 }
 
-/// Ejecuta la tarea.
 Future<void> _settle(WidgetTester tester) async {
   for (var i = 0; i < 6; i++) {
     await tester.pump(const Duration(milliseconds: 100));
   }
 }
 
-/// Ejecuta la tarea.
 Future<void> _teardown(WidgetTester tester) async {
   await tester.pumpWidget(const SizedBox.shrink());
   await tester.pump();
@@ -193,7 +189,6 @@ void main() {
 
   group('AuthUser', () {
     test('solo MANAGE_PREMISE es responsable de predio', () {
-      /// Ejecuta la tarea.
       AuthUser role(String name) => AuthUser(id: 1, name: 'x', item: '1', roleName: name);
 
       expect(role('MANAGE_PREMISE').isPremiseManager, isTrue);
@@ -208,7 +203,7 @@ void main() {
     testWidgets('con sesión abierta solo ve el QR de su predio', (tester) async {
       backend.me = _manager();
 
-      await tester.pumpWidget(const MyApp());
+      await tester.pumpWidget(const ControlQrApp());
       await _settle(tester);
 
       expect(find.byType(QrImageView), findsOneWidget);
@@ -227,7 +222,7 @@ void main() {
 
     testWidgets('el botón "atrás" no lo saca de la pantalla', (tester) async {
       backend.me = _manager();
-      await tester.pumpWidget(const MyApp());
+      await tester.pumpWidget(const ControlQrApp());
       await _settle(tester);
 
       await tester.binding.handlePopRoute();
@@ -241,7 +236,7 @@ void main() {
 
     testWidgets('un enlace a otra ruta no cambia lo que ve', (tester) async {
       backend.me = _manager();
-      await tester.pumpWidget(const MyApp());
+      await tester.pumpWidget(const ControlQrApp());
       await _settle(tester);
 
       for (final route in ['/admin', '/admin/users', '/login', '/premises']) {
@@ -263,7 +258,7 @@ void main() {
     testWidgets('al iniciar sesión queda bloqueado y nunca se cierra la sesión', (tester) async {
       backend.loginUser = _manager();
 
-      await tester.pumpWidget(const MyApp());
+      await tester.pumpWidget(const ControlQrApp());
       await _settle(tester);
       expect(find.text('Iniciar Sesión'), findsOneWidget);
 
@@ -285,7 +280,7 @@ void main() {
       backend.me = _manager();
       backend.qrStatus = 401;
 
-      await tester.pumpWidget(const MyApp());
+      await tester.pumpWidget(const ControlQrApp());
       await _settle(tester);
 
       expect(find.text('Iniciar Sesión'), findsOneWidget);
@@ -299,7 +294,7 @@ void main() {
       backend.me = _manager();
       backend.qrStatus = 500;
 
-      await tester.pumpWidget(const MyApp());
+      await tester.pumpWidget(const ControlQrApp());
       await _settle(tester);
 
       expect(find.text('Error del servidor'), findsOneWidget);
@@ -319,7 +314,7 @@ void main() {
     testWidgets('sin predio asignado muestra un aviso y tampoco puede navegar', (tester) async {
       backend.me = {..._manager(), 'premise': null};
 
-      await tester.pumpWidget(const MyApp());
+      await tester.pumpWidget(const ControlQrApp());
       await _settle(tester);
 
       expect(find.text('Esta cuenta no tiene un predio asignado.'), findsOneWidget);
@@ -340,7 +335,7 @@ void main() {
     testWidgets('el administrador conserva su panel y puede cerrar sesión', (tester) async {
       backend.me = _admin();
 
-      await tester.pumpWidget(const MyApp());
+      await tester.pumpWidget(const ControlQrApp());
       await _settle(tester);
 
       expect(find.byType(AdminDashboardPage), findsOneWidget);
@@ -358,7 +353,6 @@ void main() {
   });
 
   group('Administración de responsables de predio', () {
-    /// Ejecuta la tarea.
     Future<void> openUsers(WidgetTester tester) async {
       // Pantalla alta: los diálogos con formulario caben sin desplazarse.
       tester.view.physicalSize = const Size(1000, 1500);

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
-import 'dialog_header.dart';
+import 'dialog_tone.dart';
 
 /// Carcasa única de los modales del panel: cabecera de color sólido (el color
 /// dice el propósito), cuerpo que se desplaza y un pie con los botones. Mismo
@@ -21,7 +21,6 @@ class AppModal extends StatelessWidget {
 
   final double maxWidth;
 
-  /// Ejecuta la tarea.
   const AppModal({
     super.key,
     required this.tone,
@@ -34,7 +33,6 @@ class AppModal extends StatelessWidget {
     this.maxWidth = 520,
   });
 
-  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     final screen = MediaQuery.sizeOf(context);
@@ -88,7 +86,6 @@ class AppModal extends StatelessWidget {
   }
 }
 
-/// Representa esta entidad.
 class _Header extends StatelessWidget {
   final DialogTone tone;
   final IconData icon;
@@ -96,7 +93,6 @@ class _Header extends StatelessWidget {
   final String? subtitle;
   final VoidCallback onClose;
 
-  /// Ejecuta la tarea.
   const _Header({
     required this.tone,
     required this.icon,
@@ -105,7 +101,6 @@ class _Header extends StatelessWidget {
     this.subtitle,
   });
 
-  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -160,7 +155,6 @@ class ModalButton extends StatelessWidget {
   final Color? color;
   final bool isLoading;
 
-  /// Ejecuta la tarea.
   const ModalButton({
     super.key,
     required this.label,
@@ -170,7 +164,6 @@ class ModalButton extends StatelessWidget {
     this.isLoading = false,
   });
 
-  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     final shape = RoundedRectangleBorder(borderRadius: BorderRadius.circular(6));

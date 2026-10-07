@@ -10,7 +10,6 @@ import 'package:web/web.dart' as web;
 /// dirección en la barra del navegador; para eso se usa el modo quiosco del
 /// navegador (p. ej. `chrome --kiosk`).
 void Function() enableBrowserBackLock() {
-  /// Ejecuta la tarea.
   void pushEntry() =>
       web.window.history.pushState(null, '', web.window.location.href);
 

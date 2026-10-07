@@ -1,42 +1,37 @@
 import 'package:flutter/material.dart';
 
-import '../models/auth_user.dart' show kManagePremiseRole;
+import '../../../core/constants/role_names.dart';
+import '../../../core/network/api_exception.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/app_modal.dart';
+import '../../../core/widgets/app_popup.dart';
+import '../../../core/widgets/dialog_tone.dart';
+import '../../../core/widgets/filter_sidebar.dart';
+import '../../premises/data/premise_service.dart';
+import '../data/user_admin_service.dart';
 import '../models/managed_user.dart';
-import '../services/api_client.dart';
-import '../services/premise_service.dart';
-import '../services/user_admin_service.dart';
-import '../theme/app_colors.dart';
-import '../theme/app_text_styles.dart';
-import '../widgets/app_modal.dart';
-import '../widgets/app_popup.dart';
-import '../widgets/dialog_header.dart';
-import '../widgets/filter_sidebar.dart';
-import 'manager_password_dialog.dart';
 import 'change_role_dialog.dart';
 import 'create_manager_dialog.dart';
 import 'devices_dialog.dart';
+import 'manager_password_dialog.dart';
 
 /// Sección "Usuarios" del panel de administración: busca usuarios, gestiona
 /// roles y asigna predios a los gestores, siempre con confirmación.
 enum _RoleFilter { all, employee, admin, manager }
 
-/// Define los valores posibles.
-enum _PremiseFilter { any, with_, without }
+enum _PremiseFilter { any, assigned, unassigned }
 
-/// Representa esta entidad.
 class UsersView extends StatefulWidget {
   /// Se llama cuando el token de sesión ya no es válido (401).
   final VoidCallback onUnauthorized;
 
-  /// Ejecuta la tarea.
   const UsersView({super.key, required this.onUnauthorized});
 
-  /// Crea el estado del widget.
   @override
   State<UsersView> createState() => UsersViewState();
 }
 
-/// Representa esta entidad.
 class UsersViewState extends State<UsersView> {
   static const primaryRed = AppColors.primaryRed;
   static const darkText = AppColors.darkText;
@@ -55,14 +50,12 @@ class UsersViewState extends State<UsersView> {
   bool _isLoading = true;
   final Set<int> _updatingUserIds = {};
 
-  /// Inicializa el estado.
   @override
   void initState() {
     super.initState();
     _fetchData();
   }
 
-  /// Libera los recursos.
   @override
   void dispose() {
     _searchController.dispose();
@@ -72,8 +65,6 @@ class UsersViewState extends State<UsersView> {
   /// Recarga la lista de usuarios y roles. Público para que otras secciones
   /// (p. ej. "Inicio") puedan refrescar estos datos.
   Future<void> refresh() => _fetchData();
-
-  int get adminCount => _users.where((u) => u.isAdmin).length;
 
   List<ManagedUser> get _filteredUsers {
     final query = _searchQuery.toLowerCase().trim();
@@ -87,16 +78,16 @@ class UsersViewState extends State<UsersView> {
         case _RoleFilter.all:
           break;
         case _RoleFilter.employee:
-          if (u.role?.name.toUpperCase() != 'EMPLOYEE') return false;
+          if (!u.isEmployee) return false;
         case _RoleFilter.admin:
           if (!u.isAdmin) return false;
         case _RoleFilter.manager:
           if (!u.managesPremise) return false;
       }
-      if (_premiseFilter == _PremiseFilter.with_ && u.premise == null) {
+      if (_premiseFilter == _PremiseFilter.assigned && u.premise == null) {
         return false;
       }
-      if (_premiseFilter == _PremiseFilter.without && u.premise != null) {
+      if (_premiseFilter == _PremiseFilter.unassigned && u.premise != null) {
         return false;
       }
       return true;
@@ -108,7 +99,6 @@ class UsersViewState extends State<UsersView> {
       (_premiseFilter == _PremiseFilter.any ? 0 : 1) +
       (_searchQuery.trim().isEmpty ? 0 : 1);
 
-  /// Ejecuta la tarea.
   void _clearFilters() => setState(() {
     _roleFilter = _RoleFilter.all;
     _premiseFilter = _PremiseFilter.any;
@@ -124,7 +114,6 @@ class UsersViewState extends State<UsersView> {
       )
       .toList();
 
-  /// Ejecuta la tarea.
   Future<void> _fetchData() async {
     setState(() => _isLoading = true);
     try {
@@ -161,7 +150,6 @@ class UsersViewState extends State<UsersView> {
     }
   }
 
-  /// Ejecuta la tarea.
   void _showSnackBar(String message, Color color) {
     if (!mounted) return;
     showAppPopup(
@@ -201,7 +189,6 @@ class UsersViewState extends State<UsersView> {
     );
   }
 
-  /// Ejecuta la tarea.
   Future<void> _openChangeRoleDialog(ManagedUser user) async {
     if (_updatingUserIds.contains(user.id) || _roles.isEmpty) return;
 
@@ -217,7 +204,6 @@ class UsersViewState extends State<UsersView> {
     await _changeUser(user, selection);
   }
 
-  /// Ejecuta la tarea.
   Future<void> _openDevicesDialog(ManagedUser user) async {
     if (_updatingUserIds.contains(user.id)) return;
     final platform = await showDialog<ClientPlatform>(
@@ -281,7 +267,6 @@ class UsersViewState extends State<UsersView> {
     }
   }
 
-  /// Ejecuta la tarea.
   Future<void> _openPasswordDialog(ManagedUser user) async {
     if (_updatingUserIds.contains(user.id)) return;
     final choice = await showDialog<PasswordChoice>(
@@ -324,7 +309,6 @@ class UsersViewState extends State<UsersView> {
     }
   }
 
-  /// Ejecuta la tarea.
   Future<void> _changeUser(
     ManagedUser user,
     RoleChangeSelection selection,
@@ -374,21 +358,8 @@ class UsersViewState extends State<UsersView> {
     }
   }
 
-  /// Ejecuta la tarea.
-  String _roleLabel(AppRole role) {
-    switch (role.name.toUpperCase()) {
-      case 'ADMIN':
-        return 'Administrador';
-      case kManagePremiseRole:
-        return 'Gestor de predio';
-      case 'EMPLOYEE':
-        return 'Empleado';
-      default:
-        return role.name;
-    }
-  }
+  String _roleLabel(AppRole role) => RoleNames.label(role.name);
 
-  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -416,8 +387,8 @@ class UsersViewState extends State<UsersView> {
           value: _premiseFilter,
           options: const {
             _PremiseFilter.any: 'Todos',
-            _PremiseFilter.with_: 'Con predio',
-            _PremiseFilter.without: 'Sin predio',
+            _PremiseFilter.assigned: 'Con predio',
+            _PremiseFilter.unassigned: 'Sin predio',
           },
           onChanged: (v) => setState(() => _premiseFilter = v),
         ),
@@ -426,7 +397,6 @@ class UsersViewState extends State<UsersView> {
     );
   }
 
-  /// Ejecuta la tarea.
   Widget _buildContent() {
     final users = _filteredUsers;
     return LayoutBuilder(
@@ -514,7 +484,6 @@ class UsersViewState extends State<UsersView> {
     );
   }
 
-  /// Ejecuta la tarea.
   Widget _buildSearchField() {
     return TextField(
       controller: _searchController,
@@ -543,7 +512,6 @@ class UsersViewState extends State<UsersView> {
     );
   }
 
-  /// Ejecuta la tarea.
   Widget _buildUserTile(ManagedUser user) {
     final isUpdating = _updatingUserIds.contains(user.id);
     final isAdmin = user.isAdmin;
@@ -676,15 +644,12 @@ class UsersViewState extends State<UsersView> {
   }
 }
 
-/// Representa esta entidad.
 class _RoleBadge extends StatelessWidget {
   final String label;
   final bool isAdmin;
 
-  /// Ejecuta la tarea.
   const _RoleBadge({required this.label, required this.isAdmin});
 
-  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     final color = isAdmin ? AppColors.primaryRed : Colors.grey.shade700;

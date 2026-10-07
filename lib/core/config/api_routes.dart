@@ -1,5 +1,5 @@
-/// Rutas del backend (routes/api.php) usadas por el panel de administración.
-class ApiRoutes {
+/// Rutas del backend (routes/api.php) usadas por la aplicación web.
+abstract final class ApiRoutes {
   static const String csrfCookie = '/sanctum/csrf-cookie';
 
   // Sesión
@@ -7,39 +7,29 @@ class ApiRoutes {
   static const String logout = '/api/auth/logout';
   static const String me = '/api/auth/me';
 
-  // Administración - predios
+  // Responsable de predio
+  static const String managerQrToken = '/api/manager/qr-token';
+
+  // Administración - predios y motivos
   static const String premises = '/api/admin/premises';
   static const String reasons = '/api/admin/reasons';
   static const String syncReasons = '/api/admin/reasons/sync';
 
-  /// Ejecuta la tarea.
   static String premise(int premiseId) => '/api/admin/premises/$premiseId';
-  /// Ejecuta la tarea.
-  static String premiseReasons(int premiseId) =>
-      '/api/admin/premises/$premiseId/reasons';
-
-  static const String managerQrToken = '/api/manager/qr-token';
 
   // Administración - usuarios y roles
   static const String users = '/api/admin/users';
   static const String roles = '/api/admin/roles';
+  static const String premiseManagers = '/api/admin/users/premise-managers';
 
-  /// Ejecuta la tarea.
   static String userRole(int userId) => '/api/admin/users/$userId/role';
-
-  /// Ejecuta la tarea.
   static String userPremise(int userId) => '/api/admin/users/$userId/premise';
-  /// Ejecuta la tarea.
-  static String userPassword(int userId) => '/api/admin/users/$userId/password';
-  /// Ejecuta la tarea.
+  static String userPassword(int userId) =>
+      '/api/admin/users/$userId/password';
   static String userDeviceReset(int userId) =>
       '/api/admin/users/$userId/device/reset';
-  static const String settingsLeaveLimits = '/api/admin/settings/leave-limits';
-
-  static const String premiseManagers = '/api/admin/users/premise-managers';
 
   // Administración - configuración
   static const String settingsQr = '/api/admin/settings/qr';
-  
+  static const String settingsLeaveLimits = '/api/admin/settings/leave-limits';
 }
-

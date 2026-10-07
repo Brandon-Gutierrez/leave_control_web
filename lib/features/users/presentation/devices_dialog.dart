@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/app_modal.dart';
+import '../../../core/widgets/dialog_tone.dart';
 import '../models/managed_user.dart';
-import '../theme/app_colors.dart';
-import '../widgets/app_modal.dart';
-import '../widgets/dialog_header.dart';
-import '../theme/app_text_styles.dart';
 
 /// Muestra el dispositivo autorizado de una cuenta en cada aplicación que su
 /// rol puede usar. Devuelve la aplicación cuyo dispositivo se quiere
@@ -12,18 +12,14 @@ import '../theme/app_text_styles.dart';
 class DevicesDialog extends StatelessWidget {
   final ManagedUser user;
 
-  /// Ejecuta la tarea.
   const DevicesDialog({super.key, required this.user});
 
-  /// Ejecuta la tarea.
   static String _formatDate(DateTime date) {
     final d = date.toLocal();
-    /// Ejecuta la tarea.
     String two(int n) => n.toString().padLeft(2, '0');
     return '${two(d.day)}/${two(d.month)}/${d.year} ${two(d.hour)}:${two(d.minute)}';
   }
 
-  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     return AppModal(
@@ -56,20 +52,17 @@ class DevicesDialog extends StatelessWidget {
   }
 }
 
-/// Representa esta entidad.
 class _PlatformRow extends StatelessWidget {
   final ClientPlatform platform;
   final DateTime? boundAt;
   final String Function(DateTime) formatDate;
 
-  /// Ejecuta la tarea.
   const _PlatformRow({
     required this.platform,
     required this.boundAt,
     required this.formatDate,
   });
 
-  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     final bound = boundAt != null;

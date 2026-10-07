@@ -1,10 +1,10 @@
 import 'package:dio/dio.dart';
 
-import '../config/api_routes.dart';
+import '../../../core/config/api_routes.dart';
+import '../../../core/network/api_client.dart';
+import '../../../core/network/api_exception.dart';
 import '../models/auth_user.dart';
-import 'api_client.dart';
 
-/// Representa esta entidad.
 class AuthService {
   final ApiClient _apiClient;
 
@@ -36,7 +36,6 @@ class AuthService {
     }
   }
 
-  /// Ejecuta la tarea.
   Future<void> logout() async {
     try {
       await _dio.post(ApiRoutes.logout);

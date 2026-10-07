@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
-import '../models/auth_user.dart' show kManagePremiseRole;
+import '../../../core/constants/role_names.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/app_modal.dart';
+import '../../../core/widgets/dialog_tone.dart';
 import '../models/managed_user.dart';
-import '../theme/app_colors.dart';
-import '../widgets/app_modal.dart';
-import '../widgets/dialog_header.dart';
-import '../theme/app_text_styles.dart';
 
 /// Diálogo con opciones grandes y explicadas para cambiar el rol de un
 /// usuario. Se pide confirmar con un botón aparte para evitar cambios
@@ -15,7 +15,6 @@ class ChangeRoleDialog extends StatefulWidget {
   final List<AppRole> roles;
   final List<UserPremise> premises;
 
-  /// Ejecuta la tarea.
   const ChangeRoleDialog({
     super.key,
     required this.user,
@@ -23,37 +22,27 @@ class ChangeRoleDialog extends StatefulWidget {
     required this.premises,
   });
 
-  /// Crea el estado del widget.
   @override
   State<ChangeRoleDialog> createState() => _ChangeRoleDialogState();
 }
 
-/// Representa esta entidad.
 class _ChangeRoleDialogState extends State<ChangeRoleDialog> {
   late int? _selectedRoleId = widget.user.role?.id;
   late int? _selectedPremiseId = widget.user.premise?.id;
 
-  /// Ejecuta la tarea.
-  bool _isAdminRole(AppRole role) => role.name.toUpperCase() == 'ADMIN';
-  /// Ejecuta la tarea.
+  bool _isAdminRole(AppRole role) =>
+      RoleNames.matches(role.name, RoleNames.admin);
   bool _isPremiseManagerRole(AppRole role) =>
-      role.name.toUpperCase() == kManagePremiseRole;
+      RoleNames.matches(role.name, RoleNames.managePremise);
 
-  /// Ejecuta la tarea.
-  String _displayName(AppRole role) {
-    if (_isAdminRole(role)) return 'Administrador';
-    if (role.name.toUpperCase() == 'EMPLOYEE') return 'Empleado';
-    if (_isPremiseManagerRole(role)) return 'Gestor de predio';
-    return role.name;
-  }
+  String _displayName(AppRole role) => RoleNames.label(role.name);
 
-  /// Ejecuta la tarea.
   String _describeRole(AppRole role) {
     if (_isAdminRole(role)) {
       return 'Puede crear predios, cambiar sus motivos de salida y decidir '
           'quién más es administrador.';
     }
-    if (role.name.toUpperCase() == 'EMPLOYEE') {
+    if (RoleNames.matches(role.name, RoleNames.employee)) {
       return 'Solo puede escanear el código QR y registrar sus propias salidas.';
     }
     if (_isPremiseManagerRole(role)) {
@@ -62,14 +51,12 @@ class _ChangeRoleDialogState extends State<ChangeRoleDialog> {
     return 'Rol del sistema.';
   }
 
-  /// Ejecuta la tarea.
   IconData _iconForRole(AppRole role) => _isAdminRole(role)
       ? Icons.shield_rounded
       : _isPremiseManagerRole(role)
       ? Icons.apartment_rounded
       : Icons.badge_rounded;
 
-  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.sizeOf(context).width;
@@ -84,7 +71,6 @@ class _ChangeRoleDialogState extends State<ChangeRoleDialog> {
         _selectedRoleId != widget.user.role?.id ||
         _selectedPremiseId != widget.user.premise?.id;
 
-    /// Ejecuta la tarea.
     void save() {
       final role = widget.roles.firstWhere((r) => r.id == _selectedRoleId);
       Navigator.pop(
@@ -159,16 +145,13 @@ class _ChangeRoleDialogState extends State<ChangeRoleDialog> {
   }
 }
 
-/// Representa esta entidad.
 class RoleChangeSelection {
   final AppRole role;
   final int? premiseId;
 
-  /// Ejecuta la tarea.
   const RoleChangeSelection({required this.role, required this.premiseId});
 }
 
-/// Representa esta entidad.
 class _RoleOption extends StatelessWidget {
   final String title;
   final IconData icon;
@@ -176,7 +159,6 @@ class _RoleOption extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  /// Ejecuta la tarea.
   const _RoleOption({
     required this.title,
     required this.icon,
@@ -185,7 +167,6 @@ class _RoleOption extends StatelessWidget {
     required this.onTap,
   });
 
-  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     return Material(

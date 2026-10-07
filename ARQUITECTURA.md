@@ -4,122 +4,101 @@ Documento de orientación para `control_leaves_web`, una aplicación Flutter de 
 
 ## Mapa general
 
-```text
-main.dart → AuthGate / SessionController
-              ├─ LoginAdminPage → AuthService → ApiClient → backend Laravel
-              ├─ AdminDashboardPage → HomeView / UsersView / PremisesView
-              └─ ManagerLockdown → QrPage → PremiseService
+El código está organizado **por funcionalidad** (`features/`) con una capa de código compartido (`core/`):
 
-Views y diálogos → Services → ApiClient / modelos
+```text
+lib/
+├── main.dart                     Punto de entrada
+├── app/app.dart                  MaterialApp y guardia global del responsable de predio
+├── core/                         Código compartido
+│   ├── config/                   ApiConfig (URL) y ApiRoutes (rutas del backend)
+│   ├── constants/role_names.dart Nombres de rol y su etiqueta
+│   ├── network/                  ApiClient (Dio + cookies + CSRF) y ApiException
+│   ├── platform/                 Adaptadores web/stub: HTTP del navegador, id de dispositivo, bloqueo "atrás"
+│   ├── theme/                    Colores, textos, medidas y tema
+│   └── widgets/                  AppModal, DialogTone, AppPopup, FilterSidebarLayout
+└── features/
+    ├── auth/                     Login, restauración de sesión y SessionController
+    ├── dashboard/                Panel (barra lateral/navegación), Inicio y cabecera de usuario
+    ├── users/                    Usuarios, roles, responsables, contraseñas y dispositivos
+    ├── premises/                 Predios y motivos de salida
+    ├── qr/                       Pantalla de QR y modo bloqueado del responsable
+    ├── settings/                 Tiempo de vida del QR y límite de salidas
+    └── map/                      Selector de ubicación (mapa, búsqueda, GPS)
+```
+
+Cada feature sigue la misma forma: `data/` (servicios que llaman al backend), `models/` (entidades y JSON), `presentation/` (pantallas, diálogos) y, cuando hace falta, `state/`.
+
+```text
+main.dart → ControlQrApp → AuthGate / SessionController
+              ├─ AdminLoginPage → AuthService → ApiClient → backend Laravel
+              ├─ AdminDashboardPage → HomeView / UsersView / PremisesView
+              └─ ManagerLockdownPage → QrGeneratorPage → QrService
+
+Views y diálogos → Services (data/) → ApiClient / modelos
 LocationPicker → GeocodingService + flutter_map
 ApiClient → ApiRoutes + ApiConfig + adaptadores web/stub
 ```
 
-La estructura actual está organizada por tipo técnico (`screens`, `services`, `models`), no por dominio. Los widgets de pantalla realizan parte del trabajo de estado y coordinación de datos; los servicios encapsulan llamadas al backend Laravel y los modelos convierten respuestas JSON.
+Los widgets de pantalla todavía realizan parte del estado y coordinación de datos; los servicios encapsulan las llamadas al backend Laravel y los modelos convierten respuestas JSON.
 
 ## Aplicación Flutter: `lib/`
 
-### Arranque y sesión
+### Arranque
 
 | Archivo | Función y relaciones | Mejora recomendada |
 |---|---|---|
-| `lib/main.dart` | Punto de entrada, tema, restauración de sesión (`AuthGate`) y bloqueo global de la experiencia para `MANAGE_PREMISE`. Conecta `SessionController`, `AuthService` y pantallas raíz. | Mover tema y composición de dependencias a módulos dedicados. Sustituir construcción directa de servicios por inyección; modelar carga/error/sesión con un estado observable explícito. |
-| `lib/session/session_controller.dart` | Estado observable de `AuthUser` compartido entre raíz, login, dashboard y cierre de sesión. | Definir transiciones de sesión y limpiar estado de forma centralizada al cerrar sesión o recibir 401. |
+| `main.dart` | Ejecuta `ControlQrApp`. | — |
+| `app/app.dart` | `ControlQrApp`: tema, `AuthGate` como inicio y la guardia global que, si la sesión es de un responsable (`MANAGE_PREMISE`), muestra solo `ManagerLockdownPage` sin importar la ruta. | Sustituir la construcción directa de servicios por inyección. |
 
-### Configuración de API
-
-| Archivo | Función y relaciones | Mejora recomendada |
-|---|---|---|
-| `lib/config/api_config.dart` | Define `API_BASE_URL` mediante `dart-define`, con localhost como valor predeterminado. | Validar configuración por entorno, eliminar `debug()`/`print` de producción y evitar URLs sensibles codificadas. |
-| `lib/config/api_routes.dart` | Centraliza rutas REST del backend para autenticación, usuarios, predios y ajustes QR. | Mantener rutas tipadas/agrupadas por dominio y documentar el contrato con el backend; evitar que cambios de endpoint se propaguen por las vistas. |
-| `lib/services/api_client.dart` | Cliente Dio singleton; añade cabeceras, identificador de dispositivo y token CSRF; transforma errores en `ApiException`. Depende de rutas, configuración y adaptadores de plataforma. | Inyectar Dio/configuración y almacenamiento para aislar pruebas. Revisar política de reintentos, timeout, cancelación y exposición de mensajes; registrar errores con contexto sin datos sensibles. |
-
-### Servicios
+### `core/`
 
 | Archivo | Función y relaciones | Mejora recomendada |
 |---|---|---|
-| `lib/services/auth_service.dart` | Login, restauración y cierre de sesión de Sanctum usando `ApiClient`; mapea `AuthUser`. | Separar DTO de autenticación del modelo de dominio, distinguir error de red de sesión ausente y probar los casos 401/servidor. |
-| `lib/services/user_admin_service.dart` | Operaciones de administración de usuarios, roles, responsables, contraseñas, dispositivos y políticas de salida; mapea tipos de `managed_user.dart`. | Dividir por capacidades (`Users`, `Roles`, `Device`, `LeavePolicy`) al crecer. Definir interfaces en capa de dominio y validar respuestas/errores uniformemente. |
-| `lib/services/premise_service.dart` | Consulta, creación y actualización de predios y motivos, sincronización y emisión de tokens QR; mapea `Premise` y define `QrToken`. | Extraer DTOs de API, validar campos obligatorios y separar gestión de predios de generación de QR si evolucionan independientemente. |
-| `lib/services/settings_service.dart` | Obtiene y actualiza duración global del QR; incluye `QrSettings`. | Validar rangos y respuestas en un límite dedicado, y cubrir comportamiento ante configuración inválida. |
-| `lib/services/geocoding_service.dart` | Busca lugares y ubicación actual; integra geocodificación y `geolocator`, devuelve `PlaceResult`/`LatLng`. Lo usa `LocationPicker`. | Inyectar cliente y permisos/ubicación para poder probarlo; representar fallos y límites del proveedor como resultados diferenciados. |
+| `config/api_config.dart` | `ApiConfig.baseUrl`: URL del backend por `--dart-define=API_BASE_URL` (por defecto `http://localhost:8000`). | Validar configuración por entorno. |
+| `config/api_routes.dart` | `ApiRoutes`: rutas REST agrupadas por dominio. | Documentar el contrato con el backend. |
+| `constants/role_names.dart` | `RoleNames`: `admin`, `employee`, `managePremise`, `matches()` (comparación sin distinguir mayúsculas) y `label()`. Sustituye los textos de rol repetidos. | Convertir a enum cuando el backend exponga los roles tipados. |
+| `network/api_client.dart` | `ApiClient`: Dio singleton con cabeceras, `DeviceId`, token CSRF y adaptador del navegador. | Inyectar Dio y almacenamiento para aislar pruebas; política de reintentos y cancelación. |
+| `network/api_exception.dart` | `ApiException`: error con mensaje listo para mostrar (`isUnauthorized`). | Distinguir error de red, HTTP y parseo. |
+| `platform/browser_http*.dart` | Adaptador Dio del navegador (cookies) o stub en VM. | Cubrir ambas variantes en CI. |
+| `platform/device_storage*.dart` | Identificador persistente del navegador (localStorage) o stub en memoria. | Manejar errores de almacenamiento. |
+| `platform/kiosk_lock*.dart` | Bloqueo del botón "atrás" del navegador para el responsable, o no-op en VM. | Gestionar alta/baja de listeners y probar su ciclo de vida. |
+| `theme/` | `AppColors`, `Breakpoints`, `AppText`, `AppDimens` y `buildAppTheme()`. | Integrar los tokens en `ThemeData`/`ColorScheme`. |
+| `widgets/app_modal.dart`, `dialog_tone.dart` | Carcasa común de los modales (cabecera de color según `DialogTone`) y sus botones. | — |
+| `widgets/app_popup.dart` | `showAppPopup`: aviso flotante (éxito, error, advertencia) con autocierre de 7 s. | Evaluar `ScaffoldMessenger`. |
+| `widgets/filter_sidebar.dart` | `FilterGroup` y `FilterSidebarLayout`: barra de filtros lateral o plegable. | Pruebas de teclado y tamaños estrechos. |
 
-#### Adaptadores de plataforma (`lib/services/platform/`)
+### `features/`
 
-| Archivo | Función y relaciones | Mejora recomendada |
+| Feature | Archivos | Función y relaciones |
 |---|---|---|
-| `browser_http.dart` | Export condicional de implementación web o stub para crear el adaptador Dio correcto. | Mantener la selección condicional encapsulada y cubrir ambas variantes en CI. |
-| `browser_http_web.dart` | Implementación web con `BrowserHttpClientAdapter` de Dio y APIs web. | Revisar compatibilidad de cookies/CORS con backend y concentrar configuración específica del navegador en este adaptador. |
-| `browser_http_stub.dart` | Adaptador no web usado en VM/pruebas. | Hacer que el stub falle con mensaje explícito si se invoca una operación no soportada. |
-| `device_storage.dart` | Export condicional de almacenamiento de identificador de dispositivo. | Definir interfaz pequeña y documentar persistencia/privacidad del identificador. |
-| `device_storage_web.dart` | Lee o crea el identificador persistente en navegador. | Manejar errores de almacenamiento y versionar el formato si cambia. |
-| `device_storage_stub.dart` | Implementación de almacenamiento en memoria para VM/pruebas. | Permitir sustituirlo en pruebas para controlar estado y aislar casos. |
-| `kiosk_lock.dart` | Export condicional para bloquear navegación atrás en modo responsable. | Nombrar la capacidad por comportamiento y definir semántica accesible para plataformas que no soporten bloqueo. |
-| `kiosk_lock_web.dart` | Implementa el bloqueo mediante APIs del navegador. | Gestionar alta/baja de listeners explícitamente y probar ciclo de vida. |
-| `kiosk_lock_stub.dart` | Implementación vacía de bloqueo para VM/pruebas. | Documentar que es intencionalmente no-op y mantener contrato idéntico al adaptador web. |
+| `auth` | `data/auth_service.dart`, `models/auth_user.dart`, `state/session_controller.dart`, `presentation/admin_login_page.dart`, `presentation/auth_gate.dart` | Login, restauración y cierre de sesión (Sanctum); `AuthUser` con rol y predio asignado; `SessionController` publica el usuario actual; `AuthGate` restaura la sesión al recargar. |
+| `dashboard` | `presentation/admin_dashboard_page.dart`, `home_view.dart`, `user_profile_header.dart` | Estructura del panel (barra lateral en pantallas anchas, navegación inferior en teléfono), resumen de Inicio con accesos directos y cabecera con foto, nombre y cargo. |
+| `users` | `data/user_admin_service.dart`, `models/managed_user.dart`, `presentation/users_view.dart`, `change_role_dialog.dart`, `create_manager_dialog.dart`, `manager_password_dialog.dart`, `devices_dialog.dart` | Listado y filtros de usuarios; cambio de rol y de predio; alta de responsables y contraseña generada; dispositivos vinculados por aplicación (`ClientPlatform`) y su desvinculación. |
+| `premises` | `data/premise_service.dart`, `models/premise.dart`, `models/reason.dart`, `presentation/premises_view.dart`, `premise_form_dialog.dart` | Predios con ubicación, responsable y motivos; creación y edición; sincronización del catálogo de motivos. |
+| `qr` | `data/qr_service.dart`, `models/qr_token.dart`, `presentation/qr_generator_page.dart`, `manager_lockdown_page.dart` | Genera y renueva el QR temporal; `ManagerLockdownPage` es la única pantalla de una cuenta `MANAGE_PREMISE`. |
+| `settings` | `data/settings_service.dart`, `models/qr_settings.dart`, `models/leave_limits.dart`, `presentation/qr_settings_dialog.dart`, `leave_limits_dialog.dart` | Tiempo de vida del QR y límite general de salidas por período. |
+| `map` | `data/geocoding_service.dart`, `models/lat_lng.dart`, `constants/map_defaults.dart`, `presentation/location_picker.dart` | Búsqueda de lugares (Nominatim), ubicación actual (GPS) y selector con mapa (`flutter_map`). |
 
-### Modelos
-
-| Archivo | Función y relaciones | Mejora recomendada |
-|---|---|---|
-| `lib/models/auth_user.dart` | Usuario autenticado, rol y predio asignado; incluye interpretación de cargos y parsing JSON. Consumido por sesión, login y pantallas. | Usar parseo estricto/DTO y enums de rol, evitando valores por defecto silenciosos que oculten respuestas inválidas. |
-| `lib/models/managed_user.dart` | Usuario administrativo, rol, predio, dispositivos/plataformas y política de salidas (`LeavePolicy`). | Separar entidades de dominio de serialización API; hacer inmutables también las colecciones y definir enums/valores de periodo centralizados. |
-| `lib/models/premise_model.dart` | Predio, motivos, responsable y constantes de ubicación/radio; realiza parsing y serialización JSON. | Separar `Reason` y los DTOs del dominio; validar coordenadas/radio y usar tipos de valor para ubicación. |
-| `lib/models/lat_lng.dart` | Coordenada geográfica liviana compartida por geocodificación y selector de mapa. | Validar latitud/longitud en construcción y considerar reutilizar un tipo único compatible con la librería geográfica. |
-
-### Pantallas (`lib/screens/`)
-
-Cada pantalla presenta una tarea de usuario; los diálogos asociados hacen parte del flujo de administración. En general, las vistas usan `ApiClient`/servicios y estilos compartidos. Para reducir acoplamiento, mover carga, filtros y mutaciones a controladores/ViewModels y dejar los widgets enfocados en presentación.
-
-| Archivo | Función y relaciones | Mejora recomendada |
-|---|---|---|
-| `admin_dashboard_page.dart` | Contenedor del panel, navegación y acceso a inicio, usuarios, predios y ajustes. Integra usuario y sesión. | Separar navegación de layout; usar rutas nombradas/declarativas si crecen los flujos y controlar permisos por capacidad. |
-| `login_admin_page.dart` | Formulario de acceso administrativo; usa `AuthService`, `ApiClient`, `SessionController` y abre dashboard. | Extraer validación/estado de formulario; manejar estados accesibles de error/carga y proteger navegación ante respuestas tardías. |
-| `home_view.dart` | Resumen inicial con datos/acciones administrativas y tarjetas de estadísticas. | Extraer consulta a un modelo de estado y separar widgets de presentación; paginar o agregar datos en backend a escala. |
-| `users_view.dart` | Tabla/lista administrativa de usuarios, filtros y acciones; coordina servicios y diálogos de roles, predios, dispositivos y políticas. | Archivo de alta responsabilidad: dividir filtros, listado y acciones por caso de uso, y trasladar estado/consultas a ViewModel. |
-| `premises_view.dart` | Lista y filtros de predios; abre formulario de creación/edición. | Trasladar carga/filtros a estado dedicado y separar componentes de lista. |
-| `generator_qr_page.dart` | Genera y presenta QR temporal para el usuario autenticado y predio correspondiente; usa `PremiseService`, temporizador, sesión y vista de login. | Separar ciclo de vida/renovación QR de presentación; cancelar temporizadores y solicitudes al disponer; modelar estados de expiración y error. |
-| `manager_lockdown.dart` | Vista restringida para responsables; aplica el bloqueo de navegación y muestra QR o aviso si falta predio. | Convertir el rol y acceso a un guard declarativo y cubrir cambios de sesión durante la pantalla. |
-| `premise_form_dialog.dart` | Formulario amplio de alta/edición de predios; relaciona motivos, responsables, `PremiseService`, `UserAdminService` y mapa. | Extraer secciones/campos y coordinador de formulario; aislar validación y guardado como caso de uso. |
-| `change_role_dialog.dart` | Selección de rol y datos relacionados para cambio de permisos; usa modelos de rol/usuario. | Representar selección con tipos explícitos y validar combinaciones según reglas de negocio, idealmente compartidas con backend. |
-| `create_manager_dialog.dart` | Alta de cuenta de responsable y presentación de credenciales generadas. | Evitar mantener credenciales más de lo necesario; extraer creación como flujo de aplicación y diseñar estado explícito de resultado. |
-| `manager_password_dialog.dart` | Permite elegir contraseña o solicitar una generada para responsable. | Mover reglas de contraseña a validador reutilizable y cubrir errores de servidor. |
-| `devices_dialog.dart` | Muestra dispositivos vinculados por plataforma y permite iniciar desvinculación desde la vista de usuarios. | Extraer acción a controlador y explicitar confirmación/estado de operación; probar permisos y fallos. |
-| `leave_policy_dialog.dart` | Consulta/configura límites de salidas por periodo para empleado. | Usar enum de periodos y validación de dominio compartida; separar formulario y persistencia. |
-| `qr_settings_dialog.dart` | Consulta/edita duración global de QR desde ajustes. | Limitar valores desde el modelo/servicio y comunicar claramente errores de persistencia. |
-
-### Widgets reutilizables (`lib/widgets/`)
-
-| Archivo | Función y relaciones | Mejora recomendada |
-|---|---|---|
-| `user_module.dart` | Presentación reutilizable de identidad del usuario y avatar; usada en navegación/cabeceras. | Recibir datos ya preparados y añadir semántica para lectores de pantalla e imágenes con error. |
-| `filter_sidebar.dart` | Componentes genéricos de grupos de filtros y layout lateral; compartidos por vistas de usuarios/predios. | Mantener genérico el widget, pero dejar definición/aplicación de filtros en cada dominio; probar navegación por teclado y tamaños estrechos. |
-| `location_picker.dart` | Selector de mapa, búsqueda, ubicación actual y selección de coordenadas; integra `flutter_map`, `GeocodingService` y modelos de predio. | Separar mapa, búsqueda y permisos en componentes/controladores; aplicar debounce y cancelación de búsquedas. |
-
-### Tema (`lib/theme/`)
-
-| Archivo | Función y relaciones | Mejora recomendada |
-|---|---|---|
-| `app_colors.dart` | Paleta de color y breakpoints usados por pantallas y widgets. | Integrar tokens en `ThemeData`/`ColorScheme` y comprobar contraste/accesibilidad en claro/oscuro. |
-| `app_text_styles.dart` | Estilos tipográficos y dimensiones compartidas. | Centralizar tokens en tema tipado, evitar estilos duplicados y contemplar escalado de texto. |
+Mejoras sugeridas: mover carga, filtros y mutaciones de `UsersView`, `PremisesView`, `HomeView` y `PremiseFormDialog` a controladores/ViewModels; usar enums de rol y período; extraer DTOs de API.
 
 ## Pruebas (`test/`)
 
-| Archivo | Función y relaciones | Mejora recomendada |
-|---|---|---|
-| `test/widget_test.dart` | Pruebas de widgets y flujos principales, con adaptador HTTP falso; cubre dashboard, login y generación QR según sus casos. | Dividir por feature, usar fakes tipados y añadir casos de estados vacíos, error y accesibilidad. |
-| `test/premise_form_test.dart` | Prueba del formulario de predio con servicios falsos y selección en mapa. | Mantener pruebas de validación y mutaciones aisladas; evitar depender de detalles de layout cuando no sean parte del contrato. |
-| `test/manager_lockdown_test.dart` | Comprueba acceso/flujo restringido de responsables usando backend simulado y control de sesión. | Añadir casos de cambio de rol, logout y fallo de generación del QR. |
-| `test/devices_test.dart` | Comprueba la interacción del diálogo de dispositivos y petición de desvinculación con adaptador HTTP de registro. | Afirmar estados de error y accesibilidad, además del endpoint enviado. |
+| Archivo | Función y relaciones |
+|---|---|
+| `test/features/dashboard/admin_panel_test.dart` | Panel, login y QR con adaptador HTTP falso: navegación, Inicio, sincronización de motivos, cambio de rol, QR sin desbordes. |
+| `test/features/premises/premise_form_dialog_test.dart` | Formulario de predio con servicios falsos y selección en el mapa. |
+| `test/features/qr/manager_lockdown_test.dart` | Acceso y flujo restringido del responsable con backend simulado y control de sesión. |
+| `test/features/users/devices_dialog_test.dart` | Diálogo de dispositivos y petición de desvinculación. |
 
 ## Archivos raíz y recursos web
 
 | Archivo | Función y relaciones | Mejora recomendada |
 |---|---|---|
-| `README.md` | Introducción actual de plantilla Flutter. | Sustituir por descripción funcional, requisitos, configuración `API_BASE_URL`, ejecución, compilación, pruebas y arquitectura. |
-| `pubspec.yaml` | Identidad del paquete, SDK, dependencias, material design y recurso `rsc/`. | Documentar versiones de runtime, retirar comentarios de plantilla y evaluar actualización de dependencias como cambio controlado. |
+| `README.md` | Propósito, requisitos, configuración `API_BASE_URL`, ejecución, pruebas y estructura. | Añadir despliegue y variables por entorno. |
+| `pubspec.yaml` | Identidad del paquete, SDK, dependencias, material design y recurso `rsc/`. | Evaluar la actualización de dependencias como cambio controlado. |
 | `pubspec.lock` | Versiones exactas resueltas para reproducibilidad de la aplicación. | Mantener versionado para la app y actualizar junto con validación de compatibilidad. |
-| `analysis_options.yaml` | Activa reglas `flutter_lints`; excluye carpetas nativas y web del análisis Dart. | Activar reglas adicionales con migración incremental y evitar excluir código Dart mantenido sin motivo. |
+| `analysis_options.yaml` | Activa `flutter_lints` y reglas extra (`directives_ordering`, `prefer_single_quotes`, `prefer_final_locals`, `unawaited_futures`, `avoid_print`); excluye carpetas nativas y web del análisis Dart. | Ejecutar `flutter analyze` como puerta de CI. |
 | `.gitignore` | Reglas raíz para omitir artefactos locales y de compilación de Git. | Comprobar que cubra logs, secretos, configuraciones locales y salidas de todos los targets sin excluir fuentes necesarias. |
 | `.metadata` | Metadatos que Flutter usa para conocer la plataforma y versión de migración del proyecto. | Mantener mediante las herramientas Flutter; no editar a mano salvo migración documentada. |
 | `control_leaves_web.iml`, `android/control_leaves_web_android.iml` | Metadatos de módulos del IDE (IntelliJ/Android Studio). | Son específicos del IDE; mantener solo si el equipo realmente los comparte y no almacenan rutas locales. |
@@ -127,7 +106,7 @@ Cada pantalla presenta una tarea de usuario; los diálogos asociados hacen parte
 | `android/gradlew`, `android/gradlew.bat`, `android/gradle/wrapper/gradle-wrapper.jar` | Wrapper de Gradle para ejecutar builds con la versión acordada, sin depender de una instalación global. | Mantener wrapper consistente con `gradle-wrapper.properties` y revisar procedencia al actualizar. |
 | `.flutter-plugins-dependencies` | Índice generado por Flutter de plugins y sus dependencias por plataforma. | Artefacto generado; no editar manualmente. Confirmar si está versionado y excluirlo si el flujo del proyecto no requiere conservarlo. |
 | `flutter_01.log`, `flutter_02.log`, `flutter_03.log` | Registros de ejecución/build de Flutter encontrados en la raíz. | Son salida temporal: evitar versionarlos, añadir patrón adecuado a `.gitignore` y conservar solo si sirven como evidencia deliberada. |
-| `flutter_01.png` | Imagen de referencia en raíz; no aparece declarada como asset en `pubspec.yaml`. | Determinar si es documentación o recurso usado; mover a carpeta con nombre claro o eliminarla si ya no se utiliza. |
+| `flutter_01.png` | Captura suelta en la raíz; no está declarada como asset ni se referencia. | Eliminarla del repositorio (`git rm flutter_01.png`). |
 | `rsc/comteco.png` | Marca/imagen de recursos incluida mediante `rsc/` en pubspec. | Referenciarla mediante una constante de assets y revisar variantes/resolución y licencias. |
 | `web/index.html` | Documento HTML anfitrión de Flutter Web. | Revisar título, metadatos, accesibilidad y configuración de carga según despliegue. |
 | `web/manifest.json` | Nombre, colores e iconos de la PWA. | Mantener metadatos alineados con identidad y probar instalación/actualización PWA. |
@@ -209,7 +188,7 @@ Mejora: definir metadatos de paquete/distribución, estrategia de instalación y
 
 La aplicación ya separa modelos, servicios y presentación, lo que ofrece un punto de partida razonable. Para acercarla a Clean Architecture y facilitar crecimiento:
 
-1. **Organizar por funcionalidad**: agrupar `auth`, `users`, `premises`, `qr` y `settings` con presentación, aplicación, dominio y datos propios. Evita que un cambio funcional requiera navegar carpetas transversales grandes.
+1. **Organizar por funcionalidad** (hecho): `features/auth`, `users`, `premises`, `qr`, `settings`, `dashboard` y `map` con `data`, `models` y `presentation` propios, y `core/` para lo compartido. Siguiente paso: añadir una capa de aplicación (controladores/casos de uso).
 2. **Definir dependencias hacia dentro**: casos de uso/controladores dependen de contratos de repositorio; implementaciones Dio dependen de esos contratos. El dominio no debe importar Flutter, Dio ni JSON.
 3. **Separar modelos de API y dominio**: convertir JSON en DTOs estrictos y mapearlos a entidades. Evitar `dynamic`, casts implícitos y valores sustitutos que escondan respuestas incompatibles.
 4. **Inyectar dependencias**: crear `ApiClient`, servicios y repositorios en el composition root. Evitar singleton global para permitir pruebas deterministas y configuración por entorno.

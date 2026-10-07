@@ -1,7 +1,6 @@
-/// Nombre del rol que solo puede generar el QR de su predio asignado.
-const String kManagePremiseRole = 'MANAGE_PREMISE';
+import '../../../core/constants/role_names.dart';
 
-/// Representa esta entidad.
+/// Persona que inició sesión, con su rol y, si es responsable, su predio.
 class AuthUser {
   final int id;
   final String name;
@@ -15,7 +14,6 @@ class AuthUser {
   /// Cargo real de la persona según el sistema de RR.HH. (p. ej. Funcionario).
   final String? jobTitle;
 
-  /// Ejecuta la tarea.
   AuthUser({
     required this.id,
     required this.name,
@@ -26,26 +24,26 @@ class AuthUser {
     this.jobTitle,
   });
 
-  bool get isAdmin => roleName?.toUpperCase() == 'ADMIN';
+  bool get isAdmin => RoleNames.matches(roleName, RoleNames.admin);
+
+  /// Responsable de un predio (rol MANAGE_PREMISE): experiencia bloqueada.
+  bool get isPremiseManager =>
+      RoleNames.matches(roleName, RoleNames.managePremise);
 
   /// Cargo mostrado en el módulo de usuario.
-  String get cargo {
+  String get roleTitle {
     switch (roleName?.toUpperCase()) {
-      case 'ADMIN':
+      case RoleNames.admin:
         return 'Administrador del sistema';
-      case kManagePremiseRole:
+      case RoleNames.managePremise:
         return 'Responsable de predio';
-      case 'EMPLOYEE':
+      case RoleNames.employee:
         return 'Empleado';
       default:
         return roleName ?? 'Usuario';
     }
   }
 
-  /// Responsable de un predio (rol MANAGE_PREMISE): experiencia bloqueada.
-  bool get isPremiseManager => roleName?.toUpperCase() == kManagePremiseRole;
-
-  /// Ejecuta la tarea.
   factory AuthUser.fromJson(Map<String, dynamic> json) {
     final role = json['role'];
     final premise = json['premise'];
@@ -61,15 +59,12 @@ class AuthUser {
   }
 }
 
-/// Representa esta entidad.
 class AssignedPremise {
   final int id;
   final String name;
 
-  /// Ejecuta la tarea.
   const AssignedPremise({required this.id, required this.name});
 
-  /// Ejecuta la tarea.
   factory AssignedPremise.fromJson(Map<dynamic, dynamic> json) {
     return AssignedPremise(
       id: int.tryParse('${json['premise_id'] ?? json['id'] ?? 0}') ?? 0,
@@ -78,7 +73,6 @@ class AssignedPremise {
   }
 }
 
-/// Ejecuta la tarea.
 String? _photo(dynamic value) {
   final text = value?.toString().trim();
   return (text == null || text.isEmpty) ? null : text;

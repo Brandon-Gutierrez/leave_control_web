@@ -1,46 +1,14 @@
-/// Representa un motivo de salida.
-class Reason {
-  final String name;
-
-  /// Crea un motivo con su nombre.
-  Reason({required this.name});
-
-  /// Convierte un valor JSON en motivo.
-  factory Reason.fromJson(dynamic value) {
-    // Si viene como String directo dentro del array
-    if (value is String) {
-      return Reason(name: value);
-    }
-    // Si en alguna otra ruta viniera como Map
-    return Reason(name: value['name'] ?? value['reasons'] ?? '');
-  }
-
-  /// Convierte el motivo a JSON.
-  Map<String, dynamic> toJson() {
-    return {
-      'name': name,
-    };
-  }
-}
-
-/// Ubicación por defecto del mapa: El Prado, Cochabamba.
-const double kDefaultLatitude = -17.3935;
-const double kDefaultLongitude = -66.1570;
-
-/// Radio (metros) dentro del cual se aceptan los escaneos de un predio.
-const double kPremiseRadiusMeters = 30;
+import 'reason.dart';
 
 /// Responsable (rol MANAGE_PREMISE) asignado a un predio.
-/// Representa al responsable asignado a un predio.
 class PremiseManager {
   final int userId;
   final String name;
 
-  /// Crea un responsable con su identificador y nombre.
   const PremiseManager({required this.userId, required this.name});
 }
 
-/// Representa un predio y sus datos asociados.
+/// Predio con su ubicación, responsable y motivos de salida permitidos.
 class Premise {
   final int id;
   final String name;
@@ -49,7 +17,6 @@ class Premise {
   final double? longitude;
   final PremiseManager? manager;
 
-  /// Crea un predio.
   Premise({
     required this.id,
     required this.name,
@@ -62,11 +29,9 @@ class Premise {
   /// Indica si el predio tiene coordenadas.
   bool get hasLocation => latitude != null && longitude != null;
 
-  /// Convierte un valor numérico a decimal.
   static double? _toDouble(dynamic v) =>
       v == null ? null : double.tryParse(v.toString());
 
-  /// Crea un predio desde JSON.
   factory Premise.fromJson(Map<String, dynamic> json) {
     final rawReasons = json['reason_names'] as List? ?? [];
     final rawManager = json['manager'];
@@ -83,16 +48,5 @@ class Premise {
             )
           : null,
     );
-  }
-
-  /// Convierte el predio a JSON.
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'latitude': latitude,
-      'longitude': longitude,
-      'reason_names': reasonNames.map((r) => r.toJson()).toList(),
-    };
   }
 }

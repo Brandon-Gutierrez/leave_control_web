@@ -1,8 +1,9 @@
 import 'package:dio/dio.dart';
 
-import '../config/api_routes.dart';
+import '../../../core/config/api_routes.dart';
+import '../../../core/network/api_client.dart';
+import '../../../core/network/api_exception.dart';
 import '../models/managed_user.dart';
-import 'api_client.dart';
 
 /// Resultado de crear una cuenta de responsable de predio.
 class CreatedManager {
@@ -12,7 +13,6 @@ class CreatedManager {
   /// escribió una; se muestra una única vez.
   final String? generatedPassword;
 
-  /// Ejecuta la tarea.
   const CreatedManager({required this.user, this.generatedPassword});
 }
 

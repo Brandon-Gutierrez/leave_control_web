@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Representa esta entidad.
-class AppColors {
+abstract final class AppColors {
   static const primaryRed = Color(0xFFD32F2F);
   static const darkText = Color(0xFF111111);
   static const lightBg = Color(0xFFFAFAFA);
@@ -25,7 +24,6 @@ class AppColors {
 }
 
 /// Puntos de quiebre para pantallas web.
-class Breakpoints {
+abstract final class Breakpoints {
   static const double tablet = 760;
-  static const double desktop = 1200;
 }

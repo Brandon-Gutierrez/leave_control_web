@@ -2,17 +2,16 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:control_leaves_web/core/network/api_client.dart';
+import 'package:control_leaves_web/features/auth/models/auth_user.dart';
+import 'package:control_leaves_web/features/auth/presentation/admin_login_page.dart';
+import 'package:control_leaves_web/features/dashboard/presentation/admin_dashboard_page.dart';
+import 'package:control_leaves_web/features/premises/models/premise.dart';
+import 'package:control_leaves_web/features/qr/presentation/qr_generator_page.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:control_leaves_web/models/auth_user.dart';
-import 'package:control_leaves_web/models/premise_model.dart';
-import 'package:control_leaves_web/screens/admin_dashboard_page.dart';
-import 'package:control_leaves_web/screens/generator_qr_page.dart';
-import 'package:control_leaves_web/screens/login_admin_page.dart';
-import 'package:control_leaves_web/services/api_client.dart';
 
 const _premisesPayload = {
   'status': 0,
@@ -192,7 +191,6 @@ void main() {
   });
 
   for (final entry in _sizes.entries) {
-    /// Ejecuta la tarea.
     Future<void> setSize(WidgetTester tester) async {
       tester.view.physicalSize = entry.value;
       tester.view.devicePixelRatio = 1.0;
@@ -201,7 +199,7 @@ void main() {
 
     testWidgets('Login no desborda en ${entry.key}', (tester) async {
       await setSize(tester);
-      await tester.pumpWidget(const MaterialApp(home: LoginAdminPage()));
+      await tester.pumpWidget(const MaterialApp(home: AdminLoginPage()));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
       expect(find.text('Ingresar'), findsOneWidget);
@@ -316,7 +314,7 @@ void main() {
       await setSize(tester);
       await tester.pumpWidget(
         MaterialApp(
-          home: QrPage(
+          home: QrGeneratorPage(
             premise: Premise(id: 1, name: 'Predio Central', reasonNames: []),
           ),
         ),
@@ -413,7 +411,6 @@ void main() {
   });
 }
 
-/// Ejecuta la tarea.
 void filtersTests() {
   testWidgets('La barra de filtros de predios filtra por responsable', (
     tester,
@@ -477,7 +474,6 @@ void filtersTests() {
   });
 }
 
-/// Ejecuta la tarea.
 void passwordAndLoginTests() {
   testWidgets(
     'Tras un error de login la contraseña sigue editable y se puede reintentar',
@@ -485,7 +481,7 @@ void passwordAndLoginTests() {
       tester.view.physicalSize = const Size(1200, 900);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
-      await tester.pumpWidget(const MaterialApp(home: LoginAdminPage()));
+      await tester.pumpWidget(const MaterialApp(home: AdminLoginPage()));
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextFormField).at(0), 'admin');

@@ -10,7 +10,6 @@ class FilterGroup<T> extends StatelessWidget {
   final Map<T, String> options;
   final ValueChanged<T> onChanged;
 
-  /// Ejecuta la tarea.
   const FilterGroup({
     super.key,
     required this.title,
@@ -19,7 +18,6 @@ class FilterGroup<T> extends StatelessWidget {
     required this.onChanged,
   });
 
-  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -77,7 +75,6 @@ class FilterSidebarLayout extends StatefulWidget {
   /// Ancho a partir del cual la barra queda fija al costado.
   final double wideBreakpoint;
 
-  /// Ejecuta la tarea.
   const FilterSidebarLayout({
     super.key,
     required this.search,
@@ -88,16 +85,13 @@ class FilterSidebarLayout extends StatefulWidget {
     this.wideBreakpoint = 900,
   });
 
-  /// Crea el estado del widget.
   @override
   State<FilterSidebarLayout> createState() => _FilterSidebarLayoutState();
 }
 
-/// Representa esta entidad.
 class _FilterSidebarLayoutState extends State<FilterSidebarLayout> {
   bool _expanded = false;
 
-  /// Ejecuta la tarea.
   List<Widget> _spaced(List<Widget> items) => [
     for (var i = 0; i < items.length; i++) ...[
       if (i > 0) const SizedBox(height: 18),
@@ -105,7 +99,6 @@ class _FilterSidebarLayoutState extends State<FilterSidebarLayout> {
     ],
   ];
 
-  /// Ejecuta la tarea.
   Widget _clearButton() => Align(
     alignment: Alignment.centerLeft,
     child: TextButton.icon(
@@ -116,7 +109,6 @@ class _FilterSidebarLayoutState extends State<FilterSidebarLayout> {
     ),
   );
 
-  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
