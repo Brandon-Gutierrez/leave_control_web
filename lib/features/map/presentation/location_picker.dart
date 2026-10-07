@@ -254,7 +254,7 @@ class _LocationPickerState extends State<LocationPicker> {
 
   Widget _buildStatus() {
     final picked = _picked;
-    final color = picked != null ? Colors.green.shade700 : Colors.orange.shade800;
+    final color = picked != null ? AppColors.success : AppColors.warning;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(

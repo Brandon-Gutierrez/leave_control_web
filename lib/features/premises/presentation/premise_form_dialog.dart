@@ -335,7 +335,7 @@ class _PremiseFormDialogState extends State<PremiseFormDialog> {
                 padding: const EdgeInsets.only(top: 6),
                 child: Text(
                   warning,
-                  style: TextStyle(fontSize: 12, color: Colors.orange.shade900),
+                  style: TextStyle(fontSize: 12, color: AppColors.warning),
                 ),
               ),
             _sectionTitle('Motivos de salida permitidos'),

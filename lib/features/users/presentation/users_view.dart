@@ -142,9 +142,9 @@ class UsersViewState extends State<UsersView> {
         widget.onUnauthorized();
         return;
       }
-      _showSnackBar(e.message, Colors.red);
+      _showSnackBar(e.message, AppColors.danger);
     } catch (_) {
-      _showSnackBar('No se pudo cargar la lista de usuarios', Colors.red);
+      _showSnackBar('No se pudo cargar la lista de usuarios', AppColors.danger);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -155,7 +155,7 @@ class UsersViewState extends State<UsersView> {
     showAppPopup(
       context,
       message,
-      kind: color == Colors.red ? PopupKind.error : PopupKind.success,
+      kind: color == AppColors.danger ? PopupKind.error : PopupKind.success,
     );
   }
 
@@ -168,7 +168,7 @@ class UsersViewState extends State<UsersView> {
         _premises.isEmpty
             ? 'Primero cree un predio para poder asignárselo a un responsable.'
             : 'Todos los predios ya tienen responsable. Cambie el responsable desde Editar predio.',
-        Colors.red,
+        AppColors.danger,
       );
       return;
     }
@@ -254,14 +254,14 @@ class UsersViewState extends State<UsersView> {
       _showSnackBar(
         '${platform.label}: ${platform.deviceNoun} de ${user.name} '
         'desvinculado. Ya puede entrar desde uno nuevo.',
-        Colors.green,
+        AppColors.success,
       );
     } on ApiException catch (e) {
       if (e.isUnauthorized) {
         widget.onUnauthorized();
         return;
       }
-      _showSnackBar(e.message, Colors.red);
+      _showSnackBar(e.message, AppColors.danger);
     } finally {
       if (mounted) setState(() => _updatingUserIds.remove(user.id));
     }
@@ -284,7 +284,7 @@ class UsersViewState extends State<UsersView> {
       if (!mounted) return;
       setState(() => _updatingUserIds.remove(user.id));
       if (generated == null) {
-        _showSnackBar('Contraseña de ${user.name} actualizada', Colors.green);
+        _showSnackBar('Contraseña de ${user.name} actualizada', AppColors.success);
       } else {
         await showDialog<void>(
           context: context,
@@ -303,7 +303,7 @@ class UsersViewState extends State<UsersView> {
         widget.onUnauthorized();
         return;
       }
-      _showSnackBar(e.message, Colors.red);
+      _showSnackBar(e.message, AppColors.danger);
     } finally {
       if (mounted) setState(() => _updatingUserIds.remove(user.id));
     }
@@ -345,14 +345,14 @@ class UsersViewState extends State<UsersView> {
           : ' en ${_premises.firstWhere((p) => p.id == selection.premiseId).name}';
       _showSnackBar(
         '$displayName ahora es $roleLabel$premiseLabel',
-        Colors.green,
+        AppColors.success,
       );
     } on ApiException catch (e) {
       if (e.isUnauthorized) {
         widget.onUnauthorized();
         return;
       }
-      _showSnackBar(e.message, Colors.red);
+      _showSnackBar(e.message, AppColors.danger);
     } finally {
       if (mounted) setState(() => _updatingUserIds.remove(user.id));
     }

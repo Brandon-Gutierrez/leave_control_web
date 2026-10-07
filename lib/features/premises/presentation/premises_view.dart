@@ -126,9 +126,9 @@ class PremisesViewState extends State<PremisesView> {
         widget.onUnauthorized();
         return;
       }
-      _showSnackBar(e.message, Colors.red);
+      _showSnackBar(e.message, AppColors.danger);
     } catch (_) {
-      _showSnackBar('No se pudieron cargar los predios', Colors.red);
+      _showSnackBar('No se pudieron cargar los predios', AppColors.danger);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -139,7 +139,7 @@ class PremisesViewState extends State<PremisesView> {
     showAppPopup(
       context,
       message,
-      kind: color == Colors.red ? PopupKind.error : PopupKind.success,
+      kind: color == AppColors.danger ? PopupKind.error : PopupKind.success,
     );
   }
 
@@ -149,7 +149,7 @@ class PremisesViewState extends State<PremisesView> {
       builder: (context) => const PremiseFormDialog(),
     );
     if (created == true) {
-      _showSnackBar('Predio creado correctamente', Colors.green);
+      _showSnackBar('Predio creado correctamente', AppColors.success);
       unawaited(_fetchData());
     }
   }
@@ -159,14 +159,14 @@ class PremisesViewState extends State<PremisesView> {
     setState(() => _isSyncing = true);
     try {
       final message = await _premiseService.syncReasons();
-      _showSnackBar(message, Colors.green);
+      _showSnackBar(message, AppColors.success);
       await _fetchData();
     } on ApiException catch (e) {
       if (e.isUnauthorized) {
         widget.onUnauthorized();
         return;
       }
-      _showSnackBar(e.message, Colors.red);
+      _showSnackBar(e.message, AppColors.danger);
     } finally {
       if (mounted) setState(() => _isSyncing = false);
     }
@@ -178,7 +178,7 @@ class PremisesViewState extends State<PremisesView> {
       builder: (context) => PremiseFormDialog(premise: premise),
     );
     if (updated == true) {
-      _showSnackBar('Predio actualizado correctamente', Colors.green);
+      _showSnackBar('Predio actualizado correctamente', AppColors.success);
       await _fetchData();
     }
   }
