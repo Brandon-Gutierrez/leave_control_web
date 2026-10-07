@@ -15,6 +15,7 @@ class ChangeRoleDialog extends StatefulWidget {
   final List<AppRole> roles;
   final List<UserPremise> premises;
 
+  /// Ejecuta la tarea.
   const ChangeRoleDialog({
     super.key,
     required this.user,
@@ -22,18 +23,23 @@ class ChangeRoleDialog extends StatefulWidget {
     required this.premises,
   });
 
+  /// Crea el estado del widget.
   @override
   State<ChangeRoleDialog> createState() => _ChangeRoleDialogState();
 }
 
+/// Representa esta entidad.
 class _ChangeRoleDialogState extends State<ChangeRoleDialog> {
   late int? _selectedRoleId = widget.user.role?.id;
   late int? _selectedPremiseId = widget.user.premise?.id;
 
+  /// Ejecuta la tarea.
   bool _isAdminRole(AppRole role) => role.name.toUpperCase() == 'ADMIN';
+  /// Ejecuta la tarea.
   bool _isPremiseManagerRole(AppRole role) =>
       role.name.toUpperCase() == kManagePremiseRole;
 
+  /// Ejecuta la tarea.
   String _displayName(AppRole role) {
     if (_isAdminRole(role)) return 'Administrador';
     if (role.name.toUpperCase() == 'EMPLOYEE') return 'Empleado';
@@ -41,6 +47,7 @@ class _ChangeRoleDialogState extends State<ChangeRoleDialog> {
     return role.name;
   }
 
+  /// Ejecuta la tarea.
   String _describeRole(AppRole role) {
     if (_isAdminRole(role)) {
       return 'Puede crear predios, cambiar sus motivos de salida y decidir '
@@ -55,12 +62,14 @@ class _ChangeRoleDialogState extends State<ChangeRoleDialog> {
     return 'Rol del sistema.';
   }
 
+  /// Ejecuta la tarea.
   IconData _iconForRole(AppRole role) => _isAdminRole(role)
       ? Icons.shield_rounded
       : _isPremiseManagerRole(role)
       ? Icons.apartment_rounded
       : Icons.badge_rounded;
 
+  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.sizeOf(context).width;
@@ -75,6 +84,7 @@ class _ChangeRoleDialogState extends State<ChangeRoleDialog> {
         _selectedRoleId != widget.user.role?.id ||
         _selectedPremiseId != widget.user.premise?.id;
 
+    /// Ejecuta la tarea.
     void save() {
       final role = widget.roles.firstWhere((r) => r.id == _selectedRoleId);
       Navigator.pop(
@@ -149,13 +159,16 @@ class _ChangeRoleDialogState extends State<ChangeRoleDialog> {
   }
 }
 
+/// Representa esta entidad.
 class RoleChangeSelection {
   final AppRole role;
   final int? premiseId;
 
+  /// Ejecuta la tarea.
   const RoleChangeSelection({required this.role, required this.premiseId});
 }
 
+/// Representa esta entidad.
 class _RoleOption extends StatelessWidget {
   final String title;
   final IconData icon;
@@ -163,6 +176,7 @@ class _RoleOption extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
+  /// Ejecuta la tarea.
   const _RoleOption({
     required this.title,
     required this.icon,
@@ -171,6 +185,7 @@ class _RoleOption extends StatelessWidget {
     required this.onTap,
   });
 
+  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     return Material(

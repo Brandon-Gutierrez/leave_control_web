@@ -8,13 +8,17 @@ import 'services/auth_service.dart';
 import 'session/session_controller.dart';
 import 'theme/app_colors.dart';
 
+/// Inicia la aplicacion.
 void main() {
   runApp(const MyApp());
 }
 
+/// Representa esta entidad.
 class MyApp extends StatelessWidget {
+  /// Ejecuta la tarea.
   const MyApp({super.key});
 
+  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -73,12 +77,15 @@ class MyApp extends StatelessWidget {
 
 /// Restaura la sesión del navegador (cookie de Sanctum) al recargar la página.
 class AuthGate extends StatefulWidget {
+  /// Ejecuta la tarea.
   const AuthGate({super.key});
 
+  /// Crea el estado del widget.
   @override
   State<AuthGate> createState() => _AuthGateState();
 }
 
+/// Representa esta entidad.
 class _AuthGateState extends State<AuthGate> {
   // Al restaurar la sesión se publica el usuario: si es un responsable de
   // predio, la raíz de la app pasa a mostrar solo su pantalla de QR.
@@ -89,6 +96,7 @@ class _AuthGateState extends State<AuthGate> {
     return user;
   });
 
+  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<AuthUser?>(

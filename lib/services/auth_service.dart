@@ -4,6 +4,7 @@ import '../config/api_routes.dart';
 import '../models/auth_user.dart';
 import 'api_client.dart';
 
+/// Representa esta entidad.
 class AuthService {
   final ApiClient _apiClient;
 
@@ -35,6 +36,7 @@ class AuthService {
     }
   }
 
+  /// Ejecuta la tarea.
   Future<void> logout() async {
     try {
       await _dio.post(ApiRoutes.logout);

@@ -20,18 +20,23 @@ import 'devices_dialog.dart';
 /// roles y asigna predios a los gestores, siempre con confirmación.
 enum _RoleFilter { all, employee, admin, manager }
 
+/// Define los valores posibles.
 enum _PremiseFilter { any, with_, without }
 
+/// Representa esta entidad.
 class UsersView extends StatefulWidget {
   /// Se llama cuando el token de sesión ya no es válido (401).
   final VoidCallback onUnauthorized;
 
+  /// Ejecuta la tarea.
   const UsersView({super.key, required this.onUnauthorized});
 
+  /// Crea el estado del widget.
   @override
   State<UsersView> createState() => UsersViewState();
 }
 
+/// Representa esta entidad.
 class UsersViewState extends State<UsersView> {
   static const primaryRed = AppColors.primaryRed;
   static const darkText = AppColors.darkText;
@@ -50,12 +55,14 @@ class UsersViewState extends State<UsersView> {
   bool _isLoading = true;
   final Set<int> _updatingUserIds = {};
 
+  /// Inicializa el estado.
   @override
   void initState() {
     super.initState();
     _fetchData();
   }
 
+  /// Libera los recursos.
   @override
   void dispose() {
     _searchController.dispose();
@@ -101,6 +108,7 @@ class UsersViewState extends State<UsersView> {
       (_premiseFilter == _PremiseFilter.any ? 0 : 1) +
       (_searchQuery.trim().isEmpty ? 0 : 1);
 
+  /// Ejecuta la tarea.
   void _clearFilters() => setState(() {
     _roleFilter = _RoleFilter.all;
     _premiseFilter = _PremiseFilter.any;
@@ -116,6 +124,7 @@ class UsersViewState extends State<UsersView> {
       )
       .toList();
 
+  /// Ejecuta la tarea.
   Future<void> _fetchData() async {
     setState(() => _isLoading = true);
     try {
@@ -152,6 +161,7 @@ class UsersViewState extends State<UsersView> {
     }
   }
 
+  /// Ejecuta la tarea.
   void _showSnackBar(String message, Color color) {
     if (!mounted) return;
     showAppPopup(
@@ -191,6 +201,7 @@ class UsersViewState extends State<UsersView> {
     );
   }
 
+  /// Ejecuta la tarea.
   Future<void> _openChangeRoleDialog(ManagedUser user) async {
     if (_updatingUserIds.contains(user.id) || _roles.isEmpty) return;
 
@@ -206,6 +217,7 @@ class UsersViewState extends State<UsersView> {
     await _changeUser(user, selection);
   }
 
+  /// Ejecuta la tarea.
   Future<void> _openDevicesDialog(ManagedUser user) async {
     if (_updatingUserIds.contains(user.id)) return;
     final platform = await showDialog<ClientPlatform>(
@@ -269,6 +281,7 @@ class UsersViewState extends State<UsersView> {
     }
   }
 
+  /// Ejecuta la tarea.
   Future<void> _openPasswordDialog(ManagedUser user) async {
     if (_updatingUserIds.contains(user.id)) return;
     final choice = await showDialog<PasswordChoice>(
@@ -311,6 +324,7 @@ class UsersViewState extends State<UsersView> {
     }
   }
 
+  /// Ejecuta la tarea.
   Future<void> _changeUser(
     ManagedUser user,
     RoleChangeSelection selection,
@@ -360,6 +374,7 @@ class UsersViewState extends State<UsersView> {
     }
   }
 
+  /// Ejecuta la tarea.
   String _roleLabel(AppRole role) {
     switch (role.name.toUpperCase()) {
       case 'ADMIN':
@@ -373,6 +388,7 @@ class UsersViewState extends State<UsersView> {
     }
   }
 
+  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -410,6 +426,7 @@ class UsersViewState extends State<UsersView> {
     );
   }
 
+  /// Ejecuta la tarea.
   Widget _buildContent() {
     final users = _filteredUsers;
     return LayoutBuilder(
@@ -497,6 +514,7 @@ class UsersViewState extends State<UsersView> {
     );
   }
 
+  /// Ejecuta la tarea.
   Widget _buildSearchField() {
     return TextField(
       controller: _searchController,
@@ -525,6 +543,7 @@ class UsersViewState extends State<UsersView> {
     );
   }
 
+  /// Ejecuta la tarea.
   Widget _buildUserTile(ManagedUser user) {
     final isUpdating = _updatingUserIds.contains(user.id);
     final isAdmin = user.isAdmin;
@@ -657,12 +676,15 @@ class UsersViewState extends State<UsersView> {
   }
 }
 
+/// Representa esta entidad.
 class _RoleBadge extends StatelessWidget {
   final String label;
   final bool isAdmin;
 
+  /// Ejecuta la tarea.
   const _RoleBadge({required this.label, required this.isAdmin});
 
+  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     final color = isAdmin ? AppColors.primaryRed : Colors.grey.shade700;

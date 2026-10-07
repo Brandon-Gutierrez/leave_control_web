@@ -14,16 +14,20 @@ import 'premise_form_dialog.dart';
 /// Estado de un filtro que distingue "tiene / no tiene".
 enum _Presence { any, with_, without }
 
+/// Representa esta entidad.
 class PremisesView extends StatefulWidget {
   /// Se llama cuando el token de sesión ya no es válido (401).
   final VoidCallback onUnauthorized;
 
+  /// Ejecuta la tarea.
   const PremisesView({super.key, required this.onUnauthorized});
 
+  /// Crea el estado del widget.
   @override
   State<PremisesView> createState() => PremisesViewState();
 }
 
+/// Representa esta entidad.
 class PremisesViewState extends State<PremisesView> {
   // Paleta de colores unificada
   static const primaryRed = AppColors.primaryRed;
@@ -44,12 +48,14 @@ class PremisesViewState extends State<PremisesView> {
   bool _isLoading = true;
   bool _isSyncing = false;
 
+  /// Inicializa el estado.
   @override
   void initState() {
     super.initState();
     _fetchData();
   }
 
+  /// Libera los recursos.
   @override
   void dispose() {
     _searchController.dispose();
@@ -100,6 +106,7 @@ class PremisesViewState extends State<PremisesView> {
       ].where((f) => f != _Presence.any).length +
       (_searchQuery.trim().isEmpty ? 0 : 1);
 
+  /// Ejecuta la tarea.
   void _clearFilters() => setState(() {
     _managerFilter = _Presence.any;
     _locationFilter = _Presence.any;
@@ -108,6 +115,7 @@ class PremisesViewState extends State<PremisesView> {
     _searchController.clear();
   });
 
+  /// Ejecuta la tarea.
   Future<void> _fetchData() async {
     setState(() => _isLoading = true);
     try {
@@ -133,6 +141,7 @@ class PremisesViewState extends State<PremisesView> {
     }
   }
 
+  /// Ejecuta la tarea.
   void _showSnackBar(String message, Color color) {
     if (!mounted) return;
     showAppPopup(
@@ -142,6 +151,7 @@ class PremisesViewState extends State<PremisesView> {
     );
   }
 
+  /// Ejecuta la tarea.
   Future<void> _openCreatePremiseDialog() async {
     final created = await showDialog<bool>(
       context: context,
@@ -153,6 +163,7 @@ class PremisesViewState extends State<PremisesView> {
     }
   }
 
+  /// Ejecuta la tarea.
   Future<void> _syncReasons() async {
     if (_isSyncing) return;
     setState(() => _isSyncing = true);
@@ -171,6 +182,7 @@ class PremisesViewState extends State<PremisesView> {
     }
   }
 
+  /// Ejecuta la tarea.
   Future<void> _editPremise(Premise premise) async {
     final updated = await showDialog<bool>(
       context: context,
@@ -182,6 +194,7 @@ class PremisesViewState extends State<PremisesView> {
     }
   }
 
+  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -228,6 +241,7 @@ class PremisesViewState extends State<PremisesView> {
     );
   }
 
+  /// Ejecuta la tarea.
   Widget _buildContent() {
     final predios = _filteredPredios;
     return LayoutBuilder(
@@ -291,6 +305,7 @@ class PremisesViewState extends State<PremisesView> {
     );
   }
 
+  /// Ejecuta la tarea.
   Widget _buildAddButton() {
     return SizedBox(
       height: AppDimens.smallButtonHeight,
@@ -306,6 +321,7 @@ class PremisesViewState extends State<PremisesView> {
     );
   }
 
+  /// Ejecuta la tarea.
   Widget _buildSearchField() {
     return TextField(
       controller: _searchController,
@@ -332,6 +348,7 @@ class PremisesViewState extends State<PremisesView> {
   }
 
   // Cuadrícula de tarjetas: cada fila reparte el ancho en partes iguales.
+  /// Ejecuta la tarea.
   Widget _buildGrid(int columns, List<Premise> predios) {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -353,6 +370,7 @@ class PremisesViewState extends State<PremisesView> {
     );
   }
 
+  /// Ejecuta la tarea.
   Widget _buildPremiseCard(Premise predio) {
     final manager = predio.manager;
     // El color de la franja resume el estado sin tener que leer nada.
@@ -421,6 +439,7 @@ class PremisesViewState extends State<PremisesView> {
     );
   }
 
+  /// Ejecuta la tarea.
   Widget _infoRow(IconData icon, String text, {Color? alert}) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,

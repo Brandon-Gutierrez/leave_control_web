@@ -12,7 +12,9 @@ class ApiRoutes {
   static const String reasons = '/api/admin/reasons';
   static const String syncReasons = '/api/admin/reasons/sync';
 
+  /// Ejecuta la tarea.
   static String premise(int premiseId) => '/api/admin/premises/$premiseId';
+  /// Ejecuta la tarea.
   static String premiseReasons(int premiseId) =>
       '/api/admin/premises/$premiseId/reasons';
 
@@ -22,10 +24,14 @@ class ApiRoutes {
   static const String users = '/api/admin/users';
   static const String roles = '/api/admin/roles';
 
+  /// Ejecuta la tarea.
   static String userRole(int userId) => '/api/admin/users/$userId/role';
 
+  /// Ejecuta la tarea.
   static String userPremise(int userId) => '/api/admin/users/$userId/premise';
+  /// Ejecuta la tarea.
   static String userPassword(int userId) => '/api/admin/users/$userId/password';
+  /// Ejecuta la tarea.
   static String userDeviceReset(int userId) =>
       '/api/admin/users/$userId/device/reset';
   static const String settingsLeaveLimits = '/api/admin/settings/leave-limits';

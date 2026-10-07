@@ -4,6 +4,7 @@ import '../config/api_routes.dart';
 import '../models/premise_model.dart';
 import 'api_client.dart';
 
+/// Representa esta entidad.
 class QrToken {
   final String token;
   final int ttl;
@@ -13,6 +14,7 @@ class QrToken {
   /// administración reasigna al responsable).
   final String? premiseName;
 
+  /// Ejecuta la tarea.
   QrToken({
     required this.token,
     required this.ttl,
@@ -21,6 +23,7 @@ class QrToken {
   });
 }
 
+/// Representa esta entidad.
 class PremiseService {
   final ApiClient _apiClient;
 

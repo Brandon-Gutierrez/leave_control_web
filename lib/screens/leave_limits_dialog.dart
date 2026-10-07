@@ -14,12 +14,15 @@ import '../widgets/dialog_header.dart';
 class LeaveLimitsDialog extends StatefulWidget {
   final SettingsService? service;
 
+  /// Ejecuta la tarea.
   const LeaveLimitsDialog({super.key, this.service});
 
+  /// Crea el estado del widget.
   @override
   State<LeaveLimitsDialog> createState() => _LeaveLimitsDialogState();
 }
 
+/// Representa esta entidad.
 class _LeaveLimitsDialogState extends State<LeaveLimitsDialog> {
   late final SettingsService _service = widget.service ?? SettingsService();
   final _total = TextEditingController();
@@ -29,12 +32,14 @@ class _LeaveLimitsDialogState extends State<LeaveLimitsDialog> {
   bool _saving = false;
   String? _error;
 
+  /// Inicializa el estado.
   @override
   void initState() {
     super.initState();
     _load();
   }
 
+  /// Libera los recursos.
   @override
   void dispose() {
     _total.dispose();
@@ -42,6 +47,7 @@ class _LeaveLimitsDialogState extends State<LeaveLimitsDialog> {
     super.dispose();
   }
 
+  /// Ejecuta la tarea.
   Future<void> _load() async {
     setState(() {
       _loading = true;
@@ -65,6 +71,7 @@ class _LeaveLimitsDialogState extends State<LeaveLimitsDialog> {
     }
   }
 
+  /// Ejecuta la tarea.
   Future<void> _save() async {
     setState(() {
       _saving = true;
@@ -90,6 +97,7 @@ class _LeaveLimitsDialogState extends State<LeaveLimitsDialog> {
     }
   }
 
+  /// Ejecuta la tarea.
   InputDecoration _decoration(String label, String helper) => InputDecoration(
     labelText: label,
     helperText: helper,
@@ -97,6 +105,7 @@ class _LeaveLimitsDialogState extends State<LeaveLimitsDialog> {
     border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppDimens.fieldRadius)),
   );
 
+  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     final digits = [FilteringTextInputFormatter.digitsOnly];

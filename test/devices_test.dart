@@ -7,9 +7,11 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+/// Representa esta entidad.
 class _RecordingAdapter implements HttpClientAdapter {
   RequestOptions? lastRequest;
 
+  /// Obtiene los datos.
   @override
   Future<ResponseBody> fetch(
     RequestOptions options,
@@ -26,10 +28,12 @@ class _RecordingAdapter implements HttpClientAdapter {
     );
   }
 
+  /// Cierra el recurso.
   @override
   void close({bool force = false}) {}
 }
 
+/// Ejecuta la tarea.
 ManagedUser _user(String role, {Map<ClientPlatform, DateTime> devices = const {}}) =>
     ManagedUser(
       id: 7,
@@ -39,6 +43,7 @@ ManagedUser _user(String role, {Map<ClientPlatform, DateTime> devices = const {}
       devices: devices,
     );
 
+/// Ejecuta la tarea.
 Future<void> _openDialog(WidgetTester tester, ManagedUser user) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -57,6 +62,7 @@ Future<void> _openDialog(WidgetTester tester, ManagedUser user) async {
   await tester.pumpAndSettle();
 }
 
+/// Inicia la aplicacion.
 void main() {
   test('cada petición web se identifica como web y con el id del navegador', () async {
     final adapter = _RecordingAdapter();

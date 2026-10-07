@@ -23,6 +23,7 @@ class HomeView extends StatefulWidget {
   /// Acceso directo para crear la cuenta de un responsable de predio.
   final VoidCallback? onAddManager;
 
+  /// Ejecuta la tarea.
   const HomeView({
     super.key,
     required this.user,
@@ -34,12 +35,15 @@ class HomeView extends StatefulWidget {
     this.onAddManager,
   });
 
+  /// Crea el estado del widget.
   @override
   State<HomeView> createState() => HomeViewState();
 }
 
+/// Define los valores posibles.
 enum _Level { urgent, pending, info }
 
+/// Representa esta entidad.
 class _Issue {
   final _Level level;
   final int count;
@@ -48,9 +52,11 @@ class _Issue {
   final String action;
   final VoidCallback onTap;
 
+  /// Ejecuta la tarea.
   const _Issue(this.level, this.count, this.title, this.help, this.action, this.onTap);
 }
 
+/// Representa esta entidad.
 class HomeViewState extends State<HomeView> {
   final PremiseService _premiseService = PremiseService();
   final UserAdminService _userAdminService = UserAdminService();
@@ -61,6 +67,7 @@ class HomeViewState extends State<HomeView> {
   List<Premise> _premises = [];
   List<ManagedUser> _users = [];
 
+  /// Inicializa el estado.
   @override
   void initState() {
     super.initState();
@@ -70,6 +77,7 @@ class HomeViewState extends State<HomeView> {
   /// Vuelve a calcular el resumen. Público para refrescarlo desde fuera.
   Future<void> refresh() => _fetchSummary();
 
+  /// Ejecuta la tarea.
   Future<void> _fetchSummary() async {
     setState(() {
       _isLoading = true;
@@ -95,6 +103,7 @@ class HomeViewState extends State<HomeView> {
     }
   }
 
+  /// Ejecuta la tarea.
   Future<void> _handleSync() async {
     if (_isSyncing) return;
     setState(() => _isSyncing = true);
@@ -104,6 +113,7 @@ class HomeViewState extends State<HomeView> {
     _fetchSummary();
   }
 
+  /// Ejecuta la tarea.
   void _openPremises() => (widget.onOpenPremises ?? widget.onAddPremise).call();
 
   List<_Issue> get _issues {
@@ -169,6 +179,7 @@ class HomeViewState extends State<HomeView> {
     ];
   }
 
+  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -219,9 +230,11 @@ class HomeViewState extends State<HomeView> {
   }
 
   // Números en una franja simple separada por líneas, no en tarjetas.
+  /// Ejecuta la tarea.
   Widget _buildTotals() {
     final admins = _users.where((u) => u.isAdmin).length;
     final narrow = MediaQuery.sizeOf(context).width < 640;
+    /// Ejecuta la tarea.
     Widget item(IconData icon, int value, String label) => Expanded(
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
@@ -264,6 +277,7 @@ class HomeViewState extends State<HomeView> {
     );
   }
 
+  /// Ejecuta la tarea.
   Widget _buildAttention() {
     final Widget body;
     if (_isLoading && _premises.isEmpty && _users.isEmpty) {
@@ -312,6 +326,7 @@ class HomeViewState extends State<HomeView> {
     );
   }
 
+  /// Ejecuta la tarea.
   Widget _buildActions() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -345,11 +360,14 @@ class HomeViewState extends State<HomeView> {
   }
 }
 
+/// Representa esta entidad.
 class _IssueRow extends StatelessWidget {
   final _Issue issue;
 
+  /// Ejecuta la tarea.
   const _IssueRow({required this.issue});
 
+  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     final (color, bg, icon) = switch (issue.level) {
@@ -379,6 +397,7 @@ class _Banner extends StatelessWidget {
   final String? action;
   final VoidCallback? onTap;
 
+  /// Ejecuta la tarea.
   const _Banner({
     required this.color,
     required this.background,
@@ -389,6 +408,7 @@ class _Banner extends StatelessWidget {
     this.onTap,
   });
 
+  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -442,12 +462,14 @@ class _Banner extends StatelessWidget {
   }
 }
 
+/// Representa esta entidad.
 class _QuickAction extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
   final bool isLoading;
 
+  /// Ejecuta la tarea.
   const _QuickAction({
     required this.icon,
     required this.label,
@@ -455,6 +477,7 @@ class _QuickAction extends StatelessWidget {
     this.isLoading = false,
   });
 
+  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     return Padding(

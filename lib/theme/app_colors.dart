@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+/// Representa esta entidad.
 class AppColors {
   static const primaryRed = Color(0xFFD32F2F);
   static const darkText = Color(0xFF111111);

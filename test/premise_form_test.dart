@@ -10,13 +10,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:control_leaves_web/models/lat_lng.dart';
 
+/// Representa esta entidad.
 class _FakePremises implements PremiseService {
   Map<String, dynamic>? saved;
   bool created = false;
 
+  /// Ejecuta la tarea.
   @override
   Future<List<Reason>> getAllReasons() async => [Reason(name: 'Cita médica')];
 
+  /// Ejecuta la tarea.
   @override
   Future<Premise> createPremise({
     required String name,
@@ -30,6 +33,7 @@ class _FakePremises implements PremiseService {
     return Premise(id: 9, name: name, reasonNames: []);
   }
 
+  /// Ejecuta la tarea.
   @override
   Future<Premise> updatePremise(
     int premiseId, {
@@ -43,21 +47,26 @@ class _FakePremises implements PremiseService {
     return Premise(id: premiseId, name: name, reasonNames: []);
   }
 
+  /// Gestiona metodos no implementados.
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+/// Representa esta entidad.
 class _FakeUsers implements UserAdminService {
+  /// Ejecuta la tarea.
   @override
   Future<List<ManagedUser>> getUsers() async => [
     ManagedUser(id: 7, name: 'Ana Gestora', item: '1', role: AppRole(id: 3, name: 'MANAGE_PREMISE')),
     ManagedUser(id: 8, name: 'Luis Empleado', item: '2', role: AppRole(id: 1, name: 'EMPLOYEE')),
   ];
 
+  /// Gestiona metodos no implementados.
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+/// Ejecuta la tarea.
 Widget _host(Widget dialog) => MaterialApp(
   home: Scaffold(body: Builder(builder: (c) => TextButton(
     onPressed: () => showDialog(context: c, builder: (_) => dialog),
@@ -65,6 +74,7 @@ Widget _host(Widget dialog) => MaterialApp(
   ))),
 );
 
+/// Ejecuta la tarea.
 Future<void> _open(WidgetTester t, Widget dialog) async {
   t.view.physicalSize = const Size(1000, 1800);
   t.view.devicePixelRatio = 1;
@@ -75,11 +85,13 @@ Future<void> _open(WidgetTester t, Widget dialog) async {
   await t.pump(const Duration(milliseconds: 100));
 }
 
+/// Ejecuta la tarea.
 Future<void> _tapMap(WidgetTester t, {double dx = 60}) async {
   await t.tapAt(t.getCenter(find.byType(FlutterMap)) + Offset(dx, 0));
   await t.pump(const Duration(milliseconds: 600)); // espera del doble toque
 }
 
+/// Inicia la aplicacion.
 void main() {
   testWidgets('un predio nuevo no se guarda hasta tocar el mapa', (t) async {
     final premises = _FakePremises();

@@ -3,17 +3,20 @@ import 'package:dio/dio.dart';
 import '../config/api_routes.dart';
 import 'api_client.dart';
 
+/// Representa esta entidad.
 class QrSettings {
   final int ttlSeconds;
   final int minSeconds;
   final int maxSeconds;
 
+  /// Ejecuta la tarea.
   const QrSettings({
     required this.ttlSeconds,
     required this.minSeconds,
     required this.maxSeconds,
   });
 
+  /// Ejecuta la tarea.
   factory QrSettings.fromJson(Map<String, dynamic> json) => QrSettings(
     ttlSeconds: (json['qr_ttl_seconds'] as num?)?.toInt() ?? 300,
     minSeconds: (json['qr_ttl_seconds_min'] as num?)?.toInt() ?? 30,
@@ -30,6 +33,7 @@ class SettingsService {
   Dio get dio => _apiClient.dio;
   Dio get _dio => dio;
 
+  /// Ejecuta la tarea.
   Future<QrSettings> getQrSettings() async {
     try {
       final response = await _dio.get(ApiRoutes.settingsQr);
@@ -42,6 +46,7 @@ class SettingsService {
     }
   }
 
+  /// Ejecuta la tarea.
   Future<void> updateQrTtl(int ttlSeconds) async {
     try {
       await _dio.put(ApiRoutes.settingsQr, data: {'qr_ttl_seconds': ttlSeconds});
@@ -60,8 +65,10 @@ class LeaveLimits {
   final int? maxExits;
   final int? maxExitsPerPremise;
 
+  /// Ejecuta la tarea.
   const LeaveLimits({required this.period, this.maxExits, this.maxExitsPerPremise});
 
+  /// Ejecuta la tarea.
   factory LeaveLimits.fromJson(Map<String, dynamic> json) => LeaveLimits(
     period: (json['period'] ?? 'day').toString(),
     maxExits: (json['max_exits'] as num?)?.toInt(),
@@ -70,6 +77,7 @@ class LeaveLimits {
 
   static const periods = ['day', 'week', 'month'];
 
+  /// Ejecuta la tarea.
   static String periodLabel(String p) => switch (p) {
     'day' => 'Cada día',
     'week' => 'Cada semana',
@@ -78,7 +86,9 @@ class LeaveLimits {
   };
 }
 
+/// Representa esta entidad.
 extension LeaveLimitsApi on SettingsService {
+  /// Ejecuta la tarea.
   Future<LeaveLimits> getLeaveLimits() async {
     try {
       final r = await dio.get(ApiRoutes.settingsLeaveLimits);
@@ -88,6 +98,7 @@ extension LeaveLimitsApi on SettingsService {
     }
   }
 
+  /// Ejecuta la tarea.
   Future<LeaveLimits> updateLeaveLimits(LeaveLimits limits) async {
     try {
       final r = await dio.put(

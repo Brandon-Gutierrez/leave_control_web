@@ -8,13 +8,16 @@ import '../models/auth_user.dart';
 /// MANAGE_PREMISE, se muestra únicamente su pantalla de QR (sin importar en
 /// qué ruta, enlace o botón "atrás" se intente salir de ella).
 class SessionController {
+  /// Ejecuta la tarea.
   SessionController._();
 
   static final SessionController instance = SessionController._();
 
   final ValueNotifier<AuthUser?> user = ValueNotifier<AuthUser?>(null);
 
+  /// Ejecuta la tarea.
   void set(AuthUser? value) => user.value = value;
 
+  /// Ejecuta la tarea.
   void clear() => user.value = null;
 }

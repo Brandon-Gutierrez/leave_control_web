@@ -30,6 +30,7 @@ class LocationPicker extends StatefulWidget {
   @visibleForTesting
   static TileProvider? tileProviderOverride;
 
+  /// Ejecuta la tarea.
   const LocationPicker({
     super.key,
     required this.initial,
@@ -38,10 +39,12 @@ class LocationPicker extends StatefulWidget {
     this.locateMe,
   });
 
+  /// Crea el estado del widget.
   @override
   State<LocationPicker> createState() => _LocationPickerState();
 }
 
+/// Representa esta entidad.
 class _LocationPickerState extends State<LocationPicker> {
   static const _street = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
   static const _satellite =
@@ -57,12 +60,14 @@ class _LocationPickerState extends State<LocationPicker> {
   String? _message;
   List<PlaceResult> _results = [];
 
+  /// Inicializa el estado.
   @override
   void initState() {
     super.initState();
     _picked = widget.initial;
   }
 
+  /// Libera los recursos.
   @override
   void dispose() {
     _search.dispose();
@@ -74,6 +79,7 @@ class _LocationPickerState extends State<LocationPicker> {
   ll.LatLng get _center =>
       _toLl(_picked ?? const LatLng(kDefaultLatitude, kDefaultLongitude));
 
+  /// Ejecuta la tarea.
   void _pick(LatLng p, {double? zoom}) {
     setState(() {
       _picked = p;
@@ -88,6 +94,7 @@ class _LocationPickerState extends State<LocationPicker> {
     widget.onChanged(p);
   }
 
+  /// Ejecuta la tarea.
   void _zoom(double delta) {
     try {
       _map.move(
@@ -97,6 +104,7 @@ class _LocationPickerState extends State<LocationPicker> {
     } catch (_) {}
   }
 
+  /// Ejecuta la tarea.
   Future<void> _runSearch() async {
     final query = _search.text.trim();
     if (query.length < 3 || _searching) {
@@ -129,6 +137,7 @@ class _LocationPickerState extends State<LocationPicker> {
     }
   }
 
+  /// Ejecuta la tarea.
   Future<void> _useMyLocation() async {
     if (_locating) return;
     setState(() {
@@ -148,6 +157,7 @@ class _LocationPickerState extends State<LocationPicker> {
     _pick(p, zoom: 18);
   }
 
+  /// Ejecuta la tarea.
   Widget _roundButton(IconData icon, String tooltip, VoidCallback onPressed) {
     return Material(
       color: Colors.white,
@@ -161,6 +171,7 @@ class _LocationPickerState extends State<LocationPicker> {
     );
   }
 
+  /// Ejecuta la tarea.
   Widget _buildMap() {
     final picked = _picked;
     return Stack(
@@ -252,6 +263,7 @@ class _LocationPickerState extends State<LocationPicker> {
     );
   }
 
+  /// Ejecuta la tarea.
   Widget _buildStatus() {
     final picked = _picked;
     final color = picked != null ? Colors.green.shade700 : Colors.orange.shade800;
@@ -289,6 +301,7 @@ class _LocationPickerState extends State<LocationPicker> {
     );
   }
 
+  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     return Column(

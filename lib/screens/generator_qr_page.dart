@@ -22,8 +22,10 @@ class QrPage extends StatefulWidget {
   final Premise premise;
   final bool showNavigation;
 
+  /// Crea la pantalla QR para administración.
   const QrPage({super.key, required this.premise}) : showNavigation = true;
 
+  /// Crea la pantalla QR para el responsable del predio.
   QrPage.forPremiseManager({
     super.key,
     required int premiseId,
@@ -31,10 +33,12 @@ class QrPage extends StatefulWidget {
   }) : premise = Premise(id: premiseId, name: premiseName, reasonNames: []),
        showNavigation = false;
 
+  /// Crea el estado de la pantalla QR.
   @override
   State<QrPage> createState() => _QrPageState();
 }
 
+/// Gestiona la carga, caducidad y presentación del QR.
 class _QrPageState extends State<QrPage> {
   /// Cada cuánto se reintenta sola la pantalla del responsable si falla.
   static const Duration _managerRetryDelay = Duration(seconds: 10);
@@ -53,12 +57,14 @@ class _QrPageState extends State<QrPage> {
 
   bool get _isManager => !widget.showNavigation;
 
+  /// Inicializa la pantalla y solicita un QR.
   @override
   void initState() {
     super.initState();
     _fetchQrToken();
   }
 
+  /// Cancela temporizadores al cerrar la pantalla.
   @override
   void dispose() {
     _timer?.cancel(); // Cancela el temporizador al salir de la pantalla
@@ -66,6 +72,7 @@ class _QrPageState extends State<QrPage> {
     super.dispose();
   }
 
+  /// Solicita un QR y prepara su renovación.
   Future<void> _fetchQrToken() async {
     _timer?.cancel(); // Reinicia cualquier temporizador activo
     _retryTimer?.cancel();
@@ -108,7 +115,7 @@ class _QrPageState extends State<QrPage> {
     }
   }
 
-  /// La sesión ya no es válida en el servidor (venció o administración la cerró).
+  /// Gestiona una sesión vencida o cerrada.
   void _handleSessionLost() {
     if (_isManager) {
       // Se limpia la sesión: la raíz de la app vuelve al inicio de sesión.
@@ -121,11 +128,13 @@ class _QrPageState extends State<QrPage> {
     );
   }
 
+  /// Calcula los segundos restantes hasta la caducidad.
   int _remainingSeconds(DateTime expiresAt) {
     final remaining = expiresAt.difference(DateTime.now()).inSeconds;
     return remaining < 0 ? 0 : remaining;
   }
 
+  /// Actualiza la cuenta regresiva y renueva el QR.
   void _startAutoRefreshTimer() {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       final expiresAt = _expiresAt;
@@ -143,6 +152,7 @@ class _QrPageState extends State<QrPage> {
     });
   }
 
+  /// Elige el color según el tiempo restante.
   Color get _timeColor {
     if (_totalSeconds <= 0) return AppColors.success;
     final ratio = _secondsRemaining / _totalSeconds;
@@ -152,6 +162,7 @@ class _QrPageState extends State<QrPage> {
   }
 
 
+  /// Construye la pantalla QR adaptable.
   @override
   Widget build(BuildContext context) {
     final scaffold = Scaffold(
@@ -203,7 +214,7 @@ class _QrPageState extends State<QrPage> {
         : scaffold;
   }
 
-  /// Panel de marca: predio en grande, cómo usar el código y tiempo restante.
+  /// Muestra el nombre del predio y las instrucciones.
   Widget _buildBrandPanel(String name, {required bool wide}) {
     // En pantallas bajas (laptop) todo se compacta para que nada se corte.
     final compact = MediaQuery.sizeOf(context).height < 860;
@@ -322,6 +333,7 @@ class _QrPageState extends State<QrPage> {
     );
   }
 
+  /// Muestra el QR, la carga o el error.
   Widget _buildQrArea(BoxConstraints constraints, {required bool wide, required double panelWidth}) {
     final color = _timeColor;
     final frame = wide ? 64.0 + 24 : 40.0 + 16;
@@ -362,6 +374,7 @@ class _QrPageState extends State<QrPage> {
     });
   }
 
+  /// Muestra el error y permite reintentar.
   Widget _buildErrorState() {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 40),

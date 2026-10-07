@@ -21,6 +21,7 @@ class PremiseFormDialog extends StatefulWidget {
   final PremiseService? premiseService;
   final UserAdminService? userService;
 
+  /// Ejecuta la tarea.
   const PremiseFormDialog({
     super.key,
     this.premise,
@@ -28,10 +29,12 @@ class PremiseFormDialog extends StatefulWidget {
     this.userService,
   });
 
+  /// Crea el estado del widget.
   @override
   State<PremiseFormDialog> createState() => _PremiseFormDialogState();
 }
 
+/// Representa esta entidad.
 class _PremiseFormDialogState extends State<PremiseFormDialog> {
   static const primaryRed = AppColors.primaryRed;
   static const darkText = AppColors.darkText;
@@ -61,18 +64,21 @@ class _PremiseFormDialogState extends State<PremiseFormDialog> {
       ? LatLng(widget.premise!.latitude!, widget.premise!.longitude!)
       : null;
 
+  /// Inicializa el estado.
   @override
   void initState() {
     super.initState();
     _load();
   }
 
+  /// Libera los recursos.
   @override
   void dispose() {
     _nameController.dispose();
     super.dispose();
   }
 
+  /// Ejecuta la tarea.
   Future<void> _load() async {
     setState(() {
       _isLoading = true;
@@ -123,6 +129,7 @@ class _PremiseFormDialogState extends State<PremiseFormDialog> {
     return notes.isEmpty ? null : notes.join(' ');
   }
 
+  /// Ejecuta la tarea.
   Future<void> _submit() async {
     if (_isSaving || !_formKey.currentState!.validate()) return;
     final position = _position;
@@ -170,6 +177,7 @@ class _PremiseFormDialogState extends State<PremiseFormDialog> {
     }
   }
 
+  /// Ejecuta la tarea.
   InputDecoration _decoration(String label) => InputDecoration(
     labelText: label,
     filled: true,
@@ -184,6 +192,7 @@ class _PremiseFormDialogState extends State<PremiseFormDialog> {
     ),
   );
 
+  /// Ejecuta la tarea.
   Widget _sectionTitle(String text) => Padding(
     padding: const EdgeInsets.only(top: 20, bottom: 8),
     child: Text(
@@ -196,6 +205,7 @@ class _PremiseFormDialogState extends State<PremiseFormDialog> {
     ),
   );
 
+  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     return AppModal(
@@ -259,6 +269,7 @@ class _PremiseFormDialogState extends State<PremiseFormDialog> {
     );
   }
 
+  /// Ejecuta la tarea.
   Widget _buildLoadError() {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 24),
@@ -273,6 +284,7 @@ class _PremiseFormDialogState extends State<PremiseFormDialog> {
     );
   }
 
+  /// Ejecuta la tarea.
   Widget _buildForm() {
     final warning = _managerWarning;
     return Form(
@@ -410,17 +422,20 @@ class _PremiseFormDialogState extends State<PremiseFormDialog> {
   }
 }
 
+/// Representa esta entidad.
 class _ReasonTile extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
 
+  /// Ejecuta la tarea.
   const _ReasonTile({
     required this.label,
     required this.selected,
     required this.onTap,
   });
 
+  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     const red = AppColors.primaryRed;

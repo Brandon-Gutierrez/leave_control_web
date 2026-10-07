@@ -12,8 +12,10 @@ class UserModule extends StatelessWidget {
   /// Versión pequeña (solo foto) para la barra superior.
   final bool compact;
 
+  /// Ejecuta la tarea.
   const UserModule({super.key, required this.user, this.compact = false});
 
+  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     final name = (user?.name.isNotEmpty ?? false) ? user!.name : 'Usuario';
@@ -106,8 +108,10 @@ class UserAvatar extends StatelessWidget {
   final String? photoUrl;
   final double radius;
 
+  /// Ejecuta la tarea.
   const UserAvatar({super.key, required this.photoUrl, required this.radius});
 
+  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     final fallback = CircleAvatar(

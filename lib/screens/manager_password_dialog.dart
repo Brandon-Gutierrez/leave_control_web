@@ -10,6 +10,7 @@ import '../theme/app_text_styles.dart';
 class PasswordChoice {
   final String? password;
 
+  /// Ejecuta la tarea.
   const PasswordChoice(this.password);
 }
 
@@ -18,29 +19,35 @@ class PasswordChoice {
 class ManagerPasswordDialog extends StatefulWidget {
   final ManagedUser user;
 
+  /// Ejecuta la tarea.
   const ManagerPasswordDialog({super.key, required this.user});
 
+  /// Crea el estado del widget.
   @override
   State<ManagerPasswordDialog> createState() => _ManagerPasswordDialogState();
 }
 
+/// Representa esta entidad.
 class _ManagerPasswordDialogState extends State<ManagerPasswordDialog> {
   final _formKey = GlobalKey<FormState>();
   final _controller = TextEditingController();
   bool _generate = true;
   bool _obscure = true;
 
+  /// Libera los recursos.
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
 
+  /// Ejecuta la tarea.
   void _confirm() {
     if (!_generate && !_formKey.currentState!.validate()) return;
     Navigator.pop(context, PasswordChoice(_generate ? null : _controller.text));
   }
 
+  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     return AppModal(

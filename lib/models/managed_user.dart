@@ -5,18 +5,23 @@ class AppRole {
   final int id;
   final String name;
 
+  /// Ejecuta la tarea.
   AppRole({required this.id, required this.name});
 
+  /// Ejecuta la tarea.
   factory AppRole.fromJson(Map<String, dynamic> json) =>
       AppRole(id: json['role_id'] ?? 0, name: (json['name'] ?? '').toString());
 }
 
+/// Representa esta entidad.
 class UserPremise {
   final int id;
   final String name;
 
+  /// Ejecuta la tarea.
   const UserPremise({required this.id, required this.name});
 
+  /// Ejecuta la tarea.
   factory UserPremise.fromJson(Map<dynamic, dynamic> json) => UserPremise(
     id: int.tryParse('${json['premise_id'] ?? json['id'] ?? 0}') ?? 0,
     name: (json['name'] ?? '').toString(),
@@ -39,6 +44,7 @@ class ManagedUser {
   /// ahí (nunca entró, o administración desvinculó el anterior).
   final Map<ClientPlatform, DateTime> devices;
 
+  /// Ejecuta la tarea.
   ManagedUser({
     required this.id,
     required this.name,
@@ -59,6 +65,7 @@ class ManagedUser {
     if (isAdmin || isEmployee) ClientPlatform.mobile,
   ];
 
+  /// Ejecuta la tarea.
   factory ManagedUser.fromJson(Map<String, dynamic> json) {
     final roleJson = json['role'];
     final premiseJson = json['premise'];
@@ -82,6 +89,7 @@ class ManagedUser {
     );
   }
 
+  /// Crea una copia con cambios.
   ManagedUser copyWith({
     AppRole? role,
     UserPremise? premise,
@@ -103,12 +111,14 @@ enum ClientPlatform {
   web('web', 'Panel web', 'navegador'),
   mobile('mobile', 'App móvil', 'teléfono');
 
+  /// Ejecuta la tarea.
   const ClientPlatform(this.apiValue, this.label, this.deviceNoun);
 
   final String apiValue;
   final String label;
   final String deviceNoun;
 
+  /// Ejecuta la tarea.
   static ClientPlatform? fromApi(String? value) {
     for (final p in values) {
       if (p.apiValue == value) return p;
@@ -125,6 +135,7 @@ class LeavePolicy {
   final int? maxExits;
   final int? maxExitsPerPremise;
 
+  /// Ejecuta la tarea.
   const LeavePolicy({
     required this.period,
     this.maxExits,
@@ -135,6 +146,7 @@ class LeavePolicy {
 
   static const List<String> periods = ['day', 'week', 'month'];
 
+  /// Ejecuta la tarea.
   static String periodLabel(String period) => switch (period) {
     'day' => 'Por día',
     'week' => 'Por semana',
@@ -142,6 +154,7 @@ class LeavePolicy {
     _ => period,
   };
 
+  /// Ejecuta la tarea.
   factory LeavePolicy.fromJson(Map<String, dynamic> json) => LeavePolicy(
     period: (json['period'] ?? 'day').toString(),
     maxExits: (json['max_exits'] as num?)?.toInt(),

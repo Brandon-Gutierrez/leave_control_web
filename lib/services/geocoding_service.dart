@@ -8,10 +8,13 @@ class PlaceResult {
   final String name;
   final LatLng position;
 
+  /// Ejecuta la tarea.
   const PlaceResult({required this.name, required this.position});
 }
 
+/// Representa esta entidad.
 typedef PlaceSearch = Future<List<PlaceResult>> Function(String query);
+/// Representa esta entidad.
 typedef LocateMe = Future<LatLng?> Function();
 
 /// Búsqueda de lugares por nombre (OpenStreetMap Nominatim, sin API key).

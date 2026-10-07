@@ -45,8 +45,10 @@ class _Backend implements HttpClientAdapter {
   final List<String> calls = [];
   Map<String, dynamic>? lastBody;
 
+  /// Ejecuta la tarea.
   int count(String call) => calls.where((c) => c == call).length;
 
+  /// Obtiene los datos.
   @override
   Future<ResponseBody> fetch(
     RequestOptions options,
@@ -159,21 +161,25 @@ class _Backend implements HttpClientAdapter {
     });
   }
 
+  /// Cierra el recurso.
   @override
   void close({bool force = false}) {}
 }
 
+/// Ejecuta la tarea.
 Future<void> _settle(WidgetTester tester) async {
   for (var i = 0; i < 6; i++) {
     await tester.pump(const Duration(milliseconds: 100));
   }
 }
 
+/// Ejecuta la tarea.
 Future<void> _teardown(WidgetTester tester) async {
   await tester.pumpWidget(const SizedBox.shrink());
   await tester.pump();
 }
 
+/// Inicia la aplicacion.
 void main() {
   late _Backend backend;
 
@@ -187,6 +193,7 @@ void main() {
 
   group('AuthUser', () {
     test('solo MANAGE_PREMISE es responsable de predio', () {
+      /// Ejecuta la tarea.
       AuthUser role(String name) => AuthUser(id: 1, name: 'x', item: '1', roleName: name);
 
       expect(role('MANAGE_PREMISE').isPremiseManager, isTrue);
@@ -351,6 +358,7 @@ void main() {
   });
 
   group('Administración de responsables de predio', () {
+    /// Ejecuta la tarea.
     Future<void> openUsers(WidgetTester tester) async {
       // Pantalla alta: los diálogos con formulario caben sin desplazarse.
       tester.view.physicalSize = const Size(1000, 1500);

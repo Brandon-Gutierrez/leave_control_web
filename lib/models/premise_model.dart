@@ -1,8 +1,11 @@
+/// Representa un motivo de salida.
 class Reason {
   final String name;
 
+  /// Crea un motivo con su nombre.
   Reason({required this.name});
 
+  /// Convierte un valor JSON en motivo.
   factory Reason.fromJson(dynamic value) {
     // Si viene como String directo dentro del array
     if (value is String) {
@@ -12,6 +15,7 @@ class Reason {
     return Reason(name: value['name'] ?? value['reasons'] ?? '');
   }
 
+  /// Convierte el motivo a JSON.
   Map<String, dynamic> toJson() {
     return {
       'name': name,
@@ -27,13 +31,16 @@ const double kDefaultLongitude = -66.1570;
 const double kPremiseRadiusMeters = 30;
 
 /// Responsable (rol MANAGE_PREMISE) asignado a un predio.
+/// Representa al responsable asignado a un predio.
 class PremiseManager {
   final int userId;
   final String name;
 
+  /// Crea un responsable con su identificador y nombre.
   const PremiseManager({required this.userId, required this.name});
 }
 
+/// Representa un predio y sus datos asociados.
 class Premise {
   final int id;
   final String name;
@@ -42,6 +49,7 @@ class Premise {
   final double? longitude;
   final PremiseManager? manager;
 
+  /// Crea un predio.
   Premise({
     required this.id,
     required this.name,
@@ -51,11 +59,14 @@ class Premise {
     this.manager,
   });
 
+  /// Indica si el predio tiene coordenadas.
   bool get hasLocation => latitude != null && longitude != null;
 
+  /// Convierte un valor numérico a decimal.
   static double? _toDouble(dynamic v) =>
       v == null ? null : double.tryParse(v.toString());
 
+  /// Crea un predio desde JSON.
   factory Premise.fromJson(Map<String, dynamic> json) {
     final rawReasons = json['reason_names'] as List? ?? [];
     final rawManager = json['manager'];
@@ -74,6 +85,7 @@ class Premise {
     );
   }
 
+  /// Convierte el predio a JSON.
   Map<String, dynamic> toJson() {
     return {
       'id': id,

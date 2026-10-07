@@ -97,6 +97,7 @@ const _rolesPayload = {
 
 /// Responde con datos de ejemplo sin llamar al backend.
 class _FakeAdapter implements HttpClientAdapter {
+  /// Obtiene los datos.
   @override
   Future<ResponseBody> fetch(
     RequestOptions options,
@@ -170,6 +171,7 @@ class _FakeAdapter implements HttpClientAdapter {
     );
   }
 
+  /// Cierra el recurso.
   @override
   void close({bool force = false}) {}
 }
@@ -181,6 +183,7 @@ const _sizes = <String, Size>{
   'monitor': Size(1920, 1080),
 };
 
+/// Inicia la aplicacion.
 void main() {
   passwordAndLoginTests();
   filtersTests();
@@ -189,6 +192,7 @@ void main() {
   });
 
   for (final entry in _sizes.entries) {
+    /// Ejecuta la tarea.
     Future<void> setSize(WidgetTester tester) async {
       tester.view.physicalSize = entry.value;
       tester.view.devicePixelRatio = 1.0;
@@ -409,6 +413,7 @@ void main() {
   });
 }
 
+/// Ejecuta la tarea.
 void filtersTests() {
   testWidgets('La barra de filtros de predios filtra por responsable', (
     tester,
@@ -472,6 +477,7 @@ void filtersTests() {
   });
 }
 
+/// Ejecuta la tarea.
 void passwordAndLoginTests() {
   testWidgets(
     'Tras un error de login la contraseña sigue editable y se puede reintentar',

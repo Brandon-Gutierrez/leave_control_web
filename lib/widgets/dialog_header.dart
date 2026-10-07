@@ -10,6 +10,7 @@ enum DialogTone {
   caution(AppColors.warning, AppColors.warningBg),
   danger(AppColors.danger, AppColors.dangerBg);
 
+  /// Ejecuta la tarea.
   const DialogTone(this.color, this.background);
   final Color color;
   final Color background;
@@ -23,6 +24,7 @@ class DialogHeader extends StatelessWidget {
   final String? subtitle;
   final DialogTone tone;
 
+  /// Ejecuta la tarea.
   const DialogHeader({
     super.key,
     required this.icon,
@@ -31,6 +33,7 @@ class DialogHeader extends StatelessWidget {
     this.subtitle,
   });
 
+  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     return Container(

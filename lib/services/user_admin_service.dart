@@ -12,6 +12,7 @@ class CreatedManager {
   /// escribió una; se muestra una única vez.
   final String? generatedPassword;
 
+  /// Ejecuta la tarea.
   const CreatedManager({required this.user, this.generatedPassword});
 }
 

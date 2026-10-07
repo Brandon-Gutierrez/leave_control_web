@@ -9,13 +9,17 @@ import '../widgets/app_popup.dart';
 import 'admin_dashboard_page.dart';
 import '../session/session_controller.dart';
 
+/// Representa esta entidad.
 class LoginAdminPage extends StatefulWidget {
+  /// Ejecuta la tarea.
   const LoginAdminPage({super.key});
 
+  /// Crea el estado del widget.
   @override
   State<LoginAdminPage> createState() => _LoginAdminPageState();
 }
 
+/// Representa esta entidad.
 class _LoginAdminPageState extends State<LoginAdminPage> {
   final _formKey = GlobalKey<FormState>();
   final AuthService _authService = AuthService();
@@ -31,6 +35,7 @@ class _LoginAdminPageState extends State<LoginAdminPage> {
   static const Color darkText = Color(0xFF1A1A1A);
   static const Color lightBg = AppColors.loginBg;
 
+  /// Libera los recursos.
   @override
   void dispose() {
     _usernameController.dispose();
@@ -39,6 +44,7 @@ class _LoginAdminPageState extends State<LoginAdminPage> {
     super.dispose();
   }
 
+  /// Ejecuta la tarea.
   Future<void> _login() async {
     //Si el estado del formulario no es valido o ya hay una peticion en curso
     if (_isLoading || !_formKey.currentState!.validate()) return;
@@ -102,6 +108,7 @@ class _LoginAdminPageState extends State<LoginAdminPage> {
     }
   }
 
+  /// Ejecuta la tarea.
   InputDecoration _inputDecoration({
     required String hint,
     required IconData icon,
@@ -134,6 +141,7 @@ class _LoginAdminPageState extends State<LoginAdminPage> {
     );
   }
 
+  /// Construye la interfaz.
   @override
   Widget build(BuildContext context) {
     return Scaffold(

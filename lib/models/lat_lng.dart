@@ -3,6 +3,7 @@ class LatLng {
   final double latitude;
   final double longitude;
 
+  /// Ejecuta la tarea.
   const LatLng(this.latitude, this.longitude);
 
   @override
