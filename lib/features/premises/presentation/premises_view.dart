@@ -7,6 +7,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_popup.dart';
 import '../../../core/widgets/filter_sidebar.dart';
+import '../../dashboard/state/admin_data_store.dart';
 import '../data/premise_service.dart';
 import '../models/premise.dart';
 import '../models/reason.dart';
@@ -37,6 +38,7 @@ class PremisesViewState extends State<PremisesView> {
 
   final _searchController = TextEditingController();
   final PremiseService _premiseService = PremiseService();
+  final AdminDataStore _store = AdminDataStore.instance;
 
   List<Reason> _allReasons = [];
   List<Premise> _premises = [];
@@ -50,11 +52,13 @@ class PremisesViewState extends State<PremisesView> {
   @override
   void initState() {
     super.initState();
+    _store.addListener(_applyStore);
     _fetchData();
   }
 
   @override
   void dispose() {
+    _store.removeListener(_applyStore);
     _searchController.dispose();
     super.dispose();
   }
@@ -109,18 +113,19 @@ class PremisesViewState extends State<PremisesView> {
     _searchController.clear();
   });
 
+  /// Copia los datos compartidos cada vez que cualquier sección los actualiza.
+  void _applyStore() {
+    if (!mounted) return;
+    setState(() {
+      _premises = List.of(_store.premises);
+      _allReasons = List.of(_store.reasons);
+    });
+  }
+
   Future<void> _fetchData() async {
     setState(() => _isLoading = true);
     try {
-      final results = await Future.wait([
-        _premiseService.getPremisesWithReasons(),
-        _premiseService.getAllReasons(),
-      ]);
-      if (!mounted) return;
-      setState(() {
-        _premises = results[0] as List<Premise>;
-        _allReasons = results[1] as List<Reason>;
-      });
+      await Future.wait([_store.refreshPremises(), _store.refreshReasons()]);
     } on ApiException catch (e) {
       if (e.isUnauthorized) {
         widget.onUnauthorized();
@@ -150,6 +155,7 @@ class PremisesViewState extends State<PremisesView> {
     );
     if (created == true) {
       _showSnackBar('Predio creado correctamente', AppColors.success);
+      unawaited(_store.refreshQuietly());
       unawaited(_fetchData());
     }
   }
@@ -160,6 +166,7 @@ class PremisesViewState extends State<PremisesView> {
     try {
       final message = await _premiseService.syncReasons();
       _showSnackBar(message, AppColors.success);
+      unawaited(_store.refreshQuietly());
       await _fetchData();
     } on ApiException catch (e) {
       if (e.isUnauthorized) {
@@ -179,6 +186,7 @@ class PremisesViewState extends State<PremisesView> {
     );
     if (updated == true) {
       _showSnackBar('Predio actualizado correctamente', AppColors.success);
+      unawaited(_store.refreshQuietly());
       await _fetchData();
     }
   }

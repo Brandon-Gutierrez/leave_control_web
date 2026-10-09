@@ -6,10 +6,9 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../auth/models/auth_user.dart';
-import '../../premises/data/premise_service.dart';
 import '../../premises/models/premise.dart';
-import '../../users/data/user_admin_service.dart';
 import '../../users/models/managed_user.dart';
+import '../state/admin_data_store.dart';
 
 /// Sección "Inicio": le dice a la persona qué falta resolver, con colores
 /// (rojo = urgente, ámbar = pendiente, azul = informativo, verde = todo bien)
@@ -54,8 +53,7 @@ class _Issue {
 }
 
 class HomeViewState extends State<HomeView> {
-  final PremiseService _premiseService = PremiseService();
-  final UserAdminService _userAdminService = UserAdminService();
+  final AdminDataStore _store = AdminDataStore.instance;
 
   bool _isLoading = true;
   bool _loadFailed = false;
@@ -66,7 +64,23 @@ class HomeViewState extends State<HomeView> {
   @override
   void initState() {
     super.initState();
+    _store.addListener(_applyStore);
     _fetchSummary();
+  }
+
+  @override
+  void dispose() {
+    _store.removeListener(_applyStore);
+    super.dispose();
+  }
+
+  /// Copia los datos compartidos cada vez que cualquier sección los actualiza.
+  void _applyStore() {
+    if (!mounted) return;
+    setState(() {
+      _premises = List.of(_store.premises);
+      _users = List.of(_store.users);
+    });
   }
 
   /// Vuelve a calcular el resumen. Público para refrescarlo desde fuera.
@@ -78,15 +92,7 @@ class HomeViewState extends State<HomeView> {
       _loadFailed = false;
     });
     try {
-      final results = await Future.wait([
-        _premiseService.getPremisesWithReasons(),
-        _userAdminService.getUsers(),
-      ]);
-      if (!mounted) return;
-      setState(() {
-        _premises = results[0] as List<Premise>;
-        _users = results[1] as List<ManagedUser>;
-      });
+      await Future.wait([_store.refreshPremises(), _store.refreshUsers()]);
     } on ApiException catch (e) {
       if (e.isUnauthorized) widget.onUnauthorized();
       if (mounted) setState(() => _loadFailed = true);

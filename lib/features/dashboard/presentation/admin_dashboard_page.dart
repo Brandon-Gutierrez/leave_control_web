@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
@@ -10,6 +12,7 @@ import '../../premises/presentation/premises_view.dart';
 import '../../settings/presentation/leave_limits_dialog.dart';
 import '../../settings/presentation/qr_settings_dialog.dart';
 import '../../users/presentation/users_view.dart';
+import '../state/admin_data_store.dart';
 import 'home_view.dart';
 import 'user_profile_header.dart';
 
@@ -54,6 +57,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   void _goToLogin() {
     SessionController.instance.clear();
+    AdminDataStore.instance.clear();
     if (!mounted) return;
     Navigator.pushAndRemoveUntil(
       context,
@@ -65,6 +69,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   void _selectSection(int index) {
     if (index == _selectedIndex) return;
     setState(() => _selectedIndex = index);
+    // Al entrar a una sección se actualizan los datos por si cambiaron.
+    unawaited(AdminDataStore.instance.refreshQuietly());
   }
 
   void _goToPremises({bool openCreateDialog = false}) {

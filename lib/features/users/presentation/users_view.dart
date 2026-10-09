@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/role_names.dart';
@@ -8,7 +10,7 @@ import '../../../core/widgets/app_modal.dart';
 import '../../../core/widgets/app_popup.dart';
 import '../../../core/widgets/dialog_tone.dart';
 import '../../../core/widgets/filter_sidebar.dart';
-import '../../premises/data/premise_service.dart';
+import '../../dashboard/state/admin_data_store.dart';
 import '../data/user_admin_service.dart';
 import '../models/managed_user.dart';
 import 'change_role_dialog.dart';
@@ -38,7 +40,7 @@ class UsersViewState extends State<UsersView> {
 
   final _searchController = TextEditingController();
   final UserAdminService _userAdminService = UserAdminService();
-  final PremiseService _premiseService = PremiseService();
+  final AdminDataStore _store = AdminDataStore.instance;
 
   List<ManagedUser> _users = [];
   List<AppRole> _roles = [];
@@ -53,11 +55,13 @@ class UsersViewState extends State<UsersView> {
   @override
   void initState() {
     super.initState();
+    _store.addListener(_applyStore);
     _fetchData();
   }
 
   @override
   void dispose() {
+    _store.removeListener(_applyStore);
     _searchController.dispose();
     super.dispose();
   }
@@ -114,29 +118,33 @@ class UsersViewState extends State<UsersView> {
       )
       .toList();
 
+  /// Copia los datos compartidos cada vez que cualquier sección los actualiza.
+  void _applyStore() {
+    if (!mounted) return;
+    setState(() {
+      _users = List.of(_store.users);
+      _roles = List.of(_store.roles);
+      _premises = _store.premises
+          .map((premise) => UserPremise(id: premise.id, name: premise.name))
+          .toList();
+      _occupiedPremiseIds
+        ..clear()
+        ..addAll(
+          _store.premises
+              .where((premise) => premise.manager != null)
+              .map((premise) => premise.id),
+        );
+    });
+  }
+
   Future<void> _fetchData() async {
     setState(() => _isLoading = true);
     try {
-      final results = await Future.wait([
-        _userAdminService.getUsers(),
-        _userAdminService.getRoles(),
-        _premiseService.getPremisesWithReasons(),
+      await Future.wait([
+        _store.refreshUsers(),
+        _store.refreshRoles(),
+        _store.refreshPremises(),
       ]);
-      if (!mounted) return;
-      setState(() {
-        _users = results[0] as List<ManagedUser>;
-        _roles = results[1] as List<AppRole>;
-        _premises = (results[2] as List)
-            .map((premise) => UserPremise(id: premise.id, name: premise.name))
-            .toList();
-        _occupiedPremiseIds
-          ..clear()
-          ..addAll(
-            (results[2] as List)
-                .where((premise) => premise.manager != null)
-                .map<int>((premise) => premise.id as int),
-          );
-      });
     } on ApiException catch (e) {
       if (e.isUnauthorized) {
         widget.onUnauthorized();
@@ -177,6 +185,7 @@ class UsersViewState extends State<UsersView> {
       builder: (context) => CreateManagerDialog(premises: free),
     );
     if (created == null || !mounted) return;
+    unawaited(_store.refreshQuietly());
     setState(
       () =>
           _users = [..._users, created.user]
@@ -243,6 +252,7 @@ class UsersViewState extends State<UsersView> {
     setState(() => _updatingUserIds.add(user.id));
     try {
       await _userAdminService.resetUserDevice(user.id, platform);
+      unawaited(_store.refreshQuietly());
       if (!mounted) return;
       setState(() {
         final index = _users.indexWhere((u) => u.id == user.id);
@@ -281,6 +291,7 @@ class UsersViewState extends State<UsersView> {
         user.id,
         password: choice.password,
       );
+      unawaited(_store.refreshQuietly());
       if (!mounted) return;
       setState(() => _updatingUserIds.remove(user.id));
       if (generated == null) {
@@ -333,6 +344,7 @@ class UsersViewState extends State<UsersView> {
       } else {
         return;
       }
+      unawaited(_store.refreshQuietly());
       if (!mounted) return;
       setState(() {
         final index = _users.indexWhere((u) => u.id == user.id);
