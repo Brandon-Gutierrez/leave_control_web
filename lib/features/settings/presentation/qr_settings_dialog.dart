@@ -19,7 +19,6 @@ class QrSettingsDialog extends StatefulWidget {
 }
 
 class _QrSettingsDialogState extends State<QrSettingsDialog> {
-
   late final SettingsService _service = widget.service ?? SettingsService();
   final _controller = TextEditingController();
 
@@ -166,7 +165,13 @@ class _ErrorLine extends StatelessWidget {
           const Icon(Icons.error_rounded, color: AppColors.danger),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(message, style: const TextStyle(color: AppColors.danger, fontWeight: FontWeight.w700)),
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: AppColors.danger,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       ),

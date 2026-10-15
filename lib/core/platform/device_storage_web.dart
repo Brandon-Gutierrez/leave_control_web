@@ -13,9 +13,10 @@ String readDeviceId() {
   if (existing != null && existing.length >= 16) return existing;
 
   final random = Random.secure();
-  final id = List.generate(32, (_) => random.nextInt(256))
-      .map((b) => b.toRadixString(16).padLeft(2, '0'))
-      .join();
+  final id = List.generate(
+    32,
+    (_) => random.nextInt(256),
+  ).map((b) => b.toRadixString(16).padLeft(2, '0')).join();
   storage.setItem(_key, id);
   return id;
 }

@@ -7,6 +7,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_popup.dart';
 import '../../../core/widgets/filter_sidebar.dart';
+import '../../../core/widgets/pagination_bar.dart';
 import '../../dashboard/state/admin_data_store.dart';
 import '../data/premise_service.dart';
 import '../models/premise.dart';
@@ -43,6 +44,8 @@ class PremisesViewState extends State<PremisesView> {
   List<Reason> _allReasons = [];
   List<Premise> _premises = [];
   String _searchQuery = '';
+  int _page = 0;
+  static const _pageSize = 15;
   _Presence _managerFilter = _Presence.any;
   _Presence _locationFilter = _Presence.any;
   _Presence _reasonsFilter = _Presence.any;
@@ -81,7 +84,9 @@ class PremisesViewState extends State<PremisesView> {
       if (query.isNotEmpty && !p.name.toLowerCase().contains(query)) {
         return false;
       }
-      if (_managerFilter == _Presence.present && p.manager == null) return false;
+      if (_managerFilter == _Presence.present && p.manager == null) {
+        return false;
+      }
       if (_managerFilter == _Presence.absent && p.manager != null) {
         return false;
       }
@@ -110,6 +115,7 @@ class PremisesViewState extends State<PremisesView> {
     _locationFilter = _Presence.any;
     _reasonsFilter = _Presence.any;
     _searchQuery = '';
+    _page = 0;
     _searchController.clear();
   });
 
@@ -210,7 +216,10 @@ class PremisesViewState extends State<PremisesView> {
             _Presence.present: 'Con responsable',
             _Presence.absent: 'Sin responsable',
           },
-          onChanged: (v) => setState(() => _managerFilter = v),
+          onChanged: (v) => setState(() {
+            _managerFilter = v;
+            _page = 0;
+          }),
         ),
         FilterGroup<_Presence>(
           title: 'Ubicación en el mapa',
@@ -220,7 +229,10 @@ class PremisesViewState extends State<PremisesView> {
             _Presence.present: 'Con ubicación',
             _Presence.absent: 'Sin ubicación',
           },
-          onChanged: (v) => setState(() => _locationFilter = v),
+          onChanged: (v) => setState(() {
+            _locationFilter = v;
+            _page = 0;
+          }),
         ),
         FilterGroup<_Presence>(
           title: 'Motivos de salida',
@@ -230,7 +242,10 @@ class PremisesViewState extends State<PremisesView> {
             _Presence.present: 'Con motivos',
             _Presence.absent: 'Sin motivos',
           },
-          onChanged: (v) => setState(() => _reasonsFilter = v),
+          onChanged: (v) => setState(() {
+            _reasonsFilter = v;
+            _page = 0;
+          }),
         ),
       ],
       content: _buildContent(),
@@ -290,8 +305,17 @@ class PremisesViewState extends State<PremisesView> {
                         onRefresh: _fetchData,
                         color: Colors.white,
                         backgroundColor: primaryRed,
-                        child: _buildGrid(columns, visiblePremises),
+                        child: _buildGrid(
+                          columns,
+                          pageSlice(visiblePremises, _page, _pageSize),
+                        ),
                       ),
+              ),
+              PaginationBar(
+                page: _page,
+                pageSize: _pageSize,
+                total: visiblePremises.length,
+                onChanged: (p) => setState(() => _page = p),
               ),
             ],
           ),
@@ -318,7 +342,10 @@ class PremisesViewState extends State<PremisesView> {
   Widget _buildSearchField() {
     return TextField(
       controller: _searchController,
-      onChanged: (value) => setState(() => _searchQuery = value),
+      onChanged: (value) => setState(() {
+        _searchQuery = value;
+        _page = 0;
+      }),
       style: AppText.body,
       decoration: InputDecoration(
         hintText: 'Buscar predio...',

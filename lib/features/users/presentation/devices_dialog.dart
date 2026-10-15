@@ -27,7 +27,9 @@ class DevicesDialog extends StatelessWidget {
       icon: Icons.devices_rounded,
       title: 'Dispositivos autorizados',
       subtitle: user.name,
-      actions: [ModalButton(label: 'Cerrar', onPressed: () => Navigator.pop(context))],
+      actions: [
+        ModalButton(label: 'Cerrar', onPressed: () => Navigator.pop(context)),
+      ],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -77,27 +79,35 @@ class _PlatformRow extends StatelessWidget {
         children: [
           Expanded(
             child: Row(
-            children: [
-              Icon(
-                platform == ClientPlatform.web ? Icons.computer_rounded : Icons.smartphone_rounded,
-                color: color,
-                size: 30,
-              ),
-              const SizedBox(width: 12),
-              Expanded(child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(platform.label, style: AppText.cardTitle),
-                  Text(
-                    bound
-                        ? 'Vinculado desde ${formatDate(boundAt!)}'
-                        : 'Sin ${platform.deviceNoun} vinculado',
-                    style: TextStyle(fontSize: 14, color: color, fontWeight: FontWeight.w700),
+              children: [
+                Icon(
+                  platform == ClientPlatform.web
+                      ? Icons.computer_rounded
+                      : Icons.smartphone_rounded,
+                  color: color,
+                  size: 30,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(platform.label, style: AppText.cardTitle),
+                      Text(
+                        bound
+                            ? 'Vinculado desde ${formatDate(boundAt!)}'
+                            : 'Sin ${platform.deviceNoun} vinculado',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: color,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              )),
-            ],
-          ),
+                ),
+              ],
+            ),
           ),
           if (bound) ...[
             const SizedBox(width: 10),
@@ -107,7 +117,9 @@ class _PlatformRow extends StatelessWidget {
                 backgroundColor: AppColors.danger,
                 foregroundColor: Colors.white,
                 minimumSize: const Size(0, 44),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(6),
+                ),
               ),
               child: const Text('Desvincular'),
             ),

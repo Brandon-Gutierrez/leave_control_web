@@ -71,8 +71,9 @@ class _LocationPickerState extends State<LocationPicker> {
 
   ll.LatLng _toLl(LatLng p) => ll.LatLng(p.latitude, p.longitude);
 
-  ll.LatLng get _center =>
-      _toLl(_picked ?? const LatLng(MapDefaults.latitude, MapDefaults.longitude));
+  ll.LatLng get _center => _toLl(
+    _picked ?? const LatLng(MapDefaults.latitude, MapDefaults.longitude),
+  );
 
   void _pick(LatLng p, {double? zoom}) {
     setState(() {
@@ -114,8 +115,7 @@ class _LocationPickerState extends State<LocationPicker> {
       setState(() {
         _results = results;
         if (results.isEmpty) {
-          _message =
-              'No se encontró ese lugar. Prueba con otro nombre o toca el mapa.';
+          _message = 'No se encontró ese lugar. Prueba con otro nombre o toca el mapa.';
         }
       });
     } catch (_) {
@@ -140,8 +140,7 @@ class _LocationPickerState extends State<LocationPicker> {
     setState(() => _locating = false);
     if (p == null) {
       setState(
-        () => _message =
-            'No se pudo obtener tu ubicación. Permite el acceso a la ubicación en el navegador o toca el mapa.',
+        () => _message = 'No se pudo obtener tu ubicación. Permite el acceso a la ubicación en el navegador o toca el mapa.',
       );
       return;
     }
@@ -264,7 +263,9 @@ class _LocationPickerState extends State<LocationPicker> {
       child: Row(
         children: [
           Icon(
-            picked != null ? Icons.check_circle_rounded : Icons.touch_app_rounded,
+            picked != null
+                ? Icons.check_circle_rounded
+                : Icons.touch_app_rounded,
             color: color,
             size: 22,
           ),

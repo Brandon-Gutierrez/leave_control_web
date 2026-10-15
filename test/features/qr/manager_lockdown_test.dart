@@ -99,7 +99,11 @@ class _Backend implements HttpClientAdapter {
         };
       } else {
         status = qrStatus;
-        body = {'message': qrStatus == 401 ? 'Unauthenticated.' : 'Error del servidor'};
+        body = {
+          'message': qrStatus == 401
+              ? 'Unauthenticated.'
+              : 'Error del servidor',
+        };
       }
     } else if (path == '/api/admin/users' && method == 'GET') {
       body = {
@@ -154,9 +158,13 @@ class _Backend implements HttpClientAdapter {
       };
     }
 
-    return ResponseBody.fromString(jsonEncode(body), status, headers: {
-      Headers.contentTypeHeader: [Headers.jsonContentType],
-    });
+    return ResponseBody.fromString(
+      jsonEncode(body),
+      status,
+      headers: {
+        Headers.contentTypeHeader: [Headers.jsonContentType],
+      },
+    );
   }
 
   /// Cierra el recurso.
@@ -189,7 +197,8 @@ void main() {
 
   group('AuthUser', () {
     test('solo MANAGE_PREMISE es responsable de predio', () {
-      AuthUser role(String name) => AuthUser(id: 1, name: 'x', item: '1', roleName: name);
+      AuthUser role(String name) =>
+          AuthUser(id: 1, name: 'x', item: '1', roleName: name);
 
       expect(role('MANAGE_PREMISE').isPremiseManager, isTrue);
       expect(role('manage_premise').isPremiseManager, isTrue);
@@ -200,7 +209,9 @@ void main() {
   });
 
   group('Responsable de predio (bloqueo)', () {
-    testWidgets('con sesión abierta solo ve el QR de su predio', (tester) async {
+    testWidgets('con sesión abierta solo ve el QR de su predio', (
+      tester,
+    ) async {
       backend.me = _manager();
 
       await tester.pumpWidget(const ControlQrApp());
@@ -242,7 +253,9 @@ void main() {
       for (final route in ['/admin', '/admin/users', '/login', '/premises']) {
         await tester.binding.defaultBinaryMessenger.handlePlatformMessage(
           'flutter/navigation',
-          const JSONMethodCodec().encodeMethodCall(MethodCall('pushRoute', route)),
+          const JSONMethodCodec().encodeMethodCall(
+            MethodCall('pushRoute', route),
+          ),
           (_) {},
         );
         await _settle(tester);
@@ -255,42 +268,53 @@ void main() {
       await _teardown(tester);
     });
 
-    testWidgets('al iniciar sesión queda bloqueado y nunca se cierra la sesión', (tester) async {
-      backend.loginUser = _manager();
+    testWidgets(
+      'al iniciar sesión queda bloqueado y nunca se cierra la sesión',
+      (tester) async {
+        backend.loginUser = _manager();
 
-      await tester.pumpWidget(const ControlQrApp());
-      await _settle(tester);
-      expect(find.text('Iniciar Sesión'), findsOneWidget);
+        await tester.pumpWidget(const ControlQrApp());
+        await _settle(tester);
+        expect(find.text('Iniciar Sesión'), findsOneWidget);
 
-      await tester.enterText(find.byType(TextFormField).at(0), 'ana_gestora');
-      await tester.enterText(find.byType(TextFormField).at(1), 'clave-segura-123');
-      await tester.tap(find.text('Ingresar'));
-      await _settle(tester);
+        await tester.enterText(find.byType(TextFormField).at(0), 'ana_gestora');
+        await tester.enterText(
+          find.byType(TextFormField).at(1),
+          'clave-segura-123',
+        );
+        await tester.tap(find.text('Ingresar'));
+        await _settle(tester);
 
-      expect(find.byType(QrImageView), findsOneWidget);
-      expect(find.text('Iniciar Sesión'), findsNothing);
-      expect(find.byTooltip('Cerrar sesión'), findsNothing);
-      expect(SessionController.instance.user.value?.isPremiseManager, isTrue);
-      expect(backend.count('POST /api/auth/logout'), 0);
+        expect(find.byType(QrImageView), findsOneWidget);
+        expect(find.text('Iniciar Sesión'), findsNothing);
+        expect(find.byTooltip('Cerrar sesión'), findsNothing);
+        expect(SessionController.instance.user.value?.isPremiseManager, isTrue);
+        expect(backend.count('POST /api/auth/logout'), 0);
 
-      await _teardown(tester);
-    });
+        await _teardown(tester);
+      },
+    );
 
-    testWidgets('si el servidor cierra su sesión (401) vuelve al inicio de sesión', (tester) async {
-      backend.me = _manager();
-      backend.qrStatus = 401;
+    testWidgets(
+      'si el servidor cierra su sesión (401) vuelve al inicio de sesión',
+      (tester) async {
+        backend.me = _manager();
+        backend.qrStatus = 401;
 
-      await tester.pumpWidget(const ControlQrApp());
-      await _settle(tester);
+        await tester.pumpWidget(const ControlQrApp());
+        await _settle(tester);
 
-      expect(find.text('Iniciar Sesión'), findsOneWidget);
-      expect(find.byType(QrImageView), findsNothing);
-      expect(SessionController.instance.user.value, isNull);
+        expect(find.text('Iniciar Sesión'), findsOneWidget);
+        expect(find.byType(QrImageView), findsNothing);
+        expect(SessionController.instance.user.value, isNull);
 
-      await _teardown(tester);
-    });
+        await _teardown(tester);
+      },
+    );
 
-    testWidgets('si el QR falla se reintenta solo, sin tocar nada', (tester) async {
+    testWidgets('si el QR falla se reintenta solo, sin tocar nada', (
+      tester,
+    ) async {
       backend.me = _manager();
       backend.qrStatus = 500;
 
@@ -311,28 +335,39 @@ void main() {
       await _teardown(tester);
     });
 
-    testWidgets('sin predio asignado muestra un aviso y tampoco puede navegar', (tester) async {
-      backend.me = {..._manager(), 'premise': null};
+    testWidgets(
+      'sin predio asignado muestra un aviso y tampoco puede navegar',
+      (tester) async {
+        backend.me = {..._manager(), 'premise': null};
 
-      await tester.pumpWidget(const ControlQrApp());
-      await _settle(tester);
+        await tester.pumpWidget(const ControlQrApp());
+        await _settle(tester);
 
-      expect(find.text('Esta cuenta no tiene un predio asignado.'), findsOneWidget);
-      expect(find.byTooltip('Cerrar sesión'), findsNothing);
-      expect(find.byType(NavigationBar), findsNothing);
+        expect(
+          find.text('Esta cuenta no tiene un predio asignado.'),
+          findsOneWidget,
+        );
+        expect(find.byTooltip('Cerrar sesión'), findsNothing);
+        expect(find.byType(NavigationBar), findsNothing);
 
-      // Administración le asigna un predio: "Volver a comprobar" lo recupera.
-      backend.me = _manager();
-      await tester.tap(find.text('Volver a comprobar'));
-      await _settle(tester);
+        // Administración le asigna un predio: "Volver a comprobar" lo recupera.
+        backend.me = _manager();
+        await tester.tap(find.text('Volver a comprobar'));
+        await _settle(tester);
 
-      expect(find.byType(QrImageView), findsOneWidget);
-      expect(find.text('Esta cuenta no tiene un predio asignado.'), findsNothing);
+        expect(find.byType(QrImageView), findsOneWidget);
+        expect(
+          find.text('Esta cuenta no tiene un predio asignado.'),
+          findsNothing,
+        );
 
-      await _teardown(tester);
-    });
+        await _teardown(tester);
+      },
+    );
 
-    testWidgets('el administrador conserva su panel y puede cerrar sesión', (tester) async {
+    testWidgets('el administrador conserva su panel y puede cerrar sesión', (
+      tester,
+    ) async {
       backend.me = _admin();
 
       await tester.pumpWidget(const ControlQrApp());
@@ -364,7 +399,9 @@ void main() {
       await _settle(tester);
     }
 
-    testWidgets('la lista muestra al responsable con su predio', (tester) async {
+    testWidgets('la lista muestra al responsable con su predio', (
+      tester,
+    ) async {
       await openUsers(tester);
 
       expect(find.text('Ana Gestora'), findsOneWidget);
@@ -374,7 +411,9 @@ void main() {
       await _teardown(tester);
     });
 
-    testWidgets('crea un responsable y muestra la contraseña una sola vez', (tester) async {
+    testWidgets('crea un responsable y muestra la contraseña una sola vez', (
+      tester,
+    ) async {
       await openUsers(tester);
 
       await tester.tap(find.text('Nuevo responsable de predio'));
@@ -391,7 +430,10 @@ void main() {
       await tester.enterText(find.byType(TextFormField).at(1), 'ana gestora');
       await tester.tap(find.text('Crear cuenta'));
       await _settle(tester);
-      expect(find.text('Use solo letras, números, - o _ (sin espacios)'), findsOneWidget);
+      expect(
+        find.text('Use solo letras, números, - o _ (sin espacios)'),
+        findsOneWidget,
+      );
       expect(backend.count('POST /api/admin/users/premise-managers'), 0);
 
       await tester.enterText(find.byType(TextFormField).at(1), 'ana_gestora');
@@ -416,7 +458,9 @@ void main() {
       await _teardown(tester);
     });
 
-    testWidgets('asignar el rol de gestor exige elegir un predio', (tester) async {
+    testWidgets('asignar el rol de gestor exige elegir un predio', (
+      tester,
+    ) async {
       await openUsers(tester);
 
       await tester.tap(find.text('Ana Pérez'));
@@ -424,7 +468,9 @@ void main() {
 
       final save = find.widgetWithText(FilledButton, 'Guardar cambio');
       final dialog = find.byType(Dialog);
-      await tester.tap(find.descendant(of: dialog, matching: find.text('Gestor de predio')));
+      await tester.tap(
+        find.descendant(of: dialog, matching: find.text('Gestor de predio')),
+      );
       await _settle(tester);
 
       // Con el rol elegido pero sin predio no se puede guardar.
@@ -442,7 +488,10 @@ void main() {
       // Rol y predio viajan juntos en una sola petición.
       expect(backend.lastBody, {'role_id': 3, 'premise_id': 8});
       expect(backend.count('PUT /api/admin/users/2/role'), 1);
-      expect(find.textContaining('ahora es Gestor de predio en Predio Norte'), findsOneWidget);
+      expect(
+        find.textContaining('ahora es Gestor de predio en Predio Norte'),
+        findsOneWidget,
+      );
 
       await _teardown(tester);
     });

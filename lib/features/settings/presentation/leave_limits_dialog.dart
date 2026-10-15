@@ -80,7 +80,10 @@ class _LeaveLimitsDialogState extends State<LeaveLimitsDialog> {
         ),
       );
       if (!mounted) return;
-      showAppPopup(context, 'Límite de salidas actualizado para todo el personal');
+      showAppPopup(
+        context,
+        'Límite de salidas actualizado para todo el personal',
+      );
       Navigator.pop(context, true);
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -95,7 +98,9 @@ class _LeaveLimitsDialogState extends State<LeaveLimitsDialog> {
     labelText: label,
     helperText: helper,
     helperMaxLines: 2,
-    border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppDimens.fieldRadius)),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppDimens.fieldRadius),
+    ),
   );
 
   @override
@@ -107,7 +112,10 @@ class _LeaveLimitsDialogState extends State<LeaveLimitsDialog> {
       title: 'Límite de salidas',
       subtitle: 'Es el mismo para todo el personal',
       actions: [
-        ModalButton(label: 'Cancelar', onPressed: _saving ? null : () => Navigator.pop(context)),
+        ModalButton(
+          label: 'Cancelar',
+          onPressed: _saving ? null : () => Navigator.pop(context),
+        ),
         ModalButton(
           label: 'Guardar',
           primary: true,
@@ -133,10 +141,16 @@ class _LeaveLimitsDialogState extends State<LeaveLimitsDialog> {
                 const SizedBox(height: 18),
                 DropdownButtonFormField<String>(
                   initialValue: _period,
-                  decoration: _decoration('El conteo se reinicia', 'Semana de lunes a domingo; mes calendario.'),
+                  decoration: _decoration(
+                    'El conteo se reinicia',
+                    'Semana de lunes a domingo; mes calendario.',
+                  ),
                   items: [
                     for (final p in LeaveLimits.periods)
-                      DropdownMenuItem(value: p, child: Text(LeaveLimits.periodLabel(p))),
+                      DropdownMenuItem(
+                        value: p,
+                        child: Text(LeaveLimits.periodLabel(p)),
+                      ),
                   ],
                   onChanged: (v) => setState(() => _period = v ?? _period),
                 ),
@@ -145,14 +159,20 @@ class _LeaveLimitsDialogState extends State<LeaveLimitsDialog> {
                   controller: _total,
                   keyboardType: TextInputType.number,
                   inputFormatters: digits,
-                  decoration: _decoration('Máximo de salidas por persona', 'Déjelo vacío para no poner tope.'),
+                  decoration: _decoration(
+                    'Máximo de salidas por persona',
+                    'Déjelo vacío para no poner tope.',
+                  ),
                 ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: _perPremise,
                   keyboardType: TextInputType.number,
                   inputFormatters: digits,
-                  decoration: _decoration('Máximo de salidas al mismo predio', 'Déjelo vacío para no poner tope.'),
+                  decoration: _decoration(
+                    'Máximo de salidas al mismo predio',
+                    'Déjelo vacío para no poner tope.',
+                  ),
                 ),
                 if (_error != null) ...[
                   const SizedBox(height: 14),
@@ -160,9 +180,17 @@ class _LeaveLimitsDialogState extends State<LeaveLimitsDialog> {
                     padding: const EdgeInsets.all(12),
                     decoration: const BoxDecoration(
                       color: AppColors.dangerBg,
-                      border: Border(left: BorderSide(color: AppColors.danger, width: 5)),
+                      border: Border(
+                        left: BorderSide(color: AppColors.danger, width: 5),
+                      ),
                     ),
-                    child: Text(_error!, style: const TextStyle(color: AppColors.danger, fontWeight: FontWeight.w700)),
+                    child: Text(
+                      _error!,
+                      style: const TextStyle(
+                        color: AppColors.danger,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ],
               ],

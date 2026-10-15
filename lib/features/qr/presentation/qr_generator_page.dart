@@ -23,7 +23,8 @@ class QrGeneratorPage extends StatefulWidget {
   final bool showNavigation;
 
   /// Crea la pantalla QR para administración.
-  const QrGeneratorPage({super.key, required this.premise}) : showNavigation = true;
+  const QrGeneratorPage({super.key, required this.premise})
+    : showNavigation = true;
 
   /// Crea la pantalla QR para el responsable del predio.
   QrGeneratorPage.forPremiseManager({
@@ -161,7 +162,6 @@ class _QrGeneratorPageState extends State<QrGeneratorPage> {
     return AppColors.danger;
   }
 
-
   /// Construye la pantalla QR adaptable.
   @override
   Widget build(BuildContext context) {
@@ -188,11 +188,23 @@ class _QrGeneratorPageState extends State<QrGeneratorPage> {
           final name = _premiseName ?? widget.premise.name;
 
           if (wide) {
-            final panelWidth = (constraints.maxWidth * 0.36).clamp(380.0, 640.0);
+            final panelWidth = (constraints.maxWidth * 0.36).clamp(
+              380.0,
+              640.0,
+            );
             return Row(
               children: [
-                SizedBox(width: panelWidth, child: _buildBrandPanel(name, wide: true)),
-                Expanded(child: _buildQrArea(constraints, wide: true, panelWidth: panelWidth)),
+                SizedBox(
+                  width: panelWidth,
+                  child: _buildBrandPanel(name, wide: true),
+                ),
+                Expanded(
+                  child: _buildQrArea(
+                    constraints,
+                    wide: true,
+                    panelWidth: panelWidth,
+                  ),
+                ),
               ],
             );
           }
@@ -200,7 +212,9 @@ class _QrGeneratorPageState extends State<QrGeneratorPage> {
             child: Column(
               children: [
                 _buildBrandPanel(name, wide: false),
-                Expanded(child: _buildQrArea(constraints, wide: false, panelWidth: 0)),
+                Expanded(
+                  child: _buildQrArea(constraints, wide: false, panelWidth: 0),
+                ),
               ],
             ),
           );
@@ -209,9 +223,7 @@ class _QrGeneratorPageState extends State<QrGeneratorPage> {
     );
 
     // El responsable no puede salir de esta pantalla: "atrás" no hace nada.
-    return _isManager
-        ? PopScope(canPop: false, child: scaffold)
-        : scaffold;
+    return _isManager ? PopScope(canPop: false, child: scaffold) : scaffold;
   }
 
   /// Muestra el nombre del predio y las instrucciones.
@@ -294,7 +306,11 @@ class _QrGeneratorPageState extends State<QrGeneratorPage> {
                     Expanded(
                       child: Text(
                         steps[i],
-                        style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ],
@@ -334,44 +350,54 @@ class _QrGeneratorPageState extends State<QrGeneratorPage> {
   }
 
   /// Muestra el QR, la carga o el error.
-  Widget _buildQrArea(BoxConstraints constraints, {required bool wide, required double panelWidth}) {
+  Widget _buildQrArea(
+    BoxConstraints constraints, {
+    required bool wide,
+    required double panelWidth,
+  }) {
     final color = _timeColor;
     final frame = wide ? 64.0 + 24 : 40.0 + 16;
 
-    return LayoutBuilder(builder: (context, box) {
-    final qrSize = [box.maxWidth - frame, box.maxHeight - frame]
-        .reduce((a, b) => a < b ? a : b)
-        .clamp(120.0, 1100.0);
-    return Container(
-      color: const Color(0xFFF4F4F4),
-      child: Center(
-        child: _isLoading
-            ? const CircularProgressIndicator(color: AppColors.primaryRed)
-            : _errorMessage != null
-            ? _buildErrorState()
-            : _qrToken == null
-            ? const SizedBox.shrink()
-            : Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: EdgeInsets.all(wide ? 20 : 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      border: Border.all(color: color, width: wide ? 12 : 8),
-                    ),
-                    child: QrImageView(
-                      data: _qrToken!,
-                      version: QrVersions.auto,
-                      size: qrSize,
-                      backgroundColor: Colors.white,
-                    ),
+    return LayoutBuilder(
+      builder: (context, box) {
+        final qrSize = [
+          box.maxWidth - frame,
+          box.maxHeight - frame,
+        ].reduce((a, b) => a < b ? a : b).clamp(120.0, 1100.0);
+        return Container(
+          color: const Color(0xFFF4F4F4),
+          child: Center(
+            child: _isLoading
+                ? const CircularProgressIndicator(color: AppColors.primaryRed)
+                : _errorMessage != null
+                ? _buildErrorState()
+                : _qrToken == null
+                ? const SizedBox.shrink()
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(wide ? 20 : 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          border: Border.all(
+                            color: color,
+                            width: wide ? 12 : 8,
+                          ),
+                        ),
+                        child: QrImageView(
+                          data: _qrToken!,
+                          version: QrVersions.auto,
+                          size: qrSize,
+                          backgroundColor: Colors.white,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-      ),
+          ),
+        );
+      },
     );
-    });
   }
 
   /// Muestra el error y permite reintentar.
@@ -384,7 +410,10 @@ class _QrGeneratorPageState extends State<QrGeneratorPage> {
           const SizedBox(height: 12),
           Text(
             _errorMessage!,
-            style: AppText.body.copyWith(color: AppColors.danger, fontWeight: FontWeight.w700),
+            style: AppText.body.copyWith(
+              color: AppColors.danger,
+              fontWeight: FontWeight.w700,
+            ),
             textAlign: TextAlign.center,
           ),
           if (_isManager) ...[

@@ -9,7 +9,11 @@ enum PopupKind { success, error, warning }
 /// Aviso flotante único de la app (éxito, error o advertencia). Se cierra
 /// solo a los 7 segundos o con la (X). El color y el ícono dicen el resultado
 /// sin necesidad de leer.
-void showAppPopup(BuildContext context, String message, {PopupKind kind = PopupKind.success}) {
+void showAppPopup(
+  BuildContext context,
+  String message, {
+  PopupKind kind = PopupKind.success,
+}) {
   final overlay = Overlay.maybeOf(context, rootOverlay: true);
   if (overlay == null) return;
   late OverlayEntry entry;
@@ -29,7 +33,11 @@ class _PopupCard extends StatefulWidget {
   final PopupKind kind;
   final VoidCallback onClose;
 
-  const _PopupCard({required this.message, required this.kind, required this.onClose});
+  const _PopupCard({
+    required this.message,
+    required this.kind,
+    required this.onClose,
+  });
 
   @override
   State<_PopupCard> createState() => _PopupCardState();
@@ -57,9 +65,21 @@ class _PopupCardState extends State<_PopupCard> {
     final kind = widget.kind;
     final onClose = widget.onClose;
     final (color, icon, title) = switch (kind) {
-      PopupKind.success => (AppColors.success, Icons.check_circle_rounded, 'Listo'),
-      PopupKind.error => (AppColors.danger, Icons.error_rounded, 'Algo salió mal'),
-      PopupKind.warning => (AppColors.warning, Icons.warning_rounded, 'Atención'),
+      PopupKind.success => (
+        AppColors.success,
+        Icons.check_circle_rounded,
+        'Listo',
+      ),
+      PopupKind.error => (
+        AppColors.danger,
+        Icons.error_rounded,
+        'Algo salió mal',
+      ),
+      PopupKind.warning => (
+        AppColors.warning,
+        Icons.warning_rounded,
+        'Atención',
+      ),
     };
     final width = MediaQuery.sizeOf(context).width;
     return Positioned(
@@ -75,7 +95,13 @@ class _PopupCardState extends State<_PopupCard> {
               color: Colors.white,
               borderRadius: BorderRadius.circular(6),
               border: Border(left: BorderSide(color: color, width: 8)),
-              boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 12, offset: Offset(0, 4))],
+              boxShadow: const [
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 12,
+                  offset: Offset(0, 4),
+                ),
+              ],
             ),
             padding: const EdgeInsets.fromLTRB(14, 12, 6, 12),
             child: Row(
@@ -87,9 +113,22 @@ class _PopupCardState extends State<_PopupCard> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(title, style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 16)),
+                      Text(
+                        title,
+                        style: TextStyle(
+                          color: color,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16,
+                        ),
+                      ),
                       const SizedBox(height: 2),
-                      Text(message, style: const TextStyle(fontSize: 15, color: AppColors.darkText)),
+                      Text(
+                        message,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          color: AppColors.darkText,
+                        ),
+                      ),
                     ],
                   ),
                 ),

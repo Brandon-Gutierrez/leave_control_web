@@ -49,7 +49,14 @@ class _Issue {
   final String action;
   final VoidCallback onTap;
 
-  const _Issue(this.level, this.count, this.title, this.help, this.action, this.onTap);
+  const _Issue(
+    this.level,
+    this.count,
+    this.title,
+    this.help,
+    this.action,
+    this.onTap,
+  );
 }
 
 class HomeViewState extends State<HomeView> {
@@ -118,10 +125,13 @@ class HomeViewState extends State<HomeView> {
     final noLocation = _premises.where((p) => !p.hasLocation).length;
     final noManager = _premises.where((p) => p.manager == null).length;
     final noReasons = _premises.where((p) => p.reasonNames.isEmpty).length;
-    final managersWithoutPremise =
-        _users.where((u) => u.managesPremise && u.premise == null).length;
+    final managersWithoutPremise = _users
+        .where((u) => u.managesPremise && u.premise == null)
+        .length;
     final employeesUnbound = _users
-        .where((u) => u.isEmployee && !u.devices.containsKey(ClientPlatform.mobile))
+        .where(
+          (u) => u.isEmployee && !u.devices.containsKey(ClientPlatform.mobile),
+        )
         .length;
 
     return [
@@ -129,7 +139,9 @@ class HomeViewState extends State<HomeView> {
         _Issue(
           _Level.urgent,
           noLocation,
-          noLocation == 1 ? 'Predio sin ubicación en el mapa' : 'Predios sin ubicación en el mapa',
+          noLocation == 1
+              ? 'Predio sin ubicación en el mapa'
+              : 'Predios sin ubicación en el mapa',
           'Nadie puede registrar salidas ahí hasta que se marque su ubicación.',
           'Marcar ubicación',
           _openPremises,
@@ -149,7 +161,9 @@ class HomeViewState extends State<HomeView> {
         _Issue(
           _Level.pending,
           noReasons,
-          noReasons == 1 ? 'Predio sin motivos de salida' : 'Predios sin motivos de salida',
+          noReasons == 1
+              ? 'Predio sin motivos de salida'
+              : 'Predios sin motivos de salida',
           'Los empleados no tendrán opciones para elegir al salir.',
           'Elegir motivos',
           _openPremises,
@@ -245,7 +259,11 @@ class HomeViewState extends State<HomeView> {
                 children: [
                   Text(
                     _isLoading ? '–' : '$value',
-                    style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, height: 1),
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
+                      height: 1,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(label, style: AppText.caption, maxLines: 2),
@@ -264,7 +282,11 @@ class HomeViewState extends State<HomeView> {
       ),
       child: Row(
         children: [
-          item(Icons.apartment_rounded, _premises.length, 'Predios registrados'),
+          item(
+            Icons.apartment_rounded,
+            _premises.length,
+            'Predios registrados',
+          ),
           item(Icons.groups_rounded, _users.length, 'Personas registradas'),
           item(Icons.shield_rounded, admins, 'Administradores'),
         ],
@@ -277,7 +299,9 @@ class HomeViewState extends State<HomeView> {
     if (_isLoading && _premises.isEmpty && _users.isEmpty) {
       body = const Padding(
         padding: EdgeInsets.symmetric(vertical: 40),
-        child: Center(child: CircularProgressIndicator(color: AppColors.primaryRed)),
+        child: Center(
+          child: CircularProgressIndicator(color: AppColors.primaryRed),
+        ),
       );
     } else if (_loadFailed) {
       body = _Banner(
@@ -361,8 +385,16 @@ class _IssueRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (color, bg, icon) = switch (issue.level) {
-      _Level.urgent => (AppColors.danger, AppColors.dangerBg, Icons.error_rounded),
-      _Level.pending => (AppColors.warning, AppColors.warningBg, Icons.warning_rounded),
+      _Level.urgent => (
+        AppColors.danger,
+        AppColors.dangerBg,
+        Icons.error_rounded,
+      ),
+      _Level.pending => (
+        AppColors.warning,
+        AppColors.warningBg,
+        Icons.warning_rounded,
+      ),
       _Level.info => (AppColors.info, AppColors.infoBg, Icons.info_rounded),
     };
     return _Banner(
@@ -419,7 +451,11 @@ class _Banner extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: color),
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: color,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(help, style: AppText.body.copyWith(fontSize: 15)),
@@ -438,7 +474,9 @@ class _Banner extends StatelessWidget {
                   backgroundColor: color,
                   foregroundColor: Colors.white,
                   minimumSize: const Size(0, 44),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6),
+                  ),
                 ),
                 child: Text(action!),
               ),
@@ -483,11 +521,19 @@ class _QuickAction extends StatelessWidget {
                 ? const SizedBox(
                     height: 24,
                     width: 24,
-                    child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.primaryRed),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: AppColors.primaryRed,
+                    ),
                   )
                 : Icon(icon, color: AppColors.primaryRed, size: 26),
             const SizedBox(width: 14),
-            Expanded(child: Text(label, style: AppText.body.copyWith(fontWeight: FontWeight.w600))),
+            Expanded(
+              child: Text(
+                label,
+                style: AppText.body.copyWith(fontWeight: FontWeight.w600),
+              ),
+            ),
           ],
         ),
       ),

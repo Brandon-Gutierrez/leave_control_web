@@ -24,10 +24,12 @@ abstract final class ApiRoutes {
 
   static String userRole(int userId) => '/api/admin/users/$userId/role';
   static String userPremise(int userId) => '/api/admin/users/$userId/premise';
-  static String userPassword(int userId) =>
-      '/api/admin/users/$userId/password';
+  static String userPassword(int userId) => '/api/admin/users/$userId/password';
   static String userDeviceReset(int userId) =>
       '/api/admin/users/$userId/device/reset';
+
+  // Administración - reportes
+  static const String leaveReport = '/api/admin/reports/leaves';
 
   // Administración - configuración
   static const String settingsQr = '/api/admin/settings/qr';

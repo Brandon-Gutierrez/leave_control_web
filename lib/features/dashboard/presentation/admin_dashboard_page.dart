@@ -9,6 +9,7 @@ import '../../auth/models/auth_user.dart';
 import '../../auth/presentation/admin_login_page.dart';
 import '../../auth/state/session_controller.dart';
 import '../../premises/presentation/premises_view.dart';
+import '../../reports/presentation/reports_view.dart';
 import '../../settings/presentation/leave_limits_dialog.dart';
 import '../../settings/presentation/qr_settings_dialog.dart';
 import '../../users/presentation/users_view.dart';
@@ -35,16 +36,18 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   static const darkText = AppColors.darkText;
   static const lightBg = AppColors.lightBg;
 
-  static const _titles = ['Inicio', 'Predios', 'Usuarios'];
+  static const _titles = ['Inicio', 'Predios', 'Usuarios', 'Reportes'];
   static const _destinationIcons = [
     (Icons.home_outlined, Icons.home_rounded),
     (Icons.apartment_outlined, Icons.apartment_rounded),
     (Icons.people_alt_outlined, Icons.people_alt_rounded),
+    (Icons.insights_outlined, Icons.insights_rounded),
   ];
 
   final AuthService _authService = AuthService();
   final _premisesKey = GlobalKey<PremisesViewState>();
   final _usersKey = GlobalKey<UsersViewState>();
+  final _reportsKey = GlobalKey<ReportsViewState>();
 
   int _selectedIndex = 0;
 
@@ -71,6 +74,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     setState(() => _selectedIndex = index);
     // Al entrar a una sección se actualizan los datos por si cambiaron.
     unawaited(AdminDataStore.instance.refreshQuietly());
+    if (index == 3) unawaited(_reportsKey.currentState?.refresh());
   }
 
   void _goToPremises({bool openCreateDialog = false}) {
@@ -127,6 +131,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             ),
             PremisesView(key: _premisesKey, onUnauthorized: _goToLogin),
             UsersView(key: _usersKey, onUnauthorized: _goToLogin),
+            ReportsView(key: _reportsKey, onUnauthorized: _goToLogin),
           ],
         );
 
@@ -169,17 +174,29 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             title: UserProfileHeader(user: _user, compact: true),
             actions: [
               IconButton(
-                icon: const Icon(Icons.rule_rounded, color: darkText, size: AppDimens.iconSize),
+                icon: const Icon(
+                  Icons.rule_rounded,
+                  color: darkText,
+                  size: AppDimens.iconSize,
+                ),
                 tooltip: 'Límite de salidas',
                 onPressed: _openLeaveLimits,
               ),
               IconButton(
-                icon: const Icon(Icons.qr_code_2_rounded, color: darkText, size: AppDimens.iconSize),
+                icon: const Icon(
+                  Icons.qr_code_2_rounded,
+                  color: darkText,
+                  size: AppDimens.iconSize,
+                ),
                 tooltip: 'Tiempo de vida del QR',
                 onPressed: _openQrSettings,
               ),
               IconButton(
-                icon: const Icon(Icons.logout, color: AppColors.danger, size: AppDimens.iconSize),
+                icon: const Icon(
+                  Icons.logout,
+                  color: AppColors.danger,
+                  size: AppDimens.iconSize,
+                ),
                 tooltip: 'Cerrar sesión',
                 onPressed: _logout,
               ),
@@ -197,7 +214,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               for (var i = 0; i < _titles.length; i++)
                 NavigationDestination(
                   icon: Icon(_destinationIcons[i].$1),
-                  selectedIcon: Icon(_destinationIcons[i].$2, color: primaryRed),
+                  selectedIcon: Icon(
+                    _destinationIcons[i].$2,
+                    color: primaryRed,
+                  ),
                   label: _titles[i],
                 ),
             ],
@@ -269,7 +289,10 @@ class _Sidebar extends StatelessWidget {
                 height: 38,
                 alignment: Alignment.centerLeft,
                 fit: BoxFit.contain,
-                errorBuilder: (_, _, _) => const Icon(Icons.business_rounded, color: AppColors.darkText),
+                errorBuilder: (_, _, _) => const Icon(
+                  Icons.business_rounded,
+                  color: AppColors.darkText,
+                ),
               ),
             ),
             UserProfileHeader(user: user),
@@ -331,36 +354,38 @@ class _NavItem extends StatelessWidget {
     return Tooltip(
       message: label,
       child: InkWell(
-      onTap: onTap,
-      child: Container(
-        height: 54,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.primaryRed.withValues(alpha: 0.08) : null,
-          border: Border(
-            left: BorderSide(
-              color: selected ? AppColors.primaryRed : Colors.transparent,
-              width: 5,
-            ),
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: fg, size: 26),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                  color: fg,
-                ),
+        onTap: onTap,
+        child: Container(
+          height: 54,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          decoration: BoxDecoration(
+            color: selected
+                ? AppColors.primaryRed.withValues(alpha: 0.08)
+                : null,
+            border: Border(
+              left: BorderSide(
+                color: selected ? AppColors.primaryRed : Colors.transparent,
+                width: 5,
               ),
             ),
-          ],
+          ),
+          child: Row(
+            children: [
+              Icon(icon, color: fg, size: 26),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                    color: fg,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }

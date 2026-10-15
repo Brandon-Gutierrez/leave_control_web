@@ -10,6 +10,7 @@ import '../../../core/widgets/app_modal.dart';
 import '../../../core/widgets/app_popup.dart';
 import '../../../core/widgets/dialog_tone.dart';
 import '../../../core/widgets/filter_sidebar.dart';
+import '../../../core/widgets/pagination_bar.dart';
 import '../../dashboard/state/admin_data_store.dart';
 import '../data/user_admin_service.dart';
 import '../models/managed_user.dart';
@@ -49,6 +50,8 @@ class UsersViewState extends State<UsersView> {
   _RoleFilter _roleFilter = _RoleFilter.all;
   _PremiseFilter _premiseFilter = _PremiseFilter.any;
   String _searchQuery = '';
+  int _page = 0;
+  static const _pageSize = 10;
   bool _isLoading = true;
   final Set<int> _updatingUserIds = {};
 
@@ -107,6 +110,7 @@ class UsersViewState extends State<UsersView> {
     _roleFilter = _RoleFilter.all;
     _premiseFilter = _PremiseFilter.any;
     _searchQuery = '';
+    _page = 0;
     _searchController.clear();
   });
 
@@ -230,7 +234,10 @@ class UsersViewState extends State<UsersView> {
         subtitle: user.name,
         maxWidth: 460,
         actions: [
-          ModalButton(label: 'Cancelar', onPressed: () => Navigator.pop(context, false)),
+          ModalButton(
+            label: 'Cancelar',
+            onPressed: () => Navigator.pop(context, false),
+          ),
           ModalButton(
             label: 'Desvincular',
             primary: true,
@@ -295,7 +302,10 @@ class UsersViewState extends State<UsersView> {
       if (!mounted) return;
       setState(() => _updatingUserIds.remove(user.id));
       if (generated == null) {
-        _showSnackBar('Contraseña de ${user.name} actualizada', AppColors.success);
+        _showSnackBar(
+          'Contraseña de ${user.name} actualizada',
+          AppColors.success,
+        );
       } else {
         await showDialog<void>(
           context: context,
@@ -392,7 +402,10 @@ class UsersViewState extends State<UsersView> {
             _RoleFilter.admin: 'Administradores',
             _RoleFilter.manager: 'Responsables de predio',
           },
-          onChanged: (v) => setState(() => _roleFilter = v),
+          onChanged: (v) => setState(() {
+            _roleFilter = v;
+            _page = 0;
+          }),
         ),
         FilterGroup<_PremiseFilter>(
           title: 'Predio asignado',
@@ -402,7 +415,10 @@ class UsersViewState extends State<UsersView> {
             _PremiseFilter.assigned: 'Con predio',
             _PremiseFilter.unassigned: 'Sin predio',
           },
-          onChanged: (v) => setState(() => _premiseFilter = v),
+          onChanged: (v) => setState(() {
+            _premiseFilter = v;
+            _page = 0;
+          }),
         ),
       ],
       content: _buildContent(),
@@ -411,6 +427,7 @@ class UsersViewState extends State<UsersView> {
 
   Widget _buildContent() {
     final users = _filteredUsers;
+    final pageUsers = pageSlice(users, _page, _pageSize);
     return LayoutBuilder(
       builder: (context, constraints) {
         final horizontalPadding = constraints.maxWidth >= Breakpoints.tablet
@@ -479,13 +496,19 @@ class UsersViewState extends State<UsersView> {
                             backgroundColor: primaryRed,
                             child: ListView.builder(
                               physics: const AlwaysScrollableScrollPhysics(),
-                              itemCount: users.length,
+                              itemCount: pageUsers.length,
                               itemBuilder: (context, index) => Padding(
                                 padding: const EdgeInsets.only(bottom: 12),
-                                child: _buildUserTile(users[index]),
+                                child: _buildUserTile(pageUsers[index]),
                               ),
                             ),
                           ),
+                  ),
+                  PaginationBar(
+                    page: _page,
+                    pageSize: _pageSize,
+                    total: users.length,
+                    onChanged: (p) => setState(() => _page = p),
                   ),
                 ],
               ),
@@ -499,7 +522,10 @@ class UsersViewState extends State<UsersView> {
   Widget _buildSearchField() {
     return TextField(
       controller: _searchController,
-      onChanged: (value) => setState(() => _searchQuery = value),
+      onChanged: (value) => setState(() {
+        _searchQuery = value;
+        _page = 0;
+      }),
       style: AppText.body,
       decoration: InputDecoration(
         hintText: 'Buscar por nombre o item...',

@@ -200,7 +200,9 @@ class _PremiseFormDialogState extends State<PremiseFormDialog> {
   Widget build(BuildContext context) {
     return AppModal(
       tone: _isEditing ? DialogTone.configure : DialogTone.create,
-      icon: _isEditing ? Icons.edit_location_alt_rounded : Icons.add_location_alt_rounded,
+      icon: _isEditing
+          ? Icons.edit_location_alt_rounded
+          : Icons.add_location_alt_rounded,
       title: _isEditing ? 'Editar predio' : 'Nuevo predio',
       subtitle: _isEditing
           ? widget.premise!.name
@@ -217,7 +219,9 @@ class _PremiseFormDialogState extends State<PremiseFormDialog> {
           primary: true,
           color: _isEditing ? AppColors.info : AppColors.success,
           isLoading: _isSaving,
-          onPressed: (_isSaving || _isLoading || _loadError != null) ? null : _submit,
+          onPressed: (_isSaving || _isLoading || _loadError != null)
+              ? null
+              : _submit,
         ),
       ],
       child: Column(
@@ -226,7 +230,9 @@ class _PremiseFormDialogState extends State<PremiseFormDialog> {
           if (_isLoading)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 48),
-              child: Center(child: CircularProgressIndicator(color: primaryRed)),
+              child: Center(
+                child: CircularProgressIndicator(color: primaryRed),
+              ),
             )
           else if (_loadError != null)
             _buildLoadError()
@@ -238,7 +244,9 @@ class _PremiseFormDialogState extends State<PremiseFormDialog> {
               padding: const EdgeInsets.all(12),
               decoration: const BoxDecoration(
                 color: AppColors.dangerBg,
-                border: Border(left: BorderSide(color: AppColors.danger, width: 5)),
+                border: Border(
+                  left: BorderSide(color: AppColors.danger, width: 5),
+                ),
               ),
               child: Row(
                 children: [
@@ -247,7 +255,10 @@ class _PremiseFormDialogState extends State<PremiseFormDialog> {
                   Expanded(
                     child: Text(
                       _submitError!,
-                      style: const TextStyle(color: AppColors.danger, fontWeight: FontWeight.w700),
+                      style: const TextStyle(
+                        color: AppColors.danger,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ],
@@ -276,71 +287,69 @@ class _PremiseFormDialogState extends State<PremiseFormDialog> {
   Widget _buildForm() {
     final warning = _managerWarning;
     return Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: _nameController,
-              style: const TextStyle(color: darkText, fontSize: 15),
-              decoration: _decoration('Nombre del predio'),
-              validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Campo requerido' : null,
-            ),
-            _sectionTitle('Ubicación en el mapa'),
-            LocationPicker(
-              initial: _position,
-              onChanged: (p) => setState(() {
-                _position = p;
-                _submitError = null;
-              }),
-            ),
-            _sectionTitle('Responsable del predio'),
-            DropdownButtonFormField<int?>(
-              key: ValueKey('manager-$_managerId'),
-              initialValue: _managerId,
-              isExpanded: true,
-              decoration: _decoration('Responsable'),
-              items: [
-                const DropdownMenuItem<int?>(
-                  value: null,
-                  child: Text('Sin responsable'),
-                ),
-                for (final m in _managers)
-                  DropdownMenuItem<int?>(
-                    value: m.id,
-                    child: Text(
-                      m.premise == null
-                          ? m.name
-                          : '${m.name} (${m.premise!.name})',
-                      overflow: TextOverflow.ellipsis,
-                    ),
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _nameController,
+            style: const TextStyle(color: darkText, fontSize: 15),
+            decoration: _decoration('Nombre del predio'),
+            validator: (v) =>
+                (v == null || v.trim().isEmpty) ? 'Campo requerido' : null,
+          ),
+          _sectionTitle('Ubicación en el mapa'),
+          LocationPicker(
+            initial: _position,
+            onChanged: (p) => setState(() {
+              _position = p;
+              _submitError = null;
+            }),
+          ),
+          _sectionTitle('Responsable del predio'),
+          DropdownButtonFormField<int?>(
+            key: ValueKey('manager-$_managerId'),
+            initialValue: _managerId,
+            isExpanded: true,
+            decoration: _decoration('Responsable'),
+            items: [
+              const DropdownMenuItem<int?>(
+                value: null,
+                child: Text('Sin responsable'),
+              ),
+              for (final m in _managers)
+                DropdownMenuItem<int?>(
+                  value: m.id,
+                  child: Text(
+                    m.premise == null
+                        ? m.name
+                        : '${m.name} (${m.premise!.name})',
+                    overflow: TextOverflow.ellipsis,
                   ),
-              ],
-              onChanged: _isSaving
-                  ? null
-                  : (v) => setState(() => _managerId = v),
+                ),
+            ],
+            onChanged: _isSaving ? null : (v) => setState(() => _managerId = v),
+          ),
+          if (_managers.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                'Aún no hay usuarios con el rol MANAGE_PREMISE. Créalos en la sección Usuarios.',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+              ),
             ),
-            if (_managers.isEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Text(
-                  'Aún no hay usuarios con el rol MANAGE_PREMISE. Créalos en la sección Usuarios.',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
-                ),
+          if (warning != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                warning,
+                style: TextStyle(fontSize: 12, color: AppColors.warning),
               ),
-            if (warning != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Text(
-                  warning,
-                  style: TextStyle(fontSize: 12, color: AppColors.warning),
-                ),
-              ),
-            _sectionTitle('Motivos de salida permitidos'),
-            _buildReasonsPicker(),
-          ],
+            ),
+          _sectionTitle('Motivos de salida permitidos'),
+          _buildReasonsPicker(),
+        ],
       ),
     );
   }

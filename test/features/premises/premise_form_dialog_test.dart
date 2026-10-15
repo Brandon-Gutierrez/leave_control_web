@@ -27,7 +27,13 @@ class _FakePremises implements PremiseService {
     int? managerUserId,
   }) async {
     created = true;
-    saved = {'name': name, 'lat': latitude, 'lng': longitude, 'manager': managerUserId, 'reasons': reasonNames};
+    saved = {
+      'name': name,
+      'lat': latitude,
+      'lng': longitude,
+      'manager': managerUserId,
+      'reasons': reasonNames,
+    };
     return Premise(id: 9, name: name, reasonNames: []);
   }
 
@@ -40,7 +46,14 @@ class _FakePremises implements PremiseService {
     required List<String> reasonNames,
     required int? managerUserId,
   }) async {
-    saved = {'id': premiseId, 'name': name, 'lat': latitude, 'lng': longitude, 'manager': managerUserId, 'reasons': reasonNames};
+    saved = {
+      'id': premiseId,
+      'name': name,
+      'lat': latitude,
+      'lng': longitude,
+      'manager': managerUserId,
+      'reasons': reasonNames,
+    };
     return Premise(id: premiseId, name: name, reasonNames: []);
   }
 
@@ -52,8 +65,18 @@ class _FakePremises implements PremiseService {
 class _FakeUsers implements UserAdminService {
   @override
   Future<List<ManagedUser>> getUsers() async => [
-    ManagedUser(id: 7, name: 'Ana Gestora', item: '1', role: AppRole(id: 3, name: 'MANAGE_PREMISE')),
-    ManagedUser(id: 8, name: 'Luis Empleado', item: '2', role: AppRole(id: 1, name: 'EMPLOYEE')),
+    ManagedUser(
+      id: 7,
+      name: 'Ana Gestora',
+      item: '1',
+      role: AppRole(id: 3, name: 'MANAGE_PREMISE'),
+    ),
+    ManagedUser(
+      id: 8,
+      name: 'Luis Empleado',
+      item: '2',
+      role: AppRole(id: 1, name: 'EMPLOYEE'),
+    ),
   ];
 
   /// Gestiona metodos no implementados.
@@ -62,10 +85,14 @@ class _FakeUsers implements UserAdminService {
 }
 
 Widget _host(Widget dialog) => MaterialApp(
-  home: Scaffold(body: Builder(builder: (c) => TextButton(
-    onPressed: () => showDialog(context: c, builder: (_) => dialog),
-    child: const Text('abrir'),
-  ))),
+  home: Scaffold(
+    body: Builder(
+      builder: (c) => TextButton(
+        onPressed: () => showDialog(context: c, builder: (_) => dialog),
+        child: const Text('abrir'),
+      ),
+    ),
+  ),
 );
 
 Future<void> _open(WidgetTester t, Widget dialog) async {
@@ -87,23 +114,43 @@ Future<void> _tapMap(WidgetTester t, {double dx = 60}) async {
 void main() {
   testWidgets('un predio nuevo no se guarda hasta tocar el mapa', (t) async {
     final premises = _FakePremises();
-    await _open(t, PremiseFormDialog(premiseService: premises, userService: _FakeUsers()));
+    await _open(
+      t,
+      PremiseFormDialog(premiseService: premises, userService: _FakeUsers()),
+    );
 
-    expect(find.text('Toca en el mapa el lugar donde está el predio.'), findsOneWidget);
+    expect(
+      find.text('Toca en el mapa el lugar donde está el predio.'),
+      findsOneWidget,
+    );
     expect(find.text('Pegar coordenadas o enlace de un mapa'), findsNothing);
-    await t.enterText(find.widgetWithText(TextFormField, 'Nombre del predio'), 'Sede');
+    await t.enterText(
+      find.widgetWithText(TextFormField, 'Nombre del predio'),
+      'Sede',
+    );
     await t.tap(find.text('Crear predio'));
     await t.pump();
 
     expect(premises.created, isFalse);
-    expect(find.text('Toca el mapa para fijar la ubicación del predio.'), findsOneWidget);
+    expect(
+      find.text('Toca el mapa para fijar la ubicación del predio.'),
+      findsOneWidget,
+    );
   });
 
-  testWidgets('tocar el mapa fija el punto, elige responsable y crea', (t) async {
+  testWidgets('tocar el mapa fija el punto, elige responsable y crea', (
+    t,
+  ) async {
     final premises = _FakePremises();
-    await _open(t, PremiseFormDialog(premiseService: premises, userService: _FakeUsers()));
+    await _open(
+      t,
+      PremiseFormDialog(premiseService: premises, userService: _FakeUsers()),
+    );
 
-    await t.enterText(find.widgetWithText(TextFormField, 'Nombre del predio'), 'Sede Prado');
+    await t.enterText(
+      find.widgetWithText(TextFormField, 'Nombre del predio'),
+      'Sede Prado',
+    );
     await _tapMap(t);
     expect(find.textContaining('Ubicación fijada'), findsOneWidget);
 
@@ -122,43 +169,76 @@ void main() {
     expect(premises.saved!['lng'], greaterThan(-66.1570));
   });
 
-  testWidgets('editar precarga datos y envia una sola actualizacion', (t) async {
+  testWidgets('editar precarga datos y envia una sola actualizacion', (
+    t,
+  ) async {
     final premises = _FakePremises();
     final premise = Premise(
-      id: 4, name: 'Central', reasonNames: [Reason(name: 'Cita médica')],
-      latitude: -17.39, longitude: -66.15, manager: const PremiseManager(userId: 7, name: 'Ana Gestora'),
+      id: 4,
+      name: 'Central',
+      reasonNames: [Reason(name: 'Cita médica')],
+      latitude: -17.39,
+      longitude: -66.15,
+      manager: const PremiseManager(userId: 7, name: 'Ana Gestora'),
     );
-    await _open(t, PremiseFormDialog(premise: premise, premiseService: premises, userService: _FakeUsers()));
+    await _open(
+      t,
+      PremiseFormDialog(
+        premise: premise,
+        premiseService: premises,
+        userService: _FakeUsers(),
+      ),
+    );
 
     expect(find.text('Editar predio'), findsOneWidget);
-    expect(find.textContaining('Ubicación fijada (-17.39000, -66.15000)'), findsOneWidget);
-    await t.enterText(find.widgetWithText(TextFormField, 'Nombre del predio'), 'Central 2');
+    expect(
+      find.textContaining('Ubicación fijada (-17.39000, -66.15000)'),
+      findsOneWidget,
+    );
+    await t.enterText(
+      find.widgetWithText(TextFormField, 'Nombre del predio'),
+      'Central 2',
+    );
     await t.tap(find.text('Guardar cambios'));
     await t.pump();
     await t.pump(const Duration(milliseconds: 100));
 
-    expect(premises.saved, {'id': 4, 'name': 'Central 2', 'lat': -17.39, 'lng': -66.15, 'manager': 7, 'reasons': ['Cita médica']});
+    expect(premises.saved, {
+      'id': 4,
+      'name': 'Central 2',
+      'lat': -17.39,
+      'lng': -66.15,
+      'manager': 7,
+      'reasons': ['Cita médica'],
+    });
   });
 
-  testWidgets('buscar un lugar y usar mi ubicación mueven el marcador', (t) async {
+  testWidgets('buscar un lugar y usar mi ubicación mueven el marcador', (
+    t,
+  ) async {
     LatLng? chosen;
     t.view.physicalSize = const Size(1000, 1800);
     t.view.devicePixelRatio = 1;
     addTearDown(t.view.reset);
-    await t.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: SingleChildScrollView(
-          child: LocationPicker(
-            initial: null,
-            onChanged: (p) => chosen = p,
-            placeSearch: (q) async => [
-              PlaceResult(name: 'Plaza 14 de Septiembre', position: const LatLng(-17.3938, -66.1568)),
-            ],
-            locateMe: () async => const LatLng(-17.5, -66.2),
+    await t.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: LocationPicker(
+              initial: null,
+              onChanged: (p) => chosen = p,
+              placeSearch: (q) async => [
+                PlaceResult(
+                  name: 'Plaza 14 de Septiembre',
+                  position: const LatLng(-17.3938, -66.1568),
+                ),
+              ],
+              locateMe: () async => const LatLng(-17.5, -66.2),
+            ),
           ),
         ),
       ),
-    ));
+    );
 
     await t.enterText(find.byType(TextField), 'plaza');
     await t.testTextInput.receiveAction(TextInputAction.search);
@@ -178,14 +258,25 @@ void main() {
     t.view.physicalSize = const Size(1000, 1800);
     t.view.devicePixelRatio = 1;
     addTearDown(t.view.reset);
-    await t.pumpWidget(MaterialApp(
-      home: Scaffold(body: SingleChildScrollView(
-        child: LocationPicker(initial: null, onChanged: (_) {}, locateMe: () async => null),
-      )),
-    ));
+    await t.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: LocationPicker(
+              initial: null,
+              onChanged: (_) {},
+              locateMe: () async => null,
+            ),
+          ),
+        ),
+      ),
+    );
     await t.tap(find.text('Mi ubicación'));
     await t.pump();
     await t.pump(const Duration(milliseconds: 100));
-    expect(find.textContaining('No se pudo obtener tu ubicación'), findsOneWidget);
+    expect(
+      find.textContaining('No se pudo obtener tu ubicación'),
+      findsOneWidget,
+    );
   });
 }

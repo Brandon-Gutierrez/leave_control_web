@@ -12,7 +12,11 @@ class UserProfileHeader extends StatelessWidget {
   /// Versión pequeña (solo foto) para la barra superior.
   final bool compact;
 
-  const UserProfileHeader({super.key, required this.user, this.compact = false});
+  const UserProfileHeader({
+    super.key,
+    required this.user,
+    this.compact = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +37,10 @@ class UserProfileHeader extends StatelessWidget {
                   name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
                 Text(
                   roleTitle,

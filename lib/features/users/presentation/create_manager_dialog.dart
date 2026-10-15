@@ -91,7 +91,10 @@ class _CreateManagerDialogState extends State<CreateManagerDialog> {
       title: 'Nuevo responsable de predio',
       subtitle: 'Solo verá el código QR de su predio y no podrá cerrar sesión',
       actions: [
-        ModalButton(label: 'Cancelar', onPressed: _isSaving ? null : () => Navigator.pop(context)),
+        ModalButton(
+          label: 'Cancelar',
+          onPressed: _isSaving ? null : () => Navigator.pop(context),
+        ),
         ModalButton(
           label: 'Crear cuenta',
           primary: true,
@@ -101,92 +104,92 @@ class _CreateManagerDialogState extends State<CreateManagerDialog> {
         ),
       ],
       child: Form(
-          key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                TextFormField(
-                  controller: _nameController,
-                  textInputAction: TextInputAction.next,
-                  decoration: _decoration('Nombre completo'),
-                  validator: (v) => (v == null || v.trim().isEmpty)
-                      ? 'Campo requerido'
-                      : null,
-                ),
-                const SizedBox(height: 14),
-                TextFormField(
-                  controller: _usernameController,
-                  textInputAction: TextInputAction.next,
-                  autocorrect: false,
-                  decoration: _decoration(
-                    'Usuario para iniciar sesión',
-                    helper: 'Solo letras, números, guion (-) o guion bajo (_).',
-                  ),
-                  validator: (v) {
-                    final value = (v ?? '').trim();
-                    if (value.isEmpty) return 'Campo requerido';
-                    if (!_usernamePattern.hasMatch(value)) {
-                      return 'Use solo letras, números, - o _ (sin espacios)';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 14),
-                DropdownButtonFormField<int>(
-                  initialValue: _premiseId,
-                  isExpanded: true,
-                  decoration: _decoration('Predio del que será responsable'),
-                  items: [
-                    for (final premise in widget.premises)
-                      DropdownMenuItem(
-                        value: premise.id,
-                        child: Text(premise.name, overflow: TextOverflow.ellipsis),
-                      ),
-                  ],
-                  onChanged: (value) => setState(() => _premiseId = value),
-                  validator: (v) => v == null ? 'Elija un predio' : null,
-                ),
-                const SizedBox(height: 14),
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: _obscure,
-                  autocorrect: false,
-                  enableSuggestions: false,
-                  decoration: _decoration(
-                    'Contraseña (opcional)',
-                    helper: 'Si la deja vacía, el sistema crea una segura y se '
-                        'la muestra una sola vez.',
-                    suffix: IconButton(
-                      tooltip: _obscure ? 'Mostrar' : 'Ocultar',
-                      icon: Icon(
-                        _obscure
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
-                      ),
-                      onPressed: () => setState(() => _obscure = !_obscure),
-                    ),
-                  ),
-                  validator: (v) {
-                    final value = v ?? '';
-                    if (value.isNotEmpty && value.length < 10) {
-                      return 'Debe tener al menos 10 caracteres';
-                    }
-                    return null;
-                  },
-                ),
-                if (_submitError != null) ...[
-                  const SizedBox(height: 12),
-                  Text(
-                    _submitError!,
-                    style: const TextStyle(
-                      color: AppColors.primaryRed,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ],
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextFormField(
+              controller: _nameController,
+              textInputAction: TextInputAction.next,
+              decoration: _decoration('Nombre completo'),
+              validator: (v) =>
+                  (v == null || v.trim().isEmpty) ? 'Campo requerido' : null,
             ),
+            const SizedBox(height: 14),
+            TextFormField(
+              controller: _usernameController,
+              textInputAction: TextInputAction.next,
+              autocorrect: false,
+              decoration: _decoration(
+                'Usuario para iniciar sesión',
+                helper: 'Solo letras, números, guion (-) o guion bajo (_).',
+              ),
+              validator: (v) {
+                final value = (v ?? '').trim();
+                if (value.isEmpty) return 'Campo requerido';
+                if (!_usernamePattern.hasMatch(value)) {
+                  return 'Use solo letras, números, - o _ (sin espacios)';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 14),
+            DropdownButtonFormField<int>(
+              initialValue: _premiseId,
+              isExpanded: true,
+              decoration: _decoration('Predio del que será responsable'),
+              items: [
+                for (final premise in widget.premises)
+                  DropdownMenuItem(
+                    value: premise.id,
+                    child: Text(premise.name, overflow: TextOverflow.ellipsis),
+                  ),
+              ],
+              onChanged: (value) => setState(() => _premiseId = value),
+              validator: (v) => v == null ? 'Elija un predio' : null,
+            ),
+            const SizedBox(height: 14),
+            TextFormField(
+              controller: _passwordController,
+              obscureText: _obscure,
+              autocorrect: false,
+              enableSuggestions: false,
+              decoration: _decoration(
+                'Contraseña (opcional)',
+                helper:
+                    'Si la deja vacía, el sistema crea una segura y se '
+                    'la muestra una sola vez.',
+                suffix: IconButton(
+                  tooltip: _obscure ? 'Mostrar' : 'Ocultar',
+                  icon: Icon(
+                    _obscure
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                  ),
+                  onPressed: () => setState(() => _obscure = !_obscure),
+                ),
+              ),
+              validator: (v) {
+                final value = v ?? '';
+                if (value.isNotEmpty && value.length < 10) {
+                  return 'Debe tener al menos 10 caracteres';
+                }
+                return null;
+              },
+            ),
+            if (_submitError != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                _submitError!,
+                style: const TextStyle(
+                  color: AppColors.primaryRed,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -219,7 +222,8 @@ class ManagerCredentialsDialog extends StatelessWidget {
       tone: DialogTone.create,
       icon: Icons.check_circle_rounded,
       title: title,
-      subtitle: message ??
+      subtitle:
+          message ??
           '${created.user.name} es responsable de ${created.user.premise?.name ?? 'su predio'}.',
       maxWidth: 480,
       onClose: () => Navigator.pop(context),
@@ -243,7 +247,9 @@ class ManagerCredentialsDialog extends StatelessWidget {
               padding: const EdgeInsets.all(12),
               decoration: const BoxDecoration(
                 color: AppColors.warningBg,
-                border: Border(left: BorderSide(color: AppColors.warning, width: 5)),
+                border: Border(
+                  left: BorderSide(color: AppColors.warning, width: 5),
+                ),
               ),
               child: const Row(
                 children: [

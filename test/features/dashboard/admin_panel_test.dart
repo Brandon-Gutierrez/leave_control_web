@@ -398,10 +398,7 @@ void main() {
 
     await tester.tap(adminOptionFinder);
     await tester.pumpAndSettle();
-    expect(
-      tester.widget<FilledButton>(saveButtonFinder).onPressed,
-      isNotNull,
-    );
+    expect(tester.widget<FilledButton>(saveButtonFinder).onPressed, isNotNull);
 
     await tester.tap(saveButtonFinder);
     await tester.pumpAndSettle();

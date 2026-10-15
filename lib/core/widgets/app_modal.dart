@@ -139,7 +139,11 @@ class _Header extends StatelessWidget {
           IconButton(
             tooltip: 'Cerrar',
             onPressed: onClose,
-            icon: const Icon(Icons.close_rounded, color: Colors.white, size: 26),
+            icon: const Icon(
+              Icons.close_rounded,
+              color: Colors.white,
+              size: 26,
+            ),
           ),
         ],
       ),
@@ -166,7 +170,9 @@ class ModalButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final shape = RoundedRectangleBorder(borderRadius: BorderRadius.circular(6));
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(6),
+    );
     const size = Size(120, 48);
     if (!primary) {
       return OutlinedButton(
@@ -193,7 +199,10 @@ class ModalButton extends StatelessWidget {
           ? const SizedBox(
               height: 20,
               width: 20,
-              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
             )
           : Text(label),
     );

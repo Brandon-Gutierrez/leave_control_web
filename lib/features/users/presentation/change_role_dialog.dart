@@ -86,7 +86,9 @@ class _ChangeRoleDialogState extends State<ChangeRoleDialog> {
       tone: DialogTone.caution,
       icon: Icons.admin_panel_settings_rounded,
       title: 'Cambiar rol',
-      subtitle: widget.user.name.isEmpty ? 'Usuario sin nombre' : widget.user.name,
+      subtitle: widget.user.name.isEmpty
+          ? 'Usuario sin nombre'
+          : widget.user.name,
       maxWidth: dialogWidth,
       actions: [
         ModalButton(label: 'Cancelar', onPressed: () => Navigator.pop(context)),
@@ -94,7 +96,8 @@ class _ChangeRoleDialogState extends State<ChangeRoleDialog> {
           label: 'Guardar cambio',
           primary: true,
           color: AppColors.warning,
-          onPressed: hasChanged && (!isPremiseManager || _selectedPremiseId != null)
+          onPressed:
+              hasChanged && (!isPremiseManager || _selectedPremiseId != null)
               ? save
               : null,
         ),
@@ -126,7 +129,10 @@ class _ChangeRoleDialogState extends State<ChangeRoleDialog> {
               ),
               items: [
                 for (final premise in widget.premises)
-                  DropdownMenuItem(value: premise.id, child: Text(premise.name)),
+                  DropdownMenuItem(
+                    value: premise.id,
+                    child: Text(premise.name),
+                  ),
               ],
               onChanged: (value) => setState(() => _selectedPremiseId = value),
             ),

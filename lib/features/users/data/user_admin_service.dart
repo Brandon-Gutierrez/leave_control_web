@@ -87,7 +87,9 @@ class UserAdminService {
     try {
       final response = await _dio.put(
         ApiRoutes.userPassword(userId),
-        data: {if (password != null && password.isNotEmpty) 'password': password},
+        data: {
+          if (password != null && password.isNotEmpty) 'password': password,
+        },
       );
       return response.data['generated_password'] as String?;
     } on DioException catch (e) {
@@ -97,7 +99,6 @@ class UserAdminService {
       );
     }
   }
-
 
   /// Desvincula el dispositivo de una cuenta en [platform] y cierra su sesión
   /// ahí, para que pueda iniciar sesión desde un dispositivo nuevo.

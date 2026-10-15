@@ -47,7 +47,8 @@ class _ManagerPasswordDialogState extends State<ManagerPasswordDialog> {
       tone: DialogTone.caution,
       icon: Icons.key_rounded,
       title: 'Cambiar contraseña',
-      subtitle: '${widget.user.name} (${widget.user.username ?? 'sin usuario'})',
+      subtitle:
+          '${widget.user.name} (${widget.user.username ?? 'sin usuario'})',
       maxWidth: 480,
       actions: [
         ModalButton(label: 'Cancelar', onPressed: () => Navigator.pop(context)),
@@ -73,7 +74,9 @@ class _ManagerPasswordDialogState extends State<ManagerPasswordDialog> {
                     contentPadding: EdgeInsets.zero,
                     activeColor: AppColors.warning,
                     title: Text('Generar una contraseña nueva'),
-                    subtitle: Text('Recomendado: es larga y difícil de adivinar.'),
+                    subtitle: Text(
+                      'Recomendado: es larga y difícil de adivinar.',
+                    ),
                   ),
                   RadioListTile<bool>(
                     value: false,
@@ -96,7 +99,11 @@ class _ManagerPasswordDialogState extends State<ManagerPasswordDialog> {
                     borderRadius: BorderRadius.circular(AppDimens.fieldRadius),
                   ),
                   suffixIcon: IconButton(
-                    icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                    icon: Icon(
+                      _obscure
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                    ),
                     onPressed: () => setState(() => _obscure = !_obscure),
                   ),
                 ),
@@ -111,7 +118,9 @@ class _ManagerPasswordDialogState extends State<ManagerPasswordDialog> {
               padding: const EdgeInsets.all(12),
               decoration: const BoxDecoration(
                 color: AppColors.warningBg,
-                border: Border(left: BorderSide(color: AppColors.warning, width: 5)),
+                border: Border(
+                  left: BorderSide(color: AppColors.warning, width: 5),
+                ),
               ),
               child: const Row(
                 children: [
