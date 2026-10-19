@@ -9,7 +9,6 @@ import '../../auth/models/auth_user.dart';
 import '../../auth/presentation/admin_login_page.dart';
 import '../../auth/state/session_controller.dart';
 import '../../premises/presentation/premises_view.dart';
-import '../../reports/presentation/reports_view.dart';
 import '../../settings/presentation/leave_limits_dialog.dart';
 import '../../settings/presentation/qr_settings_dialog.dart';
 import '../../users/presentation/users_view.dart';
@@ -36,18 +35,16 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   static const darkText = AppColors.darkText;
   static const lightBg = AppColors.lightBg;
 
-  static const _titles = ['Inicio', 'Predios', 'Usuarios', 'Reportes'];
+  static const _titles = ['Inicio', 'Predios', 'Usuarios'];
   static const _destinationIcons = [
     (Icons.home_outlined, Icons.home_rounded),
     (Icons.apartment_outlined, Icons.apartment_rounded),
     (Icons.people_alt_outlined, Icons.people_alt_rounded),
-    (Icons.insights_outlined, Icons.insights_rounded),
   ];
 
   final AuthService _authService = AuthService();
   final _premisesKey = GlobalKey<PremisesViewState>();
   final _usersKey = GlobalKey<UsersViewState>();
-  final _reportsKey = GlobalKey<ReportsViewState>();
 
   int _selectedIndex = 0;
 
@@ -74,7 +71,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     setState(() => _selectedIndex = index);
     // Al entrar a una sección se actualizan los datos por si cambiaron.
     unawaited(AdminDataStore.instance.refreshQuietly());
-    if (index == 3) unawaited(_reportsKey.currentState?.refresh());
   }
 
   void _goToPremises({bool openCreateDialog = false}) {
@@ -131,7 +127,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             ),
             PremisesView(key: _premisesKey, onUnauthorized: _goToLogin),
             UsersView(key: _usersKey, onUnauthorized: _goToLogin),
-            ReportsView(key: _reportsKey, onUnauthorized: _goToLogin),
           ],
         );
 

@@ -28,9 +28,6 @@ abstract final class ApiRoutes {
   static String userDeviceReset(int userId) =>
       '/api/admin/users/$userId/device/reset';
 
-  // Administración - reportes
-  static const String leaveReport = '/api/admin/reports/leaves';
-
   // Administración - configuración
   static const String settingsQr = '/api/admin/settings/qr';
   static const String settingsLeaveLimits = '/api/admin/settings/leave-limits';
