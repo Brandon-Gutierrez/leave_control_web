@@ -9,6 +9,10 @@ abstract final class ApiRoutes {
 
   // Responsable de predio
   static const String managerQrToken = '/api/manager/qr-token';
+  static const String managerManualValidate =
+      '/api/manager/manual-entry/validate';
+  static const String managerManualConfirm =
+      '/api/manager/manual-entry/confirm';
 
   // Administración - predios y motivos
   static const String premises = '/api/admin/premises';

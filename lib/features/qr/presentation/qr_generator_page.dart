@@ -10,6 +10,7 @@ import '../../auth/presentation/admin_login_page.dart';
 import '../../auth/state/session_controller.dart';
 import '../../premises/models/premise.dart';
 import '../data/qr_service.dart';
+import 'manual_entry_dialog.dart';
 
 /// Pantalla con el código QR de un predio.
 ///
@@ -319,6 +320,10 @@ class _QrGeneratorPageState extends State<QrGeneratorPage> {
             const Spacer(),
           ] else
             const SizedBox(height: 14),
+          if (_isManager) ...[
+            _buildManualEntryButton(wide: wide),
+            SizedBox(height: wide ? 20 : 12),
+          ],
           if (_qrToken != null) ...[
             Row(
               children: [
@@ -346,6 +351,36 @@ class _QrGeneratorPageState extends State<QrGeneratorPage> {
           ],
         ],
       ),
+    );
+  }
+
+  /// Botón para quien no puede escanear: ingresa con item y carnet.
+  Widget _buildManualEntryButton({required bool wide}) {
+    return SizedBox(
+      height: wide ? 60 : 52,
+      child: OutlinedButton.icon(
+        onPressed: _openManualEntry,
+        icon: const Icon(Icons.badge_outlined, size: 26),
+        label: const Text('Ingreso manual'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: Colors.white,
+          side: const BorderSide(color: Colors.white, width: 2),
+          textStyle: TextStyle(
+            fontSize: wide ? 20 : 17,
+            fontWeight: FontWeight.w800,
+          ),
+          shape: const RoundedRectangleBorder(),
+        ),
+      ),
+    );
+  }
+
+  /// Abre el ingreso manual; al terminar se vuelve solo al QR.
+  Future<void> _openManualEntry() async {
+    await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const ManualEntryDialog(),
     );
   }
 
