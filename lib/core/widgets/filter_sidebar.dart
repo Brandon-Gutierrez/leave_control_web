@@ -26,12 +26,12 @@ class FilterGroup<T> extends StatelessWidget {
         Text(
           title,
           style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w800,
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
             color: AppColors.darkText,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         Wrap(
           spacing: 8,
           runSpacing: 8,
@@ -42,6 +42,15 @@ class FilterGroup<T> extends StatelessWidget {
                 selected: entry.key == value,
                 showCheckmark: false,
                 selectedColor: AppColors.primaryRed,
+                backgroundColor: Colors.white,
+                side: BorderSide(
+                  color: entry.key == value
+                      ? AppColors.primaryRed
+                      : AppColors.line,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
                 labelStyle: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -56,23 +65,22 @@ class FilterGroup<T> extends StatelessWidget {
   }
 }
 
-/// Barra lateral de filtros. En pantallas anchas es un panel fijo a la
-/// izquierda del contenido; en pantallas angostas se despliega arriba con un
-/// botón "Filtros".
+/// Barra lateral vertical en escritorio y panel desplegable en pantallas
+/// estrechas, con la búsqueda y los filtros junto al contenido que refinan.
 class FilterSidebarLayout extends StatefulWidget {
-  /// Búsqueda por texto, siempre visible en la barra.
+  /// Búsqueda por texto.
   final Widget search;
 
   /// Grupos de filtros (normalmente [FilterGroup]).
   final List<Widget> filters;
 
-  /// Cantidad de filtros activos (se muestra en el botón en pantallas angostas).
+  /// Cantidad de filtros activos, incluida la búsqueda.
   final int activeCount;
 
   final VoidCallback onClear;
   final Widget content;
 
-  /// Ancho a partir del cual la barra queda fija al costado.
+  /// Ancho a partir del cual los filtros pasan a una barra lateral vertical.
   final double wideBreakpoint;
 
   const FilterSidebarLayout({
@@ -92,20 +100,164 @@ class FilterSidebarLayout extends StatefulWidget {
 class _FilterSidebarLayoutState extends State<FilterSidebarLayout> {
   bool _expanded = false;
 
-  List<Widget> _spaced(List<Widget> items) => [
-    for (var i = 0; i < items.length; i++) ...[
-      if (i > 0) const SizedBox(height: 18),
-      items[i],
-    ],
-  ];
+  Widget _filterToggle() {
+    final label = widget.activeCount == 0
+        ? 'Filtros'
+        : 'Filtros (${widget.activeCount})';
+    return OutlinedButton.icon(
+      onPressed: () => setState(() => _expanded = !_expanded),
+      icon: const Icon(Icons.tune_rounded, size: 20),
+      label: Text(label),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.primaryRed,
+        side: BorderSide(color: AppColors.primaryRed.withValues(alpha: 0.55)),
+        minimumSize: const Size(0, 52),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
 
-  Widget _clearButton() => Align(
-    alignment: Alignment.centerLeft,
-    child: TextButton.icon(
-      onPressed: widget.activeCount == 0 ? null : widget.onClear,
-      icon: const Icon(Icons.filter_alt_off_rounded, size: 18),
-      label: const Text('Limpiar filtros'),
-      style: TextButton.styleFrom(foregroundColor: AppColors.primaryRed),
+  Widget _clearButton() => TextButton.icon(
+    onPressed: widget.activeCount == 0 ? null : widget.onClear,
+    icon: const Icon(Icons.filter_alt_off_rounded, size: 18),
+    label: const Text('Limpiar todo'),
+    style: TextButton.styleFrom(
+      foregroundColor: AppColors.primaryRed,
+      minimumSize: const Size(0, 40),
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+    ),
+  );
+
+  Widget _activeCount() {
+    if (widget.activeCount == 0) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: AppColors.primaryRed.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        '${widget.activeCount}',
+        style: const TextStyle(
+          color: AppColors.primaryRed,
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  Widget _filterList() => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      for (var index = 0; index < widget.filters.length; index++) ...[
+        if (index > 0) const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.lightBg,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.line),
+          ),
+          child: widget.filters[index],
+        ),
+      ],
+    ],
+  );
+
+  Widget _desktopSidebar() => Container(
+    width: 300,
+    margin: const EdgeInsets.fromLTRB(16, 16, 0, 16),
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: AppColors.line),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.035),
+          blurRadius: 12,
+          offset: const Offset(0, 3),
+        ),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.tune_rounded, size: 20, color: AppColors.info),
+            const SizedBox(width: 8),
+            Expanded(child: Text('Filtros', style: AppText.cardTitle)),
+            _activeCount(),
+          ],
+        ),
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 14),
+          child: Divider(height: 1, color: AppColors.line),
+        ),
+        Expanded(
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                widget.search,
+                const SizedBox(height: 18),
+                Text('Refinar resultados', style: AppText.caption),
+                const SizedBox(height: 10),
+                _filterList(),
+              ],
+            ),
+          ),
+        ),
+        const Padding(
+          padding: EdgeInsets.only(top: 10),
+          child: Divider(height: 1, color: AppColors.line),
+        ),
+        Align(alignment: Alignment.centerLeft, child: _clearButton()),
+      ],
+    ),
+  );
+
+  Widget _mobileFilters(double availableHeight) => Container(
+    margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: AppColors.line),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.035),
+          blurRadius: 12,
+          offset: const Offset(0, 3),
+        ),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Refinar resultados',
+                style: AppText.cardTitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 8),
+            _activeCount(),
+          ],
+        ),
+        Align(alignment: Alignment.centerRight, child: _clearButton()),
+        ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: availableHeight * 0.42),
+          child: SingleChildScrollView(child: _filterList()),
+        ),
+      ],
     ),
   );
 
@@ -113,40 +265,16 @@ class _FilterSidebarLayoutState extends State<FilterSidebarLayout> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (constraints.maxWidth >= widget.wideBreakpoint) {
+        final isWide = constraints.maxWidth >= widget.wideBreakpoint;
+        final availableHeight = constraints.maxHeight.isFinite
+            ? constraints.maxHeight
+            : 760.0;
+
+        if (isWide) {
           return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
-                width: 270,
-                margin: const EdgeInsets.fromLTRB(16, 16, 0, 16),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(AppDimens.cardRadius),
-                  border: Border.all(color: Colors.grey.shade300),
-                ),
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.tune_rounded, size: 20),
-                          const SizedBox(width: 8),
-                          Text('Filtros', style: AppText.cardTitle),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-                      widget.search,
-                      const SizedBox(height: 18),
-                      ..._spaced(widget.filters),
-                      const SizedBox(height: 10),
-                      _clearButton(),
-                    ],
-                  ),
-                ),
-              ),
+              _desktopSidebar(),
               Expanded(child: widget.content),
             ],
           );
@@ -160,45 +288,11 @@ class _FilterSidebarLayoutState extends State<FilterSidebarLayout> {
                 children: [
                   Expanded(child: widget.search),
                   const SizedBox(width: 10),
-                  OutlinedButton.icon(
-                    onPressed: () => setState(() => _expanded = !_expanded),
-                    icon: const Icon(Icons.tune_rounded, size: 20),
-                    label: Text(
-                      widget.activeCount == 0
-                          ? 'Filtros'
-                          : 'Filtros (${widget.activeCount})',
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.primaryRed,
-                      side: const BorderSide(color: AppColors.primaryRed),
-                      minimumSize: const Size(0, 52),
-                    ),
-                  ),
+                  _filterToggle(),
                 ],
               ),
             ),
-            if (_expanded)
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(AppDimens.cardRadius),
-                  border: Border.all(color: Colors.grey.shade300),
-                ),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxHeight: constraints.maxHeight * 0.5,
-                  ),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [..._spaced(widget.filters), _clearButton()],
-                    ),
-                  ),
-                ),
-              ),
+            if (_expanded) _mobileFilters(availableHeight),
             Expanded(child: widget.content),
           ],
         );

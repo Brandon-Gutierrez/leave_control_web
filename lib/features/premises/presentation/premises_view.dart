@@ -257,15 +257,13 @@ class PremisesViewState extends State<PremisesView> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
-        // Tres columnas como mínimo cuando hay espacio; menos en pantallas
-        // angostas para que las tarjetas sigan siendo legibles.
-        final columns = width >= 1500
-            ? 4
-            : width >= 720
-            ? 3
-            : width >= 480
-            ? 2
-            : 1;
+        // Las tarjetas de predio contienen varias líneas descriptivas; se
+        // mantienen cerca de 320 px y se agregan columnas según el espacio.
+        const minCardWidth = 320.0;
+        final columns = ((width + _gap) / (minCardWidth + _gap))
+            .floor()
+            .clamp(1, 4)
+            .toInt();
         final padding = width >= Breakpoints.tablet ? 24.0 : 16.0;
 
         return Padding(

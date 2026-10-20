@@ -388,7 +388,7 @@ class UsersViewState extends State<UsersView> {
       return const Center(child: CircularProgressIndicator(color: primaryRed));
     }
     return FilterSidebarLayout(
-      wideBreakpoint: 1000,
+      wideBreakpoint: 1100,
       search: _buildSearchField(),
       activeCount: _activeFilters,
       onClear: _clearFilters,
@@ -494,14 +494,7 @@ class UsersViewState extends State<UsersView> {
                             onRefresh: _fetchData,
                             color: Colors.white,
                             backgroundColor: primaryRed,
-                            child: ListView.builder(
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              itemCount: pageUsers.length,
-                              itemBuilder: (context, index) => Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
-                                child: _buildUserTile(pageUsers[index]),
-                              ),
-                            ),
+                            child: _buildUserGrid(pageUsers),
                           ),
                   ),
                   PaginationBar(
@@ -513,6 +506,33 @@ class UsersViewState extends State<UsersView> {
                 ],
               ),
             ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildUserGrid(List<ManagedUser> users) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const gap = 12.0;
+        const minCardWidth = 400.0;
+        final columns = ((constraints.maxWidth + gap) / (minCardWidth + gap))
+            .floor()
+            .clamp(1, 2)
+            .toInt();
+        final cardWidth =
+            (constraints.maxWidth - gap * (columns - 1)) / columns;
+
+        return SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Wrap(
+            spacing: gap,
+            runSpacing: gap,
+            children: [
+              for (final user in users)
+                SizedBox(width: cardWidth, child: _buildUserTile(user)),
+            ],
           ),
         );
       },
