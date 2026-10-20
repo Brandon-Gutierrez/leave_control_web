@@ -241,7 +241,7 @@ class _ManualEntryDialogState extends State<ManualEntryDialog> {
       title: 'Hola, ${step.person}',
       subtitle:
           'Elija el motivo de su salida de ${step.premise ?? 'este predio'}',
-      maxWidth: 480,
+      maxWidth: 780,
       onClose: _busy ? () {} : () => Navigator.pop(context, false),
       actions: [
         ModalButton(
@@ -266,14 +266,37 @@ class _ManualEntryDialogState extends State<ManualEntryDialog> {
               'Este predio no tiene motivos de salida habilitados.',
             )
           else
-            for (final reason in step.reasons)
-              _ReasonTile(
-                label: reason,
-                selected: reason == _selectedReason,
-                onTap: _busy
-                    ? null
-                    : () => setState(() => _selectedReason = reason),
-              ),
+            // Los motivos se reparten en columnas según el ancho para que
+            // quepan todos sin desplazarse.
+            LayoutBuilder(
+              builder: (context, box) {
+                const gap = 10.0;
+                final columns = box.maxWidth >= 640
+                    ? 3
+                    : box.maxWidth >= 420
+                    ? 2
+                    : 1;
+                final tileWidth =
+                    (box.maxWidth - gap * (columns - 1)) / columns;
+                return Wrap(
+                  spacing: gap,
+                  runSpacing: gap,
+                  children: [
+                    for (final reason in step.reasons)
+                      SizedBox(
+                        width: tileWidth,
+                        child: _ReasonTile(
+                          label: reason,
+                          selected: reason == _selectedReason,
+                          onTap: _busy
+                              ? null
+                              : () => setState(() => _selectedReason = reason),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
           if (_error != null) _ErrorNote(_error!),
         ],
       ),
@@ -344,36 +367,37 @@ class _ReasonTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-          decoration: BoxDecoration(
-            color: selected ? AppColors.successBg : Colors.white,
-            border: Border.all(
-              color: selected ? AppColors.success : AppColors.line,
-              width: selected ? 2 : 1,
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 64),
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.successBg : Colors.white,
+          border: Border.all(
+            color: selected ? AppColors.success : AppColors.line,
+            width: selected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              selected
+                  ? Icons.radio_button_checked_rounded
+                  : Icons.radio_button_unchecked_rounded,
+              color: selected ? AppColors.success : AppColors.info,
             ),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                selected
-                    ? Icons.radio_button_checked_rounded
-                    : Icons.radio_button_unchecked_rounded,
-                color: selected ? AppColors.success : AppColors.info,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.body.copyWith(fontWeight: FontWeight.w600),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  label,
-                  style: AppText.body.copyWith(fontWeight: FontWeight.w600),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
