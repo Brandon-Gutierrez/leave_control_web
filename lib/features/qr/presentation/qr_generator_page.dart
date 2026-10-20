@@ -358,13 +358,14 @@ class _QrGeneratorPageState extends State<QrGeneratorPage> {
   Widget _buildManualEntryButton({required bool wide}) {
     return SizedBox(
       height: wide ? 60 : 52,
-      child: OutlinedButton.icon(
+      child: FilledButton.icon(
         onPressed: _openManualEntry,
         icon: const Icon(Icons.badge_outlined, size: 26),
         label: const Text('Ingreso manual'),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: Colors.white,
-          side: const BorderSide(color: Colors.white, width: 2),
+        style: FilledButton.styleFrom(
+          // Blanco sólido con texto rojo: se separa del fondo rojo del panel.
+          backgroundColor: Colors.white,
+          foregroundColor: AppColors.primaryRed,
           textStyle: TextStyle(
             fontSize: wide ? 20 : 17,
             fontWeight: FontWeight.w800,
