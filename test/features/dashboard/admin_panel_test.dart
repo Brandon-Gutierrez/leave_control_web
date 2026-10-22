@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:control_leaves_web/core/network/api_client.dart';
 import 'package:control_leaves_web/features/auth/models/auth_user.dart';
 import 'package:control_leaves_web/features/auth/presentation/admin_login_page.dart';
+import 'package:control_leaves_web/features/auth/state/session_controller.dart';
 import 'package:control_leaves_web/features/dashboard/presentation/admin_dashboard_page.dart';
 import 'package:control_leaves_web/features/premises/models/premise.dart';
 import 'package:control_leaves_web/features/qr/presentation/qr_generator_page.dart';
@@ -91,6 +92,7 @@ const _rolesPayload = {
   'data': [
     {'role_id': 1, 'name': 'EMPLOYEE'},
     {'role_id': 2, 'name': 'ADMIN'},
+    {'role_id': 3, 'name': 'MANAGE_PREMISE'},
   ],
 };
 
@@ -429,7 +431,7 @@ void filtersTests() {
     expect(find.text('Predio 2'), findsNothing);
     expect(find.text('1 de 7 predios'), findsOneWidget);
 
-    await tester.tap(find.text('Limpiar filtros'));
+    await tester.tap(find.text('Limpiar todo'));
     await tester.pumpAndSettle();
     expect(find.text('Predio 2'), findsOneWidget);
   });
@@ -452,6 +454,67 @@ void filtersTests() {
     expect(find.text('Luis Gómez'), findsOneWidget);
   });
 
+  testWidgets('Una cuenta creada desde el sistema solo puede ser responsable', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(const MaterialApp(home: AdminDashboardPage()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Usuarios'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Marta Gestora'));
+    await tester.pumpAndSettle();
+
+    final dialog = find.byType(Dialog);
+    expect(dialog, findsOneWidget);
+    expect(
+      find.descendant(of: dialog, matching: find.text('Gestor de predio')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: dialog, matching: find.text('Administrador')),
+      findsNothing,
+    );
+    expect(
+      find.descendant(of: dialog, matching: find.text('Empleado')),
+      findsNothing,
+    );
+  });
+
+  testWidgets('El administrador no puede cambiar su propio rol', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    SessionController.instance.set(
+      AuthUser(id: 2, name: 'Luis Gómez', item: '1002', roleName: 'ADMIN'),
+    );
+    addTearDown(() => SessionController.instance.set(null));
+    await tester.pumpWidget(const MaterialApp(home: AdminDashboardPage()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Usuarios'));
+    await tester.pumpAndSettle();
+
+    // El nombre también sale en el encabezado de perfil: se toca el de la lista.
+    await tester.tap(find.text('Luis Gómez').last);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(Dialog), findsNothing);
+    expect(
+      find.text('No puede cambiar su propio rol. Pídalo a otro administrador.'),
+      findsOneWidget,
+    );
+
+    // Otra persona sí abre el selector de rol.
+    await tester.tap(find.text('Ana Pérez'));
+    await tester.pumpAndSettle();
+    expect(find.text('Cambiar rol'), findsOneWidget);
+  });
+
   testWidgets('En teléfono los filtros se despliegan con el botón Filtros', (
     tester,
   ) async {
@@ -463,10 +526,10 @@ void filtersTests() {
     await tester.tap(find.text('Predios'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Limpiar filtros'), findsNothing);
+    expect(find.text('Limpiar todo'), findsNothing);
     await tester.tap(find.text('Filtros'));
     await tester.pumpAndSettle();
-    expect(find.text('Limpiar filtros'), findsOneWidget);
+    expect(find.text('Limpiar todo'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

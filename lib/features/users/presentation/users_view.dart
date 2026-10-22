@@ -11,6 +11,7 @@ import '../../../core/widgets/app_popup.dart';
 import '../../../core/widgets/dialog_tone.dart';
 import '../../../core/widgets/filter_sidebar.dart';
 import '../../../core/widgets/pagination_bar.dart';
+import '../../auth/state/session_controller.dart';
 import '../../dashboard/state/admin_data_store.dart';
 import '../data/user_admin_service.dart';
 import '../models/managed_user.dart';
@@ -205,11 +206,29 @@ class UsersViewState extends State<UsersView> {
   Future<void> _openChangeRoleDialog(ManagedUser user) async {
     if (_updatingUserIds.contains(user.id) || _roles.isEmpty) return;
 
+    // Un administrador no se cambia su propio rol: otro administrador lo hace.
+    if (SessionController.instance.user.value?.id == user.id) {
+      _showSnackBar(
+        'No puede cambiar su propio rol. Pídalo a otro administrador.',
+        AppColors.warning,
+      );
+      return;
+    }
+
+    // Las cuentas creadas desde el sistema (con usuario y contraseña propios)
+    // solo pueden ser responsables de predio: no se les ofrece otro rol.
+    final roles = user.username == null
+        ? _roles
+        : _roles
+              .where((r) => RoleNames.matches(r.name, RoleNames.managePremise))
+              .toList();
+    if (roles.isEmpty) return;
+
     final selection = await showDialog<RoleChangeSelection>(
       context: context,
       builder: (context) => ChangeRoleDialog(
         user: user,
-        roles: _roles,
+        roles: roles,
         premises: _availablePremises(user),
       ),
     );

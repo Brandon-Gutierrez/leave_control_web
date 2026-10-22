@@ -105,6 +105,14 @@ class _ChangeRoleDialogState extends State<ChangeRoleDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (widget.user.username != null) ...[
+            Text(
+              'Esta cuenta se creó desde el sistema: solo puede ser '
+              'responsable de predio. Aquí puede cambiar su predio.',
+              style: AppText.caption,
+            ),
+            const SizedBox(height: 10),
+          ],
           for (final role in widget.roles) ...[
             _RoleOption(
               title: _displayName(role),
@@ -123,6 +131,7 @@ class _ChangeRoleDialogState extends State<ChangeRoleDialog> {
             DropdownButtonFormField<int>(
               key: ValueKey(_selectedPremiseId),
               initialValue: _selectedPremiseId,
+              isExpanded: true,
               decoration: const InputDecoration(
                 labelText: 'Predio asignado',
                 border: OutlineInputBorder(),
@@ -131,7 +140,11 @@ class _ChangeRoleDialogState extends State<ChangeRoleDialog> {
                 for (final premise in widget.premises)
                   DropdownMenuItem(
                     value: premise.id,
-                    child: Text(premise.name),
+                    child: Text(
+                      premise.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
               ],
               onChanged: (value) => setState(() => _selectedPremiseId = value),
