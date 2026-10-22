@@ -5,5 +5,5 @@ abstract final class MapDefaults {
   static const double longitude = -66.1570;
 
   /// Radio (metros) dentro del cual se aceptan los escaneos de un predio.
-  static const double premiseRadiusMeters = 30;
+  static const double premiseRadiusMeters = 50;
 }
