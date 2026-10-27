@@ -103,13 +103,10 @@ void main() {
     expect(find.text('Hola, Juan Pérez'), findsOneWidget);
     expect(find.text('Trámite bancario'), findsOneWidget);
 
-    // Sin motivo elegido no se puede confirmar.
-    final confirm = find.widgetWithText(FilledButton, 'Confirmar salida');
-    expect(tester.widget<FilledButton>(confirm).onPressed, isNull);
+    // No hay botón de confirmar: tocar el motivo registra la salida.
+    expect(find.text('Confirmar salida'), findsNothing);
 
     await tester.tap(find.text('Cita médica'));
-    await tester.pump();
-    await tester.tap(confirm);
     await tester.pump();
     await tester.pump();
 
@@ -147,15 +144,15 @@ void main() {
 
     expect(find.text('Límite alcanzado: 1 vez por día'), findsOneWidget);
 
-    // El motivo agotado no se puede elegir; el otro sí.
-    final confirm = find.widgetWithText(FilledButton, 'Confirmar salida');
+    // El motivo agotado no registra nada; el otro sí.
     await tester.tap(find.text('Almuerzo'));
     await tester.pump();
-    expect(tester.widget<FilledButton>(confirm).onPressed, isNull);
+    expect(service.confirmedReason, isNull);
 
     await tester.tap(find.text('Cita médica'));
     await tester.pump();
-    expect(tester.widget<FilledButton>(confirm).onPressed, isNotNull);
+    await tester.pump();
+    expect(service.confirmedReason, 'Cita médica');
   });
 
   testWidgets('si ya estaba fuera registra el retorno y vuelve solo', (

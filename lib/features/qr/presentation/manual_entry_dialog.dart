@@ -115,11 +115,12 @@ class _ManualEntryDialogState extends State<ManualEntryDialog> {
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) => tick());
   }
 
-  Future<void> _confirm() async {
+  /// Tocar un motivo registra la salida de inmediato, sin otro botón.
+  Future<void> _confirm(String reason) async {
     final step = _step;
-    final reason = _selectedReason;
-    if (_busy || step == null || reason == null) return;
+    if (_busy || step == null) return;
     setState(() {
+      _selectedReason = reason;
       _busy = true;
       _error = null;
     });
@@ -240,7 +241,7 @@ class _ManualEntryDialogState extends State<ManualEntryDialog> {
       icon: Icons.logout_rounded,
       title: 'Hola, ${step.person}',
       subtitle:
-          'Elija el motivo de su salida de ${step.premise ?? 'este predio'}',
+          'Toque el motivo de su salida de ${step.premise ?? 'este predio'}',
       maxWidth: 780,
       onClose: _busy ? () {} : () => Navigator.pop(context, false),
       actions: [
@@ -248,18 +249,11 @@ class _ManualEntryDialogState extends State<ManualEntryDialog> {
           label: 'Cancelar',
           onPressed: _busy ? null : () => Navigator.pop(context, false),
         ),
-        ModalButton(
-          label: 'Confirmar salida',
-          primary: true,
-          color: AppColors.success,
-          isLoading: _busy,
-          onPressed: _selectedReason == null ? null : _confirm,
-        ),
       ],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Tiene $_secondsLeft s para confirmar.', style: AppText.caption),
+          Text('Tiene $_secondsLeft s para elegir.', style: AppText.caption),
           const SizedBox(height: 10),
           if (step.reasons.isEmpty)
             const _ErrorNote(
@@ -287,11 +281,9 @@ class _ManualEntryDialogState extends State<ManualEntryDialog> {
                         width: tileWidth,
                         child: _ReasonTile(
                           label: reason,
-                          selected: reason == _selectedReason,
+                          loading: _busy && reason == _selectedReason,
                           blockedNote: step.blockFor(reason)?.note,
-                          onTap: _busy
-                              ? null
-                              : () => setState(() => _selectedReason = reason),
+                          onTap: _busy ? null : () => _confirm(reason),
                         ),
                       ),
                   ],
@@ -357,7 +349,9 @@ class _ErrorNote extends StatelessWidget {
 
 class _ReasonTile extends StatelessWidget {
   final String label;
-  final bool selected;
+
+  /// Se está registrando la salida con este motivo.
+  final bool loading;
 
   /// Si no es null, el motivo no se puede elegir y se explica por qué.
   final String? blockedNote;
@@ -365,8 +359,8 @@ class _ReasonTile extends StatelessWidget {
 
   const _ReasonTile({
     required this.label,
-    required this.selected,
     required this.onTap,
+    this.loading = false,
     this.blockedNote,
   });
 
@@ -382,29 +376,16 @@ class _ReasonTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: blocked
               ? AppColors.infoBg
-              : selected
+              : loading
               ? AppColors.successBg
               : Colors.white,
           border: Border.all(
-            color: selected && !blocked ? AppColors.success : AppColors.line,
-            width: selected && !blocked ? 2 : 1,
+            color: loading ? AppColors.success : AppColors.line,
+            width: loading ? 2 : 1,
           ),
         ),
         child: Row(
           children: [
-            Icon(
-              blocked
-                  ? Icons.block_rounded
-                  : selected
-                  ? Icons.radio_button_checked_rounded
-                  : Icons.radio_button_unchecked_rounded,
-              color: blocked
-                  ? AppColors.danger
-                  : selected
-                  ? AppColors.success
-                  : AppColors.info,
-            ),
-            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -429,6 +410,21 @@ class _ReasonTile extends StatelessWidget {
                 ],
               ),
             ),
+            const SizedBox(width: 12),
+            if (loading)
+              const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.success,
+                ),
+              )
+            else
+              Icon(
+                blocked ? Icons.block_rounded : Icons.chevron_right_rounded,
+                color: blocked ? AppColors.danger : AppColors.info,
+              ),
           ],
         ),
       ),
