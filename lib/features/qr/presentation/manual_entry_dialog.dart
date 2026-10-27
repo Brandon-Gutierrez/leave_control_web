@@ -288,6 +288,7 @@ class _ManualEntryDialogState extends State<ManualEntryDialog> {
                         child: _ReasonTile(
                           label: reason,
                           selected: reason == _selectedReason,
+                          blockedNote: step.blockFor(reason)?.note,
                           onTap: _busy
                               ? null
                               : () => setState(() => _selectedReason = reason),
@@ -357,44 +358,75 @@ class _ErrorNote extends StatelessWidget {
 class _ReasonTile extends StatelessWidget {
   final String label;
   final bool selected;
+
+  /// Si no es null, el motivo no se puede elegir y se explica por qué.
+  final String? blockedNote;
   final VoidCallback? onTap;
 
   const _ReasonTile({
     required this.label,
     required this.selected,
     required this.onTap,
+    this.blockedNote,
   });
 
   @override
   Widget build(BuildContext context) {
+    final blocked = blockedNote != null;
     return InkWell(
-      onTap: onTap,
+      onTap: blocked ? null : onTap,
       child: Container(
         constraints: const BoxConstraints(minHeight: 64),
         alignment: Alignment.centerLeft,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? AppColors.successBg : Colors.white,
+          color: blocked
+              ? AppColors.infoBg
+              : selected
+              ? AppColors.successBg
+              : Colors.white,
           border: Border.all(
-            color: selected ? AppColors.success : AppColors.line,
-            width: selected ? 2 : 1,
+            color: selected && !blocked ? AppColors.success : AppColors.line,
+            width: selected && !blocked ? 2 : 1,
           ),
         ),
         child: Row(
           children: [
             Icon(
-              selected
+              blocked
+                  ? Icons.block_rounded
+                  : selected
                   ? Icons.radio_button_checked_rounded
                   : Icons.radio_button_unchecked_rounded,
-              color: selected ? AppColors.success : AppColors.info,
+              color: blocked
+                  ? AppColors.danger
+                  : selected
+                  ? AppColors.success
+                  : AppColors.info,
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                label,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: AppText.body.copyWith(fontWeight: FontWeight.w600),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    label,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.body.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: blocked ? AppColors.info : AppColors.darkText,
+                    ),
+                  ),
+                  if (blocked)
+                    Text(
+                      blockedNote!,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.caption.copyWith(color: AppColors.danger),
+                    ),
+                ],
               ),
             ),
           ],

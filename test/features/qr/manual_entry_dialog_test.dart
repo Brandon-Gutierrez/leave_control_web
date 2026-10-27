@@ -122,6 +122,42 @@ void main() {
     expect(find.text('abrir'), findsOneWidget);
   });
 
+  testWidgets('un motivo que llegó a su límite sale no permitido', (
+    tester,
+  ) async {
+    final service = _FakeQrService()
+      ..step = ManualEntryStep(
+        action: 'showReasons',
+        person: 'Juan Pérez',
+        item: '2057',
+        premise: 'Prado',
+        reasons: const ['Almuerzo', 'Cita médica'],
+        blockedReasons: const [
+          BlockedReason(name: 'Almuerzo', limit: 1, period: 'day'),
+        ],
+        leaveTicket: 'tk-1',
+        ticketExpiresAt: DateTime.now().add(const Duration(seconds: 30)),
+      );
+    await _open(tester, service);
+
+    await tester.enterText(find.byType(TextFormField).at(0), '2057');
+    await tester.enterText(find.byType(TextFormField).at(1), '1234567');
+    await tester.tap(find.text('Validar'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Límite alcanzado: 1 vez por día'), findsOneWidget);
+
+    // El motivo agotado no se puede elegir; el otro sí.
+    final confirm = find.widgetWithText(FilledButton, 'Confirmar salida');
+    await tester.tap(find.text('Almuerzo'));
+    await tester.pump();
+    expect(tester.widget<FilledButton>(confirm).onPressed, isNull);
+
+    await tester.tap(find.text('Cita médica'));
+    await tester.pump();
+    expect(tester.widget<FilledButton>(confirm).onPressed, isNotNull);
+  });
+
   testWidgets('si ya estaba fuera registra el retorno y vuelve solo', (
     tester,
   ) async {

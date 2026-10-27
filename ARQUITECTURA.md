@@ -86,7 +86,7 @@ Mejoras sugeridas: mover carga, filtros y mutaciones de `UsersView`, `PremisesVi
 
 | Archivo | Función y relaciones |
 |---|---|
-| `test/features/dashboard/admin_panel_test.dart` | Panel, login y QR con adaptador HTTP falso: navegación, Inicio, sincronización de motivos, cambio de rol, QR sin desbordes. |
+| `test/features/dashboard/admin_panel_test.dart` | Panel, login y QR con adaptador HTTP falso: navegación, Inicio, sincronización de Ros, cambio de rol, QR sin desbordes. |
 | `test/features/premises/premise_form_dialog_test.dart` | Formulario de predio con servicios falsos y selección en el mapa. |
 | `test/features/qr/manager_lockdown_test.dart` | Acceso y flujo restringido del responsable con backend simulado y control de sesión. |
 | `test/features/users/devices_dialog_test.dart` | Diálogo de dispositivos y petición de desvinculación. |

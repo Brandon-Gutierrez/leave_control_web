@@ -57,11 +57,7 @@ class SettingsService {
     try {
       final response = await _dio.put(
         ApiRoutes.settingsLeaveLimits,
-        data: {
-          'period': limits.period,
-          'max_exits': limits.maxExits,
-          'max_exits_per_premise': limits.maxExitsPerPremise,
-        },
+        data: limits.toJson(),
       );
       return LeaveLimits.fromJson(response.data['data']);
     } on DioException catch (e) {
