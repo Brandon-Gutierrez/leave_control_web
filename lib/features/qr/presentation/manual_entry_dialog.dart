@@ -371,7 +371,7 @@ class _ReasonTile extends StatelessWidget {
       onTap: blocked ? null : onTap,
       child: Container(
         constraints: const BoxConstraints(minHeight: 64),
-        alignment: Alignment.centerLeft,
+        alignment: Alignment.center,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           color: blocked
@@ -384,46 +384,36 @@ class _ReasonTile extends StatelessWidget {
             width: loading ? 2 : 1,
           ),
         ),
-        child: Row(
+        // Botón de solo texto, sin íconos ni círculos.
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    label,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppText.body.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: blocked ? AppColors.info : AppColors.darkText,
-                    ),
-                  ),
-                  if (blocked)
-                    Text(
-                      blockedNote!,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppText.caption.copyWith(color: AppColors.danger),
-                    ),
-                ],
+            Text(
+              label,
+              maxLines: 3,
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.body.copyWith(
+                fontWeight: FontWeight.w600,
+                color: blocked ? AppColors.info : AppColors.darkText,
               ),
             ),
-            const SizedBox(width: 12),
+            if (blocked)
+              Text(
+                blockedNote!,
+                maxLines: 2,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.caption.copyWith(color: AppColors.danger),
+              ),
             if (loading)
-              const SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: LinearProgressIndicator(
+                  minHeight: 3,
                   color: AppColors.success,
                 ),
-              )
-            else
-              Icon(
-                blocked ? Icons.block_rounded : Icons.chevron_right_rounded,
-                color: blocked ? AppColors.danger : AppColors.info,
               ),
           ],
         ),
