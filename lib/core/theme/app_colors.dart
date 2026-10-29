@@ -21,11 +21,6 @@ abstract final class AppColors {
   static const info = Color(0xFF4A4A4A);
   static const infoBg = Color(0xFFF0F0F0);
   static const line = Color(0xFFDDDDDD);
-
-  // Pantalla de QR
-  static const qrBackground = Color.fromARGB(255, 223, 28, 14);
-  static const qrText = Color.fromARGB(255, 160, 20, 10);
-  static const qrShadow = Color.fromARGB(255, 70, 0, 0);
 }
 
 /// Puntos de quiebre para pantallas web.

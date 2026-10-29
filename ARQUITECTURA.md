@@ -1,6 +1,6 @@
 # Guía del repositorio
 
-Documento de orientación para `control_leaves_web`, una aplicación Flutter de administración de usuarios y predios, y generación de códigos QR para responsables. Describe el código mantenido en el repositorio, sus relaciones y una ruta de mejora. Las carpetas nativas corresponden principalmente al soporte de Flutter para compilar y ejecutar en cada plataforma.
+Documento de orientación para `control_leaves_web`, una aplicación Flutter de administración de usuarios y predios, y generación de códigos QR para responsables. Describe el código mantenido en el repositorio, sus relaciones y una ruta de mejora. Es una aplicación solo para navegador: el proyecto conserva únicamente la carpeta `web/`.
 
 ## Mapa general
 
@@ -114,76 +114,6 @@ Mejoras sugeridas: mover carga, filtros y mutaciones de `UsersView`, `PremisesVi
 | `web/icons/Icon-192.png`, `web/icons/Icon-512.png` | Iconos PWA de tamaños estándar. | Regenerar desde fuente de marca y comprobar legibilidad a tamaño real. |
 | `web/icons/Icon-maskable-192.png`, `web/icons/Icon-maskable-512.png` | Variantes seguras para recorte de icono instalado. | Respetar zona segura de máscara y validar en lanzadores. |
 
-## Soporte nativo y archivos de plataforma
-
-Las carpetas siguientes permiten ejecutar/build de Flutter en móvil y escritorio. Los archivos `generated_*`, `GeneratedPluginRegistrant*` y registradores de plugins son salidas generadas; se regeneran con Flutter y no deberían recibir lógica de negocio. Recursos `.png`, `.ico` y `.xcassets` son iconos/launch images. Los manifiestos, proyectos y configuración restante contienen la integración específica de cada sistema.
-
-### Android (`android/`)
-
-- `settings.gradle.kts`, `build.gradle.kts`, `gradle.properties`: configuración Gradle global y plugins.
-- `gradle/wrapper/gradle-wrapper.properties`: versión de Gradle usada por el wrapper.
-- `app/build.gradle.kts`: módulo Android, SDK, dependencias y variantes de compilación Flutter.
-- `app/src/main/AndroidManifest.xml`: permisos, actividad y metadatos de la app.
-- `app/src/debug/AndroidManifest.xml`, `app/src/profile/AndroidManifest.xml`: manifiestos para debug y profile.
-- `app/src/main/kotlin/com/example/control_leaves_web/MainActivity.kt`: actividad anfitriona Android.
-- `app/src/main/res/values/styles.xml`, `values-night/styles.xml`: estilos de ventana claro/oscuro.
-- `app/src/main/res/drawable/launch_background.xml`, `drawable-v21/launch_background.xml`: fondo de inicio según versión Android.
-- `app/src/main/res/mipmap-*/ic_launcher.png` (`mdpi`, `hdpi`, `xhdpi`, `xxhdpi`, `xxxhdpi`): iconos de launcher por densidad.
-
-Mejora: cambiar el identificador de paquete `com.example` antes de publicar, revisar permisos y secretos de firma fuera del repositorio, y mantener configuración de SDK alineada con dependencias.
-
-### iOS (`ios/`)
-
-- `Runner/AppDelegate.swift`, `Runner/SceneDelegate.swift`: ciclo de vida de aplicación/escena y arranque de Flutter.
-- `Runner/Info.plist`: metadatos, permisos y configuración de la app.
-- `Runner/Runner-Bridging-Header.h`: puente entre Swift y código Objective-C/Flutter si se requiere.
-- `Runner/Base.lproj/Main.storyboard`: storyboard principal.
-- `Runner/Assets.xcassets/AppIcon.appiconset/Contents.json` y `Icon-App-*.png`: catálogo y tamaños de icono iOS.
-- `Runner/Assets.xcassets/LaunchImage.imageset/Contents.json`, `LaunchImage.png`, `LaunchImage@2x.png`, `LaunchImage@3x.png`, `README.md`: recurso y documentación de launch image.
-- `Runner.xcodeproj/project.pbxproj`: configuración del proyecto Xcode.
-- `Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme`: esquema compartido de compilación/ejecución.
-- `Runner.xcodeproj/project.xcworkspace/contents.xcworkspacedata`, `.../xcshareddata/IDEWorkspaceChecks.plist`, `.../xcshareddata/WorkspaceSettings.xcsettings`: workspace y preferencias de Xcode.
-- `Runner.xcworkspace/contents.xcworkspacedata`, `Runner.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist`, `Runner.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings`: workspace usado para abrir el proyecto.
-- `Flutter/Debug.xcconfig`, `Flutter/Release.xcconfig`, `Flutter/AppFrameworkInfo.plist`: configuración Flutter por build y metadatos del framework.
-- `RunnerTests/RunnerTests.swift`: pruebas del target nativo iOS.
-
-Mejora: revisar identificadores, permisos y capacidades antes de publicar; mantener secretos/certificados en el sistema de CI y no en el repositorio.
-
-### macOS (`macos/`)
-
-- `Runner/AppDelegate.swift`, `Runner/MainFlutterWindow.swift`: arranque y ventana anfitriona Flutter.
-- `Runner/Info.plist`: metadatos de la aplicación.
-- `Runner/DebugProfile.entitlements`, `Runner/Release.entitlements`: capacidades por configuración.
-- `Runner/Configs/AppInfo.xcconfig`, `Debug.xcconfig`, `Release.xcconfig`, `Warnings.xcconfig`: identidad, ajustes de build y warnings.
-- `Runner/Base.lproj/MainMenu.xib`: menú y ventana inicial.
-- `Runner/Assets.xcassets/AppIcon.appiconset/Contents.json`, `app_icon_16.png`, `app_icon_32.png`, `app_icon_64.png`, `app_icon_128.png`, `app_icon_256.png`, `app_icon_512.png`, `app_icon_1024.png`: catálogo e iconos.
-- `Runner.xcodeproj/project.pbxproj`, `Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme`: proyecto y esquema Xcode.
-- `Runner.xcodeproj/project.xcworkspace/contents.xcworkspacedata`, `.../xcshareddata/IDEWorkspaceChecks.plist`: workspace del proyecto.
-- `Runner.xcworkspace/contents.xcworkspacedata`, `Runner.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist`: workspace de ejecución.
-- `Flutter/Flutter-Debug.xcconfig`, `Flutter/Flutter-Release.xcconfig`, `Flutter/GeneratedPluginRegistrant.swift`: configuración Flutter y registrador de plugins generado.
-- `macos/RunnerTests/RunnerTests.swift`: pruebas del target nativo macOS.
-
-Mejora: verificar entitlements mínimos necesarios y gestionar firma/notarización desde CI.
-
-### Windows (`windows/`)
-
-- `CMakeLists.txt`, `runner/CMakeLists.txt`, `flutter/CMakeLists.txt`: configuración CMake raíz, runner y motor Flutter.
-- `runner/main.cpp`, `runner/flutter_window.cpp`, `runner/flutter_window.h`: entrada de aplicación y ventana Flutter.
-- `runner/win32_window.cpp`, `runner/win32_window.h`: creación y manejo de ventana Win32.
-- `runner/utils.cpp`, `runner/utils.h`: utilidades del runner.
-- `runner/Runner.rc`, `runner/resource.h`, `runner/resources/app_icon.ico`, `runner/runner.exe.manifest`: recursos, identificadores e identidad de ejecución de Windows.
-- `flutter/generated_plugin_registrant.cc`, `flutter/generated_plugin_registrant.h`, `flutter/generated_plugins.cmake`: registro generado de plugins.
-
-Mejora: sustituir metadatos de plantilla, definir identidad/producto/versionado y firmar artefactos desde CI.
-
-### Linux (`linux/`)
-
-- `CMakeLists.txt`, `flutter/CMakeLists.txt`, `runner/CMakeLists.txt`: configuración de compilación CMake.
-- `runner/main.cc`, `runner/my_application.cc`, `runner/my_application.h`: punto de entrada y aplicación GTK/Flutter.
-- `runner/generated_plugin_registrant.cc`, `runner/generated_plugin_registrant.h`, `flutter/generated_plugins.cmake`: registro generado de plugins.
-
-Mejora: definir metadatos de paquete/distribución, estrategia de instalación y automatizar builds reproducibles.
-
 ## Recomendaciones de arquitectura
 
 La aplicación ya separa modelos, servicios y presentación, lo que ofrece un punto de partida razonable. Para acercarla a Clean Architecture y facilitar crecimiento:
@@ -200,6 +130,5 @@ La aplicación ya separa modelos, servicios y presentación, lo que ofrece un pu
 
 ## Límites de este inventario
 
-El inventario cubre archivos de aplicación, pruebas, configuración, recursos y soporte nativo presentes al documentar. Los binarios de iconos/imagenes se describen por su papel, no por su contenido visual. Archivos generados por Flutter o herramientas nativas deben tratarse como artefactos de integración, salvo que una personalización concreta esté documentada.
+El inventario cubre archivos de aplicación, pruebas, configuración y recursos presentes al documentar. Los binarios de iconos/imagenes se describen por su papel, no por su contenido visual. Archivos generados por Flutter o herramientas nativas deben tratarse como artefactos de integración, salvo que una personalización concreta esté documentada.
 
-Las carpetas de caché (`.gradle/`, `Flutter/ephemeral/`) y registros detectados localmente son temporales y no forman parte de la arquitectura funcional. No se detallan archivo por archivo porque Flutter, Gradle o Xcode pueden regenerarlos; deben excluirse del control de versiones salvo una necesidad explícita del equipo.
