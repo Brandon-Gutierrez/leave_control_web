@@ -1,0 +1,5 @@
+# Los scripts y la configuración de Docker deben conservar saltos de línea LF
+# (se ejecutan dentro de contenedores Linux, aunque se clone en Windows).
+Dockerfile text eol=lf
+*.sh text eol=lf
+docker/** text eol=lf
