@@ -1,72 +1,224 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
+import '../../../core/network/api_exception.dart';
 import '../../premises/data/premise_service.dart';
 import '../../premises/models/premise.dart';
 import '../../premises/models/reason.dart';
 import '../../users/data/user_admin_service.dart';
 import '../../users/models/managed_user.dart';
+import '../data/summary_service.dart';
+import '../models/admin_summary.dart';
+
+enum LoadStatus { idle, loading, loaded, error }
+
+/// Un dato del panel (predios, usuarios, roles...) con su propio estado de
+/// carga. Cada uno se pide por separado, así que las pantallas muestran cada
+/// parte en cuanto llega y una falla no afecta a las demás.
+///
+/// - Una sola petición a la vez: si ya hay una en curso, [load] devuelve esa.
+/// - Vigencia: un dato cargado hace menos de [AdminDataStore.freshFor] no se
+///   vuelve a pedir, salvo con `force`.
+/// - Si una recarga falla se conserva el último valor bueno.
+class StoreResource<T> {
+  StoreResource._(this._store, this._fetch, this._empty, this._failMessage)
+    : value = _empty;
+
+  final AdminDataStore _store;
+  final Future<T> Function() _fetch;
+  final T _empty;
+  final String _failMessage;
+
+  T value;
+  LoadStatus status = LoadStatus.idle;
+  String? error;
+  DateTime? loadedAt;
+  Future<void>? _inFlight;
+  int _epoch = 0;
+
+  /// Ya se cargó con éxito alguna vez.
+  bool get hasLoaded => loadedAt != null;
+
+  bool get isLoading => status == LoadStatus.loading;
+
+  /// Primera carga: todavía no hay nada que mostrar (ni error).
+  bool get isInitialLoad => !hasLoaded && status != LoadStatus.error;
+
+  bool get hasFailed => status == LoadStatus.error;
+
+  bool get _isFresh =>
+      status == LoadStatus.loaded &&
+      loadedAt != null &&
+      _store._now().difference(loadedAt!) < AdminDataStore.freshFor;
+
+  /// Pide el dato si no está vigente. Nunca lanza: el resultado queda en
+  /// [status], [value] y [error].
+  Future<void> load({bool force = false}) {
+    final running = _inFlight;
+    if (running != null) return running;
+    if (!force && _isFresh) return Future<void>.value();
+    return _inFlight = _run();
+  }
+
+  Future<void> _run() async {
+    final epoch = _epoch;
+    status = LoadStatus.loading;
+    error = null;
+    _store._notifySoon();
+    try {
+      final result = await _fetch();
+      if (epoch != _epoch) return;
+      value = result;
+      loadedAt = _store._now();
+      status = LoadStatus.loaded;
+    } on ApiException catch (e) {
+      if (epoch != _epoch) return;
+      status = LoadStatus.error;
+      error = e.message;
+      if (e.isUnauthorized) _store._unauthorized();
+    } catch (_) {
+      if (epoch != _epoch) return;
+      status = LoadStatus.error;
+      error = _failMessage;
+    } finally {
+      // Si se cerró la sesión mientras tanto, la respuesta se descarta.
+      if (epoch == _epoch) {
+        _inFlight = null;
+        _store._changed();
+      }
+    }
+  }
+
+  void _reset() {
+    _epoch++;
+    value = _empty;
+    status = LoadStatus.idle;
+    error = null;
+    loadedAt = null;
+    _inFlight = null;
+  }
+}
 
 /// Datos del panel de administración compartidos por todas las secciones.
 ///
-/// Inicio, Predios y Usuarios muestran los mismos datos (predios, usuarios,
-/// roles y motivos). Cada uno se pide al backend por separado y, cuando
-/// cambia, avisa a todas las secciones a la vez: así crear un predio se ve de
-/// inmediato en Usuarios sin tener que refrescar.
+/// Cada dato es un [StoreResource] independiente. Las secciones piden solo lo
+/// que muestran (Inicio: el resumen; Predios: los predios; Usuarios: los
+/// usuarios) y los diálogos piden lo que necesitan (roles, motivos...) al
+/// abrirse. Cuando algo cambia se avisa a todas las secciones a la vez.
 class AdminDataStore extends ChangeNotifier {
   AdminDataStore._();
 
   static final AdminDataStore instance = AdminDataStore._();
 
+  /// Tiempo durante el cual un dato cargado se considera al día.
+  static Duration freshFor = const Duration(seconds: 60);
+
+  /// Reloj del almacén; las pruebas lo sustituyen para adelantar el tiempo.
+  @visibleForTesting
+  DateTime Function() clock = DateTime.now;
+
+  DateTime _now() => clock();
+
+  final SummaryService _summaryService = SummaryService();
   final PremiseService _premiseService = PremiseService();
   final UserAdminService _userService = UserAdminService();
 
-  List<Premise> _premises = const [];
-  List<ManagedUser> _users = const [];
-  List<AppRole> _roles = const [];
-  List<Reason> _reasons = const [];
+  /// Se llama (una sola vez) cuando una petición responde 401: la sesión
+  /// caducó y hay que volver al inicio de sesión.
+  VoidCallback? onUnauthorized;
+  bool _unauthorizedHandled = false;
 
-  List<Premise> get premises => _premises;
-  List<ManagedUser> get users => _users;
-  List<AppRole> get roles => _roles;
-  List<Reason> get reasons => _reasons;
+  late final StoreResource<AdminSummary?> summaryData =
+      StoreResource<AdminSummary?>._(
+        this,
+        _summaryService.getSummary,
+        null,
+        'No se pudo cargar el resumen',
+      );
+  late final StoreResource<List<Premise>> premisesData =
+      StoreResource<List<Premise>>._(
+        this,
+        _premiseService.getPremisesWithReasons,
+        const [],
+        'No se pudieron cargar los predios',
+      );
+  late final StoreResource<List<ManagedUser>> usersData =
+      StoreResource<List<ManagedUser>>._(
+        this,
+        _userService.getUsers,
+        const [],
+        'No se pudo cargar la lista de usuarios',
+      );
+  late final StoreResource<List<AppRole>> rolesData =
+      StoreResource<List<AppRole>>._(
+        this,
+        _userService.getRoles,
+        const [],
+        'No se pudieron cargar los roles',
+      );
+  late final StoreResource<List<Reason>> reasonsData =
+      StoreResource<List<Reason>>._(
+        this,
+        _premiseService.getAllReasons,
+        const [],
+        'No se pudieron cargar los motivos',
+      );
 
-  Future<void> refreshPremises() async {
-    _premises = await _premiseService.getPremisesWithReasons();
-    notifyListeners();
-  }
+  List<StoreResource<Object?>> get _all => [
+    summaryData,
+    premisesData,
+    usersData,
+    rolesData,
+    reasonsData,
+  ];
 
-  Future<void> refreshUsers() async {
-    _users = await _userService.getUsers();
-    notifyListeners();
-  }
+  AdminSummary? get summary => summaryData.value;
+  List<Premise> get premises => premisesData.value;
+  List<ManagedUser> get users => usersData.value;
+  List<AppRole> get roles => rolesData.value;
+  List<Reason> get reasons => reasonsData.value;
 
-  Future<void> refreshRoles() async {
-    _roles = await _userService.getRoles();
-    notifyListeners();
-  }
+  /// Vuelve a pedir, sin mostrar errores, lo que ya se había cargado. Se usa
+  /// tras una acción (crear, editar, sincronizar...) para que todas las
+  /// secciones reflejen el cambio. Lo que nunca se abrió no se pide.
+  Future<void> refreshQuietly() => Future.wait([
+    for (final resource in _all)
+      if (resource.hasLoaded || resource.isLoading) resource.load(force: true),
+  ]);
 
-  Future<void> refreshReasons() async {
-    _reasons = await _premiseService.getAllReasons();
-    notifyListeners();
-  }
-
-  /// Vuelve a pedir lo que suele cambiar (predios, usuarios y motivos) sin
-  /// mostrar errores: se usa tras una acción o al cambiar de sección, y si
-  /// falla se conservan los datos que ya había.
-  Future<void> refreshQuietly() async {
-    await Future.wait([
-      refreshPremises().catchError((Object _) {}),
-      refreshUsers().catchError((Object _) {}),
-      refreshReasons().catchError((Object _) {}),
-    ]);
-  }
-
-  /// Olvida los datos (al cerrar sesión).
+  /// Olvida los datos (al cerrar sesión). Las respuestas que aún estén en
+  /// camino se descartan.
   void clear() {
-    _premises = const [];
-    _users = const [];
-    _roles = const [];
-    _reasons = const [];
+    for (final resource in _all) {
+      resource._reset();
+    }
+    _unauthorizedHandled = false;
     notifyListeners();
   }
+
+  /// La sesión caducó (401). Lo usan las acciones que no pasan por un
+  /// recurso (guardar, desvincular...). Solo avisa una vez.
+  void sessionExpired() => _unauthorized();
+
+  void _unauthorized() {
+    if (_unauthorizedHandled) return;
+    _unauthorizedHandled = true;
+    onUnauthorized?.call();
+  }
+
+  bool _notifyScheduled = false;
+
+  /// Avisa en cuanto termine la construcción actual: [load] puede llamarse
+  /// desde `initState`, donde no se permite reconstruir otros widgets.
+  void _notifySoon() {
+    if (_notifyScheduled) return;
+    _notifyScheduled = true;
+    scheduleMicrotask(() {
+      _notifyScheduled = false;
+      notifyListeners();
+    });
+  }
+
+  void _changed() => notifyListeners();
 }

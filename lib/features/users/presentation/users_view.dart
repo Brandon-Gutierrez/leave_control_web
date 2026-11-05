@@ -10,7 +10,10 @@ import '../../../core/widgets/app_modal.dart';
 import '../../../core/widgets/app_popup.dart';
 import '../../../core/widgets/dialog_tone.dart';
 import '../../../core/widgets/filter_sidebar.dart';
+import '../../../core/widgets/lazy_card_grid.dart';
+import '../../../core/widgets/load_error.dart';
 import '../../../core/widgets/pagination_bar.dart';
+import '../../../core/widgets/skeleton.dart';
 import '../../auth/state/session_controller.dart';
 import '../../dashboard/state/admin_data_store.dart';
 import '../data/user_admin_service.dart';
@@ -27,10 +30,7 @@ enum _RoleFilter { all, employee, admin, manager }
 enum _PremiseFilter { any, assigned, unassigned }
 
 class UsersView extends StatefulWidget {
-  /// Se llama cuando el token de sesión ya no es válido (401).
-  final VoidCallback onUnauthorized;
-
-  const UsersView({super.key, required this.onUnauthorized});
+  const UsersView({super.key});
 
   @override
   State<UsersView> createState() => UsersViewState();
@@ -53,14 +53,17 @@ class UsersViewState extends State<UsersView> {
   String _searchQuery = '';
   int _page = 0;
   static const _pageSize = 10;
-  bool _isLoading = true;
   final Set<int> _updatingUserIds = {};
 
   @override
   void initState() {
     super.initState();
     _store.addListener(_applyStore);
-    _fetchData();
+    // Si los datos ya estaban cargados (otra sección los pidió) se ven al instante.
+    _copyFromStore();
+    // La sección solo pide la lista; los roles y predios se piden al abrir
+    // los diálogos que los usan.
+    unawaited(_store.usersData.load());
   }
 
   @override
@@ -69,10 +72,6 @@ class UsersViewState extends State<UsersView> {
     _searchController.dispose();
     super.dispose();
   }
-
-  /// Recarga la lista de usuarios y roles. Público para que otras secciones
-  /// (p. ej. "Inicio") puedan refrescar estos datos.
-  Future<void> refresh() => _fetchData();
 
   List<ManagedUser> get _filteredUsers {
     final query = _searchQuery.toLowerCase().trim();
@@ -126,41 +125,38 @@ class UsersViewState extends State<UsersView> {
   /// Copia los datos compartidos cada vez que cualquier sección los actualiza.
   void _applyStore() {
     if (!mounted) return;
-    setState(() {
-      _users = List.of(_store.users);
-      _roles = List.of(_store.roles);
-      _premises = _store.premises
-          .map((premise) => UserPremise(id: premise.id, name: premise.name))
-          .toList();
-      _occupiedPremiseIds
-        ..clear()
-        ..addAll(
-          _store.premises
-              .where((premise) => premise.manager != null)
-              .map((premise) => premise.id),
-        );
-    });
+    setState(_copyFromStore);
   }
 
-  Future<void> _fetchData() async {
-    setState(() => _isLoading = true);
-    try {
-      await Future.wait([
-        _store.refreshUsers(),
-        _store.refreshRoles(),
-        _store.refreshPremises(),
-      ]);
-    } on ApiException catch (e) {
-      if (e.isUnauthorized) {
-        widget.onUnauthorized();
-        return;
-      }
-      _showSnackBar(e.message, AppColors.danger);
-    } catch (_) {
-      _showSnackBar('No se pudo cargar la lista de usuarios', AppColors.danger);
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
+  void _copyFromStore() {
+    _users = List.of(_store.users);
+    _roles = List.of(_store.roles);
+    _premises = _store.premises
+        .map((premise) => UserPremise(id: premise.id, name: premise.name))
+        .toList();
+    _occupiedPremiseIds
+      ..clear()
+      ..addAll(
+        _store.premises
+            .where((premise) => premise.manager != null)
+            .map((premise) => premise.id),
+      );
+  }
+
+  /// Vuelve a pedir la lista de usuarios.
+  Future<void> _reload() => _store.usersData.load(force: true);
+
+  /// Pide lo que un diálogo necesita (roles, predios...) solo cuando se abre.
+  /// Devuelve false —y avisa— si alguno no se pudo cargar.
+  Future<bool> _ensureLoaded(List<StoreResource<Object?>> needed) async {
+    await Future.wait([for (final resource in needed) resource.load()]);
+    final failed = needed.where((r) => !r.hasLoaded).toList();
+    if (failed.isEmpty) return true;
+    _showSnackBar(
+      failed.first.error ?? 'No se pudieron cargar los datos.',
+      AppColors.danger,
+    );
+    return false;
   }
 
   void _showSnackBar(String message, Color color) {
@@ -175,6 +171,8 @@ class UsersViewState extends State<UsersView> {
   /// Abre el formulario para crear un responsable de predio. Público para que
   /// "Inicio" pueda ofrecerlo como acceso directo.
   Future<void> openCreateManagerDialog() async {
+    // Los predios solo hacen falta aquí, para elegir el predio del responsable.
+    if (!await _ensureLoaded([_store.premisesData]) || !mounted) return;
     final free = _availablePremises();
     if (free.isEmpty) {
       _showSnackBar(
@@ -204,7 +202,7 @@ class UsersViewState extends State<UsersView> {
   }
 
   Future<void> _openChangeRoleDialog(ManagedUser user) async {
-    if (_updatingUserIds.contains(user.id) || _roles.isEmpty) return;
+    if (_updatingUserIds.contains(user.id)) return;
 
     // Un administrador no se cambia su propio rol: otro administrador lo hace.
     if (SessionController.instance.user.value?.id == user.id) {
@@ -214,6 +212,13 @@ class UsersViewState extends State<UsersView> {
       );
       return;
     }
+
+    // Los roles y los predios se piden la primera vez que se abre este diálogo.
+    setState(() => _updatingUserIds.add(user.id));
+    final ready = await _ensureLoaded([_store.rolesData, _store.premisesData]);
+    if (!mounted) return;
+    setState(() => _updatingUserIds.remove(user.id));
+    if (!ready) return;
 
     // Las cuentas creadas desde el sistema (con usuario y contraseña propios)
     // solo pueden ser responsables de predio: no se les ofrece otro rol.
@@ -294,7 +299,7 @@ class UsersViewState extends State<UsersView> {
       );
     } on ApiException catch (e) {
       if (e.isUnauthorized) {
-        widget.onUnauthorized();
+        _store.sessionExpired();
         return;
       }
       _showSnackBar(e.message, AppColors.danger);
@@ -340,7 +345,7 @@ class UsersViewState extends State<UsersView> {
       }
     } on ApiException catch (e) {
       if (e.isUnauthorized) {
-        widget.onUnauthorized();
+        _store.sessionExpired();
         return;
       }
       _showSnackBar(e.message, AppColors.danger);
@@ -390,7 +395,7 @@ class UsersViewState extends State<UsersView> {
       );
     } on ApiException catch (e) {
       if (e.isUnauthorized) {
-        widget.onUnauthorized();
+        _store.sessionExpired();
         return;
       }
       _showSnackBar(e.message, AppColors.danger);
@@ -403,9 +408,6 @@ class UsersViewState extends State<UsersView> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator(color: primaryRed));
-    }
     return FilterSidebarLayout(
       wideBreakpoint: 1100,
       search: _buildSearchField(),
@@ -481,11 +483,18 @@ class UsersViewState extends State<UsersView> {
                   Row(
                     children: [
                       Expanded(
-                        child: Text(
-                          '${users.length} de ${_users.length} usuarios · '
-                          'Toca a una persona para cambiar su rol.',
-                          style: AppText.caption,
-                        ),
+                        child: _store.usersData.isInitialLoad
+                            ? const Align(
+                                alignment: Alignment.centerLeft,
+                                child: SkeletonPulse(
+                                  child: SkeletonBox(width: 180, height: 14),
+                                ),
+                              )
+                            : Text(
+                                '${users.length} de ${_users.length} usuarios · '
+                                'Toca a una persona para cambiar su rol.',
+                                style: AppText.caption,
+                              ),
                       ),
                       IconButton(
                         icon: const Icon(
@@ -494,28 +503,12 @@ class UsersViewState extends State<UsersView> {
                           size: AppDimens.iconSize,
                         ),
                         tooltip: 'Actualizar',
-                        onPressed: _isLoading ? null : _fetchData,
+                        onPressed: _store.usersData.isLoading ? null : _reload,
                       ),
                     ],
                   ),
                   const SizedBox(height: 8),
-                  Expanded(
-                    child: users.isEmpty
-                        ? Center(
-                            child: Text(
-                              'No se encontraron usuarios con esos filtros.',
-                              style: AppText.body.copyWith(
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                          )
-                        : RefreshIndicator(
-                            onRefresh: _fetchData,
-                            color: Colors.white,
-                            backgroundColor: primaryRed,
-                            child: _buildUserGrid(pageUsers),
-                          ),
-                  ),
+                  Expanded(child: _buildBody(users, pageUsers)),
                   PaginationBar(
                     page: _page,
                     pageSize: _pageSize,
@@ -531,30 +524,61 @@ class UsersViewState extends State<UsersView> {
     );
   }
 
-  Widget _buildUserGrid(List<ManagedUser> users) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        const gap = 12.0;
-        const minCardWidth = 400.0;
-        final columns = ((constraints.maxWidth + gap) / (minCardWidth + gap))
-            .floor()
-            .clamp(1, 2)
-            .toInt();
-        final cardWidth =
-            (constraints.maxWidth - gap * (columns - 1)) / columns;
+  /// Cambia de lista (filtro, búsqueda o página): la lista vuelve al inicio.
+  Key get _listKey => ValueKey(
+    '$_page|$_searchQuery|${_roleFilter.index}|${_premiseFilter.index}',
+  );
 
-        return SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: Wrap(
-            spacing: gap,
-            runSpacing: gap,
-            children: [
-              for (final user in users)
-                SizedBox(width: cardWidth, child: _buildUserTile(user)),
-            ],
-          ),
-        );
-      },
+  /// Lo que hay bajo el encabezado: esqueletos mientras llegan los usuarios, un
+  /// aviso con "Reintentar" si no se pudieron cargar, o la lista.
+  Widget _buildBody(List<ManagedUser> users, List<ManagedUser> pageUsers) {
+    final data = _store.usersData;
+    if (data.isInitialLoad) {
+      return SkeletonPulse(
+        child: LazyCardGrid<int>(
+          items: List.generate(6, (i) => i),
+          columns: 1,
+          itemBuilder: (context, _) => const _SkeletonUserTile(),
+        ),
+      );
+    }
+    if (data.hasFailed && !data.hasLoaded) {
+      return Align(
+        alignment: Alignment.topCenter,
+        child: LoadErrorNotice(
+          message: data.error ?? 'No se pudo cargar la lista de usuarios',
+          onRetry: _reload,
+        ),
+      );
+    }
+    if (users.isEmpty) {
+      return Center(
+        child: Text(
+          'No se encontraron usuarios con esos filtros.',
+          style: AppText.body.copyWith(color: Colors.grey.shade600),
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: _reload,
+      color: Colors.white,
+      backgroundColor: primaryRed,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          const minCardWidth = 400.0;
+          final columns = ((constraints.maxWidth + 12) / (minCardWidth + 12))
+              .floor()
+              .clamp(1, 2)
+              .toInt();
+          // Las tarjetas se construyen por filas, solo cuando se acercan a la pantalla.
+          return LazyCardGrid<ManagedUser>(
+            key: _listKey,
+            items: pageUsers,
+            columns: columns,
+            itemBuilder: (context, user) => _buildUserTile(user),
+          );
+        },
+      ),
     );
   }
 
@@ -754,6 +778,41 @@ class _RoleBadge extends StatelessWidget {
           ),
           const SizedBox(width: 4),
           Icon(Icons.edit_rounded, size: 15, color: color),
+        ],
+      ),
+    );
+  }
+}
+
+/// Hueco con la forma de una tarjeta de usuario mientras llegan los datos.
+class _SkeletonUserTile extends StatelessWidget {
+  const _SkeletonUserTile();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppDimens.cardRadius),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: const Row(
+        children: [
+          SkeletonBox(width: 44, height: 44, radius: 22),
+          SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SkeletonBox(width: 180, height: 18),
+                SizedBox(height: 8),
+                SkeletonBox(width: 90, height: 12),
+              ],
+            ),
+          ),
+          SizedBox(width: 12),
+          SkeletonBox(width: 90, height: 32, radius: 16),
         ],
       ),
     );

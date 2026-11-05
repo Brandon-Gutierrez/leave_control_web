@@ -103,6 +103,8 @@ Future<void> _open(WidgetTester t, Widget dialog) async {
   await t.tap(find.text('abrir'));
   await t.pump();
   await t.pump(const Duration(milliseconds: 100));
+  // El mapa se carga de forma diferida: un cuadro más hasta que aparece.
+  await t.pump(const Duration(milliseconds: 100));
 }
 
 Future<void> _tapMap(WidgetTester t, {double dx = 60}) async {

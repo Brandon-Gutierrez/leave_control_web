@@ -2,14 +2,15 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_popup.dart';
 import '../../../core/widgets/filter_sidebar.dart';
+import '../../../core/widgets/lazy_card_grid.dart';
+import '../../../core/widgets/load_error.dart';
 import '../../../core/widgets/pagination_bar.dart';
+import '../../../core/widgets/skeleton.dart';
 import '../../dashboard/state/admin_data_store.dart';
-import '../data/premise_service.dart';
 import '../models/premise.dart';
 import '../models/reason.dart';
 import 'premise_form_dialog.dart';
@@ -20,10 +21,7 @@ import 'premise_form_dialog.dart';
 enum _Presence { any, present, absent }
 
 class PremisesView extends StatefulWidget {
-  /// Se llama cuando el token de sesión ya no es válido (401).
-  final VoidCallback onUnauthorized;
-
-  const PremisesView({super.key, required this.onUnauthorized});
+  const PremisesView({super.key});
 
   @override
   State<PremisesView> createState() => PremisesViewState();
@@ -38,45 +36,49 @@ class PremisesViewState extends State<PremisesView> {
   static const double _gap = 12;
 
   final _searchController = TextEditingController();
-  final PremiseService _premiseService = PremiseService();
   final AdminDataStore _store = AdminDataStore.instance;
 
-  List<Reason> _allReasons = [];
-  List<Premise> _premises = [];
   String _searchQuery = '';
   int _page = 0;
   static const _pageSize = 15;
   _Presence _managerFilter = _Presence.any;
   _Presence _locationFilter = _Presence.any;
   _Presence _reasonsFilter = _Presence.any;
-  bool _isLoading = true;
-  bool _isSyncing = false;
+
+  List<Premise> get _premises => _store.premises;
+
+  /// Total de motivos del catálogo (para "N de M motivos permitidos").
+  List<Reason> get _allReasons => _store.reasons;
 
   @override
   void initState() {
     super.initState();
-    _store.addListener(_applyStore);
-    _fetchData();
+    _store.addListener(_onStoreChanged);
+    unawaited(_store.premisesData.load());
+    // El catálogo solo sirve para el total de cada tarjeta: se pide aparte, sin
+    // hacer esperar a la lista.
+    unawaited(_store.reasonsData.load());
   }
 
   @override
   void dispose() {
-    _store.removeListener(_applyStore);
+    _store.removeListener(_onStoreChanged);
     _searchController.dispose();
     super.dispose();
   }
 
-  /// Recarga la lista de predios y el catálogo de motivos. Público para que
-  /// otras secciones (p. ej. "Inicio") puedan refrescar estos datos.
-  Future<void> refresh() => _fetchData();
+  void _onStoreChanged() {
+    if (mounted) setState(() {});
+  }
 
   /// Abre el formulario de creación de predios. Público para que la sección
   /// "Inicio" pueda ofrecerlo como acceso directo.
   Future<void> openCreateDialog() => _openCreatePremiseDialog();
 
-  /// Sincroniza el catálogo de motivos con el sistema externo, muestra el
-  /// resultado y refresca los datos. Público para que "Inicio" lo use.
-  Future<void> syncReasons() => _syncReasons();
+  Future<void> _reload() => Future.wait([
+    _store.premisesData.load(force: true),
+    _store.reasonsData.load(force: true),
+  ]);
 
   List<Premise> get _filteredPremises {
     final query = _searchQuery.toLowerCase().trim();
@@ -119,32 +121,6 @@ class PremisesViewState extends State<PremisesView> {
     _searchController.clear();
   });
 
-  /// Copia los datos compartidos cada vez que cualquier sección los actualiza.
-  void _applyStore() {
-    if (!mounted) return;
-    setState(() {
-      _premises = List.of(_store.premises);
-      _allReasons = List.of(_store.reasons);
-    });
-  }
-
-  Future<void> _fetchData() async {
-    setState(() => _isLoading = true);
-    try {
-      await Future.wait([_store.refreshPremises(), _store.refreshReasons()]);
-    } on ApiException catch (e) {
-      if (e.isUnauthorized) {
-        widget.onUnauthorized();
-        return;
-      }
-      _showSnackBar(e.message, AppColors.danger);
-    } catch (_) {
-      _showSnackBar('No se pudieron cargar los predios', AppColors.danger);
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
   void _showSnackBar(String message, Color color) {
     if (!mounted) return;
     showAppPopup(
@@ -162,26 +138,6 @@ class PremisesViewState extends State<PremisesView> {
     if (created == true) {
       _showSnackBar('Predio creado correctamente', AppColors.success);
       unawaited(_store.refreshQuietly());
-      unawaited(_fetchData());
-    }
-  }
-
-  Future<void> _syncReasons() async {
-    if (_isSyncing) return;
-    setState(() => _isSyncing = true);
-    try {
-      final message = await _premiseService.syncReasons();
-      _showSnackBar(message, AppColors.success);
-      unawaited(_store.refreshQuietly());
-      await _fetchData();
-    } on ApiException catch (e) {
-      if (e.isUnauthorized) {
-        widget.onUnauthorized();
-        return;
-      }
-      _showSnackBar(e.message, AppColors.danger);
-    } finally {
-      if (mounted) setState(() => _isSyncing = false);
     }
   }
 
@@ -193,15 +149,16 @@ class PremisesViewState extends State<PremisesView> {
     if (updated == true) {
       _showSnackBar('Predio actualizado correctamente', AppColors.success);
       unawaited(_store.refreshQuietly());
-      await _fetchData();
     }
   }
 
+  /// Cambia de lista (filtro, búsqueda o página): la lista vuelve al inicio.
+  Key get _listKey => ValueKey(
+    '$_page|$_searchQuery|${_managerFilter.index}|${_locationFilter.index}|${_reasonsFilter.index}',
+  );
+
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator(color: primaryRed));
-    }
     return FilterSidebarLayout(
       wideBreakpoint: 1100,
       search: _buildSearchField(),
@@ -253,6 +210,7 @@ class PremisesViewState extends State<PremisesView> {
   }
 
   Widget _buildContent() {
+    final data = _store.premisesData;
     final visiblePremises = _filteredPremises;
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -274,41 +232,29 @@ class PremisesViewState extends State<PremisesView> {
               Row(
                 children: [
                   Expanded(
-                    child: Text(
-                      '${visiblePremises.length} de ${_premises.length} predios',
-                      style: AppText.caption,
-                    ),
+                    child: data.isInitialLoad
+                        ? const Align(
+                            alignment: Alignment.centerLeft,
+                            child: SkeletonPulse(
+                              child: SkeletonBox(width: 120, height: 14),
+                            ),
+                          )
+                        : Text(
+                            '${visiblePremises.length} de ${_premises.length} predios',
+                            style: AppText.caption,
+                          ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.refresh_rounded, color: darkText),
                     tooltip: 'Actualizar',
-                    onPressed: _isLoading ? null : _fetchData,
+                    onPressed: data.isLoading ? null : _reload,
                   ),
                   const SizedBox(width: 6),
                   SizedBox(width: 200, child: _buildAddButton()),
                 ],
               ),
               const SizedBox(height: 12),
-              Expanded(
-                child: visiblePremises.isEmpty
-                    ? Center(
-                        child: Text(
-                          'No se encontraron predios con esos filtros.',
-                          style: AppText.body.copyWith(
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      )
-                    : RefreshIndicator(
-                        onRefresh: _fetchData,
-                        color: Colors.white,
-                        backgroundColor: primaryRed,
-                        child: _buildGrid(
-                          columns,
-                          pageSlice(visiblePremises, _page, _pageSize),
-                        ),
-                      ),
-              ),
+              Expanded(child: _buildBody(columns, visiblePremises)),
               PaginationBar(
                 page: _page,
                 pageSize: _pageSize,
@@ -365,25 +311,49 @@ class PremisesViewState extends State<PremisesView> {
     );
   }
 
-  // Cuadrícula de tarjetas: cada fila reparte el ancho en partes iguales.
-  Widget _buildGrid(int columns, List<Premise> premises) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final cardWidth =
-            (constraints.maxWidth - _gap * (columns - 1)) / columns;
-        return SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.only(bottom: _gap),
-          child: Wrap(
-            spacing: _gap,
-            runSpacing: _gap,
-            children: [
-              for (final premise in premises)
-                SizedBox(width: cardWidth, child: _buildPremiseCard(premise)),
-            ],
-          ),
-        );
-      },
+  /// Lo que hay bajo el encabezado: esqueletos mientras llegan los predios, un
+  /// aviso con "Reintentar" si no se pudieron cargar, o la lista.
+  Widget _buildBody(int columns, List<Premise> visiblePremises) {
+    final data = _store.premisesData;
+    if (data.isInitialLoad) {
+      return SkeletonPulse(
+        child: LazyCardGrid<int>(
+          items: List.generate(columns * 3, (i) => i),
+          columns: columns,
+          gap: _gap,
+          itemBuilder: (context, _) => const _SkeletonPremiseCard(),
+        ),
+      );
+    }
+    if (data.hasFailed && !data.hasLoaded) {
+      return Align(
+        alignment: Alignment.topCenter,
+        child: LoadErrorNotice(
+          message: data.error ?? 'No se pudieron cargar los predios',
+          onRetry: _reload,
+        ),
+      );
+    }
+    if (visiblePremises.isEmpty) {
+      return Center(
+        child: Text(
+          'No se encontraron predios con esos filtros.',
+          style: AppText.body.copyWith(color: Colors.grey.shade600),
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: _reload,
+      color: Colors.white,
+      backgroundColor: primaryRed,
+      // Las tarjetas se construyen por filas, solo cuando se acercan a la pantalla.
+      child: LazyCardGrid<Premise>(
+        key: _listKey,
+        items: pageSlice(visiblePremises, _page, _pageSize),
+        columns: columns,
+        gap: _gap,
+        itemBuilder: (context, premise) => _buildPremiseCard(premise),
+      ),
     );
   }
 
@@ -434,7 +404,9 @@ class PremisesViewState extends State<PremisesView> {
           const SizedBox(height: 6),
           _infoRow(
             Icons.checklist_rounded,
-            '${premise.reasonNames.length} de ${_allReasons.length} motivos permitidos',
+            _store.reasonsData.hasLoaded
+                ? '${premise.reasonNames.length} de ${_allReasons.length} motivos permitidos'
+                : '${premise.reasonNames.length} motivos permitidos',
           ),
           const SizedBox(height: 14),
           SizedBox(
@@ -472,6 +444,41 @@ class PremisesViewState extends State<PremisesView> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Hueco con la forma de una tarjeta de predio mientras llegan los datos.
+class _SkeletonPremiseCard extends StatelessWidget {
+  const _SkeletonPremiseCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          left: BorderSide(color: AppColors.line, width: 6),
+          top: BorderSide(color: AppColors.line),
+          right: BorderSide(color: AppColors.line),
+          bottom: BorderSide(color: AppColors.line),
+        ),
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SkeletonBox(width: 160, height: 20),
+          SizedBox(height: 14),
+          SkeletonBox(height: 14),
+          SizedBox(height: 10),
+          SkeletonBox(height: 14),
+          SizedBox(height: 10),
+          SkeletonBox(width: 120, height: 14),
+          SizedBox(height: 18),
+          SkeletonBox(height: AppDimens.smallButtonHeight, radius: 6),
+        ],
+      ),
     );
   }
 }

@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import '../../../core/platform/kiosk_lock.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/deferred_widget.dart';
 import '../../auth/models/auth_user.dart';
-import 'qr_generator_page.dart';
+import 'qr_generator_page.dart' deferred as qr;
 
 /// Única experiencia de una cuenta MANAGE_PREMISE.
 ///
@@ -51,9 +52,14 @@ class _ManagerLockdownPageState extends State<ManagerLockdownPage> {
           key: ValueKey('manager-${widget.user.id}-${premise?.id}'),
           canPop: false,
           child: hasPremise
-              ? QrGeneratorPage.forPremiseManager(
-                  premiseId: premise.id,
-                  premiseName: premise.name,
+              // La pantalla del QR (y su librería) se descarga al abrirse.
+              ? DeferredWidget(
+                  loadLibrary: qr.loadLibrary,
+                  placeholderHeight: double.infinity,
+                  builder: (context) => qr.QrGeneratorPage.forPremiseManager(
+                    premiseId: premise.id,
+                    premiseName: premise.name,
+                  ),
                 )
               : _NoPremiseScreen(onRetry: widget.onRetry),
         ),

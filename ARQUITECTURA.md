@@ -67,13 +67,17 @@ Los widgets de pantalla todavía realizan parte del estado y coordinación de da
 | `widgets/app_modal.dart`, `dialog_tone.dart` | Carcasa común de los modales (cabecera de color según `DialogTone`) y sus botones. | — |
 | `widgets/app_popup.dart` | `showAppPopup`: aviso flotante (éxito, error, advertencia) con autocierre de 7 s. | Evaluar `ScaffoldMessenger`. |
 | `widgets/filter_sidebar.dart` | `FilterGroup` y `FilterSidebarLayout`: barra de filtros lateral o plegable. | Pruebas de teclado y tamaños estrechos. |
+| `widgets/skeleton.dart` | `SkeletonPulse` y `SkeletonBox`: esqueletos grises que respiran solo mientras hay carga. | — |
+| `widgets/load_error.dart` | `LoadErrorNotice`: aviso de que una parte no cargó, con "Reintentar". | — |
+| `widgets/lazy_card_grid.dart` | `LazyCardGrid`: tarjetas en N columnas construidas por filas (`ListView.builder`). | — |
+| `widgets/deferred_widget.dart` | `DeferredWidget`: muestra un widget de una biblioteca con carga diferida (descarga la primera vez). | — |
 
 ### `features/`
 
 | Feature | Archivos | Función y relaciones |
 |---|---|---|
 | `auth` | `data/auth_service.dart`, `models/auth_user.dart`, `state/session_controller.dart`, `presentation/admin_login_page.dart`, `presentation/auth_gate.dart` | Login, restauración y cierre de sesión (Sanctum); `AuthUser` con rol y predio asignado; `SessionController` publica el usuario actual; `AuthGate` restaura la sesión al recargar. |
-| `dashboard` | `presentation/admin_dashboard_page.dart`, `home_view.dart`, `user_profile_header.dart` | Estructura del panel (barra lateral en pantallas anchas, navegación inferior en teléfono), resumen de Inicio con accesos directos y cabecera con foto, nombre y cargo. |
+| `dashboard` | `presentation/admin_dashboard_page.dart`, `home_view.dart`, `user_profile_header.dart`, `state/admin_data_store.dart`, `data/summary_service.dart`, `models/admin_summary.dart` | Estructura del panel (barra lateral en pantallas anchas, navegación inferior en teléfono), construcción perezosa de secciones, resumen de Inicio con accesos directos y cabecera. `AdminDataStore` guarda un recurso por dato (`StoreResource`: estado, error, vigencia de 60 s, sin peticiones duplicadas); Inicio usa solo `GET /admin/summary`. |
 | `users` | `data/user_admin_service.dart`, `models/managed_user.dart`, `presentation/users_view.dart`, `change_role_dialog.dart`, `create_manager_dialog.dart`, `manager_password_dialog.dart`, `devices_dialog.dart` | Listado y filtros de usuarios; cambio de rol y de predio; alta de responsables y contraseña generada; dispositivos vinculados por aplicación (`ClientPlatform`) y su desvinculación. |
 | `premises` | `data/premise_service.dart`, `models/premise.dart`, `models/reason.dart`, `presentation/premises_view.dart`, `premise_form_dialog.dart` | Predios con ubicación, responsable y motivos; creación y edición; sincronización del catálogo de motivos. |
 | `qr` | `data/qr_service.dart`, `models/qr_token.dart`, `presentation/qr_generator_page.dart`, `manager_lockdown_page.dart` | Genera y renueva el QR temporal; `ManagerLockdownPage` es la única pantalla de una cuenta `MANAGE_PREMISE`. |
@@ -87,6 +91,8 @@ Mejoras sugeridas: mover carga, filtros y mutaciones de `UsersView`, `PremisesVi
 | Archivo | Función y relaciones |
 |---|---|
 | `test/features/dashboard/admin_panel_test.dart` | Panel, login y QR con adaptador HTTP falso: navegación, Inicio, sincronización de Ros, cambio de rol, QR sin desbordes. |
+| `test/features/dashboard/admin_data_store_test.dart` | Almacén de datos: una petición por dato, vigencia, errores que conservan el último valor, 401 único, descarte al cerrar sesión. |
+| `test/features/dashboard/lazy_loading_test.dart` | Qué se pide al iniciar y al abrir cada sección o diálogo, esqueletos, errores parciales y listas perezosas. |
 | `test/features/premises/premise_form_dialog_test.dart` | Formulario de predio con servicios falsos y selección en el mapa. |
 | `test/features/qr/manager_lockdown_test.dart` | Acceso y flujo restringido del responsable con backend simulado y control de sesión. |
 | `test/features/users/devices_dialog_test.dart` | Diálogo de dispositivos y petición de desvinculación. |

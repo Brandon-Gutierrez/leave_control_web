@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_modal.dart';
+import '../../../core/widgets/deferred_widget.dart';
 import '../../../core/widgets/dialog_tone.dart';
+import '../../dashboard/state/admin_data_store.dart';
 import '../../map/models/lat_lng.dart';
-import '../../map/presentation/location_picker.dart';
+import '../../map/presentation/location_picker.dart' deferred as map;
 import '../../users/data/user_admin_service.dart';
 import '../../users/models/managed_user.dart';
 import '../data/premise_service.dart';
@@ -79,8 +81,32 @@ class _PremiseFormDialogState extends State<PremiseFormDialog> {
       _loadError = null;
     });
     try {
-      final reasons = await _premiseService.getAllReasons();
-      final users = await _userService.getUsers();
+      final List<Reason> reasons;
+      final List<ManagedUser> users;
+      if (widget.premiseService == null && widget.userService == null) {
+        // Se usan los datos compartidos del panel: si Usuarios o Predios ya
+        // los pidieron, no se vuelven a pedir; si no, se piden a la vez.
+        final store = AdminDataStore.instance;
+        await Future.wait([store.reasonsData.load(), store.usersData.load()]);
+        final missing = [
+          store.reasonsData,
+          store.usersData,
+        ].where((resource) => !resource.hasLoaded);
+        if (missing.isNotEmpty) {
+          throw ApiException(
+            missing.first.error ?? 'No se pudieron cargar los datos.',
+          );
+        }
+        reasons = store.reasons;
+        users = store.users;
+      } else {
+        final results = await Future.wait([
+          _premiseService.getAllReasons(),
+          _userService.getUsers(),
+        ]);
+        reasons = results[0] as List<Reason>;
+        users = results[1] as List<ManagedUser>;
+      }
       if (!mounted) return;
       setState(() {
         _availableReasons = reasons;
@@ -300,12 +326,17 @@ class _PremiseFormDialogState extends State<PremiseFormDialog> {
                 (v == null || v.trim().isEmpty) ? 'Campo requerido' : null,
           ),
           _sectionTitle('Ubicación en el mapa'),
-          LocationPicker(
-            initial: _position,
-            onChanged: (p) => setState(() {
-              _position = p;
-              _submitError = null;
-            }),
+          // El mapa se descarga la primera vez que se abre este formulario.
+          DeferredWidget(
+            loadLibrary: map.loadLibrary,
+            placeholderHeight: 320,
+            builder: (context) => map.LocationPicker(
+              initial: _position,
+              onChanged: (p) => setState(() {
+                _position = p;
+                _submitError = null;
+              }),
+            ),
           ),
           _sectionTitle('Responsable del predio'),
           DropdownButtonFormField<int?>(

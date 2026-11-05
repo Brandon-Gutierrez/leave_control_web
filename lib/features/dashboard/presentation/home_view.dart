@@ -2,12 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/load_error.dart';
+import '../../../core/widgets/skeleton.dart';
 import '../../auth/models/auth_user.dart';
-import '../../premises/models/premise.dart';
-import '../../users/models/managed_user.dart';
+import '../models/admin_summary.dart';
 import '../state/admin_data_store.dart';
 
 /// Sección "Inicio": le dice a la persona qué falta resolver, con colores
@@ -18,7 +18,6 @@ class HomeView extends StatefulWidget {
   final VoidCallback onAddPremise;
   final Future<void> Function() onSyncReasons;
   final VoidCallback onOpenUsers;
-  final VoidCallback onUnauthorized;
   final VoidCallback? onOpenPremises;
 
   /// Acceso directo para crear la cuenta de un responsable de predio.
@@ -30,7 +29,6 @@ class HomeView extends StatefulWidget {
     required this.onAddPremise,
     required this.onSyncReasons,
     required this.onOpenUsers,
-    required this.onUnauthorized,
     this.onOpenPremises,
     this.onAddManager,
   });
@@ -62,77 +60,49 @@ class _Issue {
 class HomeViewState extends State<HomeView> {
   final AdminDataStore _store = AdminDataStore.instance;
 
-  bool _isLoading = true;
-  bool _loadFailed = false;
   bool _isSyncing = false;
-  List<Premise> _premises = [];
-  List<ManagedUser> _users = [];
+
+  StoreResource<AdminSummary?> get _summary => _store.summaryData;
 
   @override
   void initState() {
     super.initState();
-    _store.addListener(_applyStore);
-    _fetchSummary();
+    _store.addListener(_onStoreChanged);
+    // Inicio solo necesita los contadores, no las listas completas.
+    unawaited(_summary.load());
   }
 
   @override
   void dispose() {
-    _store.removeListener(_applyStore);
+    _store.removeListener(_onStoreChanged);
     super.dispose();
   }
 
-  /// Copia los datos compartidos cada vez que cualquier sección los actualiza.
-  void _applyStore() {
-    if (!mounted) return;
-    setState(() {
-      _premises = List.of(_store.premises);
-      _users = List.of(_store.users);
-    });
+  void _onStoreChanged() {
+    if (mounted) setState(() {});
   }
 
-  /// Vuelve a calcular el resumen. Público para refrescarlo desde fuera.
-  Future<void> refresh() => _fetchSummary();
-
-  Future<void> _fetchSummary() async {
-    setState(() {
-      _isLoading = true;
-      _loadFailed = false;
-    });
-    try {
-      await Future.wait([_store.refreshPremises(), _store.refreshUsers()]);
-    } on ApiException catch (e) {
-      if (e.isUnauthorized) widget.onUnauthorized();
-      if (mounted) setState(() => _loadFailed = true);
-    } catch (_) {
-      if (mounted) setState(() => _loadFailed = true);
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
+  Future<void> _reload() => _summary.load(force: true);
 
   Future<void> _handleSync() async {
     if (_isSyncing) return;
     setState(() => _isSyncing = true);
+    // La sincronización ya vuelve a pedir lo que estaba cargado (incluido el resumen).
     await widget.onSyncReasons();
     if (!mounted) return;
     setState(() => _isSyncing = false);
-    unawaited(_fetchSummary());
   }
 
   void _openPremises() => (widget.onOpenPremises ?? widget.onAddPremise).call();
 
   List<_Issue> get _issues {
-    final noLocation = _premises.where((p) => !p.hasLocation).length;
-    final noManager = _premises.where((p) => p.manager == null).length;
-    final noReasons = _premises.where((p) => p.reasonNames.isEmpty).length;
-    final managersWithoutPremise = _users
-        .where((u) => u.managesPremise && u.premise == null)
-        .length;
-    final employeesUnbound = _users
-        .where(
-          (u) => u.isEmployee && !u.devices.containsKey(ClientPlatform.mobile),
-        )
-        .length;
+    final summary = _summary.value;
+    if (summary == null) return const [];
+    final noLocation = summary.premisesWithoutLocation;
+    final noManager = summary.premisesWithoutManager;
+    final noReasons = summary.premisesWithoutReasons;
+    final managersWithoutPremise = summary.managersWithoutPremise;
+    final employeesUnbound = summary.employeesWithoutApp;
 
     return [
       if (noLocation > 0)
@@ -202,7 +172,7 @@ class HomeViewState extends State<HomeView> {
         final actions = _buildActions();
 
         return RefreshIndicator(
-          onRefresh: _fetchSummary,
+          onRefresh: _reload,
           color: Colors.white,
           backgroundColor: AppColors.primaryRed,
           child: SingleChildScrollView(
@@ -242,9 +212,10 @@ class HomeViewState extends State<HomeView> {
 
   // Números en una franja simple separada por líneas, no en tarjetas.
   Widget _buildTotals() {
-    final admins = _users.where((u) => u.isAdmin).length;
+    final summary = _summary.value;
+    final loading = _summary.isInitialLoad;
     final narrow = MediaQuery.sizeOf(context).width < 640;
-    Widget item(IconData icon, int value, String label) => Expanded(
+    Widget item(IconData icon, int? value, String label) => Expanded(
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Row(
@@ -257,14 +228,17 @@ class HomeViewState extends State<HomeView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    _isLoading ? '–' : '$value',
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                      height: 1,
+                  if (loading)
+                    const SkeletonBox(width: 48, height: 28)
+                  else
+                    Text(
+                      value == null ? '–' : '$value',
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        height: 1,
+                      ),
                     ),
-                  ),
                   const SizedBox(height: 2),
                   Text(label, style: AppText.caption, maxLines: 2),
                 ],
@@ -280,38 +254,35 @@ class HomeViewState extends State<HomeView> {
       decoration: const BoxDecoration(
         border: Border.symmetric(horizontal: BorderSide(color: AppColors.line)),
       ),
-      child: Row(
-        children: [
-          item(
-            Icons.apartment_rounded,
-            _premises.length,
-            'Predios registrados',
-          ),
-          item(Icons.groups_rounded, _users.length, 'Personas registradas'),
-          item(Icons.shield_rounded, admins, 'Administradores'),
-        ],
+      child: SkeletonPulse(
+        active: loading,
+        child: Row(
+          children: [
+            item(
+              Icons.apartment_rounded,
+              summary?.premises,
+              'Predios registrados',
+            ),
+            item(Icons.groups_rounded, summary?.users, 'Personas registradas'),
+            item(Icons.shield_rounded, summary?.admins, 'Administradores'),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildAttention() {
     final Widget body;
-    if (_isLoading && _premises.isEmpty && _users.isEmpty) {
-      body = const Padding(
-        padding: EdgeInsets.symmetric(vertical: 40),
-        child: Center(
-          child: CircularProgressIndicator(color: AppColors.primaryRed),
+    if (_summary.isInitialLoad) {
+      body = const SkeletonPulse(
+        child: Column(
+          children: [_SkeletonBanner(), SizedBox(height: 10), _SkeletonBanner()],
         ),
       );
-    } else if (_loadFailed) {
-      body = _Banner(
-        color: AppColors.danger,
-        background: AppColors.dangerBg,
-        icon: Icons.cloud_off_rounded,
-        title: 'No se pudo cargar el resumen',
-        help: 'Revise su conexión e intente de nuevo.',
-        action: 'Reintentar',
-        onTap: _fetchSummary,
+    } else if (_summary.hasFailed && _summary.value == null) {
+      body = LoadErrorNotice(
+        message: _summary.error ?? 'No se pudo cargar el resumen',
+        onRetry: _reload,
       );
     } else if (_issues.isEmpty) {
       body = const _Banner(
@@ -373,6 +344,32 @@ class HomeViewState extends State<HomeView> {
           onTap: widget.onOpenUsers,
         ),
       ],
+    );
+  }
+}
+
+/// Hueco con la forma de una franja de aviso mientras llega el resumen.
+class _SkeletonBanner extends StatelessWidget {
+  const _SkeletonBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(left: BorderSide(color: AppColors.line, width: 6)),
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SkeletonBox(width: 220, height: 18),
+          SizedBox(height: 8),
+          SkeletonBox(height: 14),
+          SizedBox(height: 12),
+          SkeletonBox(width: 130, height: 36, radius: 6),
+        ],
+      ),
     );
   }
 }

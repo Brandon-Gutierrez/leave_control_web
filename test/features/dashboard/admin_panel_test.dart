@@ -7,6 +7,7 @@ import 'package:control_leaves_web/features/auth/models/auth_user.dart';
 import 'package:control_leaves_web/features/auth/presentation/admin_login_page.dart';
 import 'package:control_leaves_web/features/auth/state/session_controller.dart';
 import 'package:control_leaves_web/features/dashboard/presentation/admin_dashboard_page.dart';
+import 'package:control_leaves_web/features/dashboard/state/admin_data_store.dart';
 import 'package:control_leaves_web/features/premises/models/premise.dart';
 import 'package:control_leaves_web/features/qr/presentation/qr_generator_page.dart';
 import 'package:dio/dio.dart';
@@ -87,6 +88,24 @@ const _usersPayload = {
   ],
 };
 
+const _summaryPayload = {
+  'status': 0,
+  'data': {
+    'premises': {
+      'total': 7,
+      'without_location': 6,
+      'without_manager': 6,
+      'without_reasons': 0,
+    },
+    'users': {
+      'total': 3,
+      'admins': 1,
+      'managers_without_premise': 0,
+      'employees_without_app': 1,
+    },
+  },
+};
+
 const _rolesPayload = {
   'status': 0,
   'data': [
@@ -137,6 +156,8 @@ class _FakeAdapter implements HttpClientAdapter {
         'status': 0,
         'data': {'id': 99, 'name': 'Predio Demo', 'reason_names': <String>[]},
       };
+    } else if (path == '/api/admin/summary' && method == 'GET') {
+      body = _summaryPayload;
     } else if (path == '/api/admin/premises' && method == 'GET') {
       body = _premisesPayload;
     } else if (path == '/api/admin/users' && method == 'GET') {
@@ -190,6 +211,8 @@ void main() {
   filtersTests();
   setUp(() {
     ApiClient().dio.httpClientAdapter = _FakeAdapter();
+    // La store es única: cada prueba empieza sin datos en memoria.
+    AdminDataStore.instance.clear();
   });
 
   for (final entry in _sizes.entries) {

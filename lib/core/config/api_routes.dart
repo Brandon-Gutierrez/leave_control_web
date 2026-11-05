@@ -14,6 +14,9 @@ abstract final class ApiRoutes {
   static const String managerManualConfirm =
       '/api/manager/manual-entry/confirm';
 
+  // Administración - resumen de inicio
+  static const String adminSummary = '/api/admin/summary';
+
   // Administración - predios y motivos
   static const String premises = '/api/admin/premises';
   static const String reasons = '/api/admin/reasons';

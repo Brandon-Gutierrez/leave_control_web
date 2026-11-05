@@ -2,12 +2,15 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/app_popup.dart';
 import '../../auth/data/auth_service.dart';
 import '../../auth/models/auth_user.dart';
 import '../../auth/presentation/admin_login_page.dart';
 import '../../auth/state/session_controller.dart';
+import '../../premises/data/premise_service.dart';
 import '../../premises/presentation/premises_view.dart';
 import '../../settings/presentation/leave_limits_dialog.dart';
 import '../../settings/presentation/qr_settings_dialog.dart';
@@ -46,9 +49,28 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   final _premisesKey = GlobalKey<PremisesViewState>();
   final _usersKey = GlobalKey<UsersViewState>();
 
+  final PremiseService _premiseService = PremiseService();
+
   int _selectedIndex = 0;
 
+  /// Secciones que ya se abrieron. Solo esas se construyen (y piden sus
+  /// datos): al iniciar sesión se carga únicamente Inicio.
+  final Set<int> _visited = {0};
+
   AuthUser? get _user => widget.user ?? SessionController.instance.user.value;
+
+  @override
+  void initState() {
+    super.initState();
+    // Una sesión caducada en cualquier petición lleva al inicio de sesión.
+    AdminDataStore.instance.onUnauthorized = _goToLogin;
+  }
+
+  @override
+  void dispose() {
+    AdminDataStore.instance.onUnauthorized = null;
+    super.dispose();
+  }
 
   Future<void> _logout() async {
     await _authService.logout();
@@ -66,31 +88,65 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     );
   }
 
+  /// Muestra una sección: la construye la primera vez y pide solo su dato, si
+  /// no está al día (los que cargó hace poco se muestran al instante).
+  void _showSection(int index) {
+    final store = AdminDataStore.instance;
+    setState(() {
+      _visited.add(index);
+      _selectedIndex = index;
+    });
+    switch (index) {
+      case 0:
+        unawaited(store.summaryData.load());
+      case 1:
+        unawaited(store.premisesData.load());
+      case 2:
+        unawaited(store.usersData.load());
+    }
+  }
+
   void _selectSection(int index) {
     if (index == _selectedIndex) return;
-    setState(() => _selectedIndex = index);
-    // Al entrar a una sección se actualizan los datos por si cambiaron.
-    unawaited(AdminDataStore.instance.refreshQuietly());
+    _showSection(index);
   }
 
   void _goToPremises({bool openCreateDialog = false}) {
-    setState(() => _selectedIndex = 1);
+    _showSection(1);
     if (openCreateDialog) {
-      // El estado de PremisesView ya existe (vive dentro de un IndexedStack),
-      // así que se puede abrir el formulario de inmediato.
-      _premisesKey.currentState?.openCreateDialog();
+      // Si la sección se acaba de construir, su estado existe en el siguiente
+      // cuadro.
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _premisesKey.currentState?.openCreateDialog(),
+      );
     }
   }
 
   void _goToUsers({bool openCreateManager = false}) {
-    setState(() => _selectedIndex = 2);
+    _showSection(2);
     if (openCreateManager) {
-      _usersKey.currentState?.openCreateManagerDialog();
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _usersKey.currentState?.openCreateManagerDialog(),
+      );
     }
   }
 
+  /// Sincroniza el catálogo de motivos con el sistema externo (acción rápida
+  /// de Inicio). No depende de que la sección Predios esté abierta.
   Future<void> _syncReasonsFromHome() async {
-    await _premisesKey.currentState?.syncReasons();
+    try {
+      final message = await _premiseService.syncReasons();
+      if (!mounted) return;
+      showAppPopup(context, message);
+      await AdminDataStore.instance.refreshQuietly();
+    } on ApiException catch (e) {
+      if (e.isUnauthorized) {
+        _goToLogin();
+        return;
+      }
+      if (!mounted) return;
+      showAppPopup(context, e.message, kind: PopupKind.error);
+    }
   }
 
   Future<void> _openQrSettings() async {
@@ -123,10 +179,15 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               onSyncReasons: _syncReasonsFromHome,
               onOpenUsers: _goToUsers,
               onAddManager: () => _goToUsers(openCreateManager: true),
-              onUnauthorized: _goToLogin,
             ),
-            PremisesView(key: _premisesKey, onUnauthorized: _goToLogin),
-            UsersView(key: _usersKey, onUnauthorized: _goToLogin),
+            if (_visited.contains(1))
+              PremisesView(key: _premisesKey)
+            else
+              const SizedBox.shrink(),
+            if (_visited.contains(2))
+              UsersView(key: _usersKey)
+            else
+              const SizedBox.shrink(),
           ],
         );
 
