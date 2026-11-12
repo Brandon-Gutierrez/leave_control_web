@@ -11,7 +11,7 @@ import '../models/lat_lng.dart';
 
 /// Selector de ubicación solo por mapa (OpenStreetMap, sin API key).
 ///
-/// - Un toque fija el marcador; el círculo rojo es la zona de 50 m donde se
+/// - Un toque fija el marcador; el círculo rojo es la zona (el radio que define el servidor) donde se
 ///   aceptan los escaneos.
 /// - Buscador de lugares por nombre y botón "Mi ubicación".
 /// - Vista de calle o satélite, zoom grande y botón para volver al marcador.
@@ -26,6 +26,9 @@ class LocationPicker extends StatefulWidget {
   final PlaceSearch? placeSearch;
   final LocateMe? locateMe;
 
+  /// Radio (metros) donde se aceptan los escaneos; lo define el servidor.
+  final double radiusMeters;
+
   /// Proveedor de mosaicos alterno (solo pruebas, sin red).
   @visibleForTesting
   static TileProvider? tileProviderOverride;
@@ -36,6 +39,7 @@ class LocationPicker extends StatefulWidget {
     required this.onChanged,
     this.placeSearch,
     this.locateMe,
+    this.radiusMeters = MapDefaults.premiseRadiusMeters,
   });
 
   @override
@@ -185,7 +189,7 @@ class _LocationPickerState extends State<LocationPicker> {
                 circles: [
                   CircleMarker(
                     point: _toLl(picked),
-                    radius: MapDefaults.premiseRadiusMeters,
+                    radius: widget.radiusMeters,
                     useRadiusInMeter: true,
                     color: AppColors.primaryRed.withValues(alpha: 0.2),
                     borderColor: AppColors.primaryRed,
@@ -275,7 +279,7 @@ class _LocationPickerState extends State<LocationPicker> {
               picked != null
                   ? 'Ubicación fijada (${picked.latitude.toStringAsFixed(5)}, '
                         '${picked.longitude.toStringAsFixed(5)}). Se aceptan '
-                        'escaneos a ${MapDefaults.premiseRadiusMeters.toInt()} m o menos. '
+                        'escaneos a ${widget.radiusMeters.toInt()} m o menos. '
                         'Toca otro punto para moverla.'
                   : 'Toca en el mapa el lugar donde está el predio.',
               style: TextStyle(

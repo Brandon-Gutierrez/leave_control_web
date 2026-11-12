@@ -3,9 +3,12 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../../../core/network/api_exception.dart';
+import '../../map/constants/map_defaults.dart';
 import '../../premises/data/premise_service.dart';
 import '../../premises/models/premise.dart';
 import '../../premises/models/reason.dart';
+import '../../reasons/data/reason_catalog_service.dart';
+import '../../reasons/models/reason_catalog.dart';
 import '../../users/data/user_admin_service.dart';
 import '../../users/models/managed_user.dart';
 import '../data/summary_service.dart';
@@ -123,6 +126,7 @@ class AdminDataStore extends ChangeNotifier {
   final SummaryService _summaryService = SummaryService();
   final PremiseService _premiseService = PremiseService();
   final UserAdminService _userService = UserAdminService();
+  final ReasonCatalogService _catalogService = ReasonCatalogService();
 
   /// Se llama (una sola vez) cuando una petición responde 401: la sesión
   /// caducó y hay que volver al inicio de sesión.
@@ -139,7 +143,7 @@ class AdminDataStore extends ChangeNotifier {
   late final StoreResource<List<Premise>> premisesData =
       StoreResource<List<Premise>>._(
         this,
-        _premiseService.getPremisesWithReasons,
+        _loadPremises,
         const [],
         'No se pudieron cargar los predios',
       );
@@ -165,12 +169,35 @@ class AdminDataStore extends ChangeNotifier {
         'No se pudieron cargar los motivos',
       );
 
+  /// Radio (metros) dentro del cual el servidor acepta los escaneos de un
+  /// predio. Lo entrega la API junto con los predios; hasta entonces se usa el
+  /// valor por defecto.
+  double get geofenceRadiusMeters =>
+      _geofenceRadiusMeters ?? MapDefaults.premiseRadiusMeters;
+  double? _geofenceRadiusMeters;
+
+  Future<List<Premise>> _loadPremises() async {
+    final listing = await _premiseService.getPremisesListing();
+    _geofenceRadiusMeters = listing.geofenceRadiusMeters;
+    return listing.premises;
+  }
+
+  /// Catálogo completo (activos y retirados) y estado de la sincronización.
+  late final StoreResource<ReasonCatalog> reasonCatalogData =
+      StoreResource<ReasonCatalog>._(
+        this,
+        _catalogService.getCatalog,
+        const ReasonCatalog(),
+        'No se pudo cargar el catálogo de motivos',
+      );
+
   List<StoreResource<Object?>> get _all => [
     summaryData,
     premisesData,
     usersData,
     rolesData,
     reasonsData,
+    reasonCatalogData,
   ];
 
   AdminSummary? get summary => summaryData.value;
@@ -193,6 +220,7 @@ class AdminDataStore extends ChangeNotifier {
     for (final resource in _all) {
       resource._reset();
     }
+    _geofenceRadiusMeters = null;
     _unauthorizedHandled = false;
     notifyListeners();
   }

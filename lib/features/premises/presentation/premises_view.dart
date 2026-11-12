@@ -315,7 +315,9 @@ class PremisesViewState extends State<PremisesView> {
   /// aviso con "Reintentar" si no se pudieron cargar, o la lista.
   Widget _buildBody(int columns, List<Premise> visiblePremises) {
     final data = _store.premisesData;
-    if (data.isInitialLoad) {
+    // Con la lista vacía, una recarga (p. ej. justo tras crear un predio) no
+    // debe mostrar "sin resultados": todavía no se sabe qué hay.
+    if (data.isInitialLoad || (data.isLoading && _premises.isEmpty)) {
       return SkeletonPulse(
         child: LazyCardGrid<int>(
           items: List.generate(columns * 3, (i) => i),
@@ -337,7 +339,10 @@ class PremisesViewState extends State<PremisesView> {
     if (visiblePremises.isEmpty) {
       return Center(
         child: Text(
-          'No se encontraron predios con esos filtros.',
+          _premises.isEmpty
+              ? 'Aún no hay predios. Use «Agregar predio» para crear el primero.'
+              : 'No se encontraron predios con esos filtros.',
+          textAlign: TextAlign.center,
           style: AppText.body.copyWith(color: Colors.grey.shade600),
         ),
       );

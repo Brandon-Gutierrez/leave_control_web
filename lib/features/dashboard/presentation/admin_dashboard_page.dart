@@ -2,16 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../../core/widgets/app_popup.dart';
 import '../../auth/data/auth_service.dart';
 import '../../auth/models/auth_user.dart';
 import '../../auth/presentation/admin_login_page.dart';
 import '../../auth/state/session_controller.dart';
-import '../../premises/data/premise_service.dart';
 import '../../premises/presentation/premises_view.dart';
+import '../../reasons/presentation/reasons_view.dart';
 import '../../settings/presentation/leave_limits_dialog.dart';
 import '../../settings/presentation/qr_settings_dialog.dart';
 import '../../users/presentation/users_view.dart';
@@ -38,18 +36,17 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   static const darkText = AppColors.darkText;
   static const lightBg = AppColors.lightBg;
 
-  static const _titles = ['Inicio', 'Predios', 'Usuarios'];
+  static const _titles = ['Inicio', 'Predios', 'Usuarios', 'Motivos'];
   static const _destinationIcons = [
     (Icons.home_outlined, Icons.home_rounded),
     (Icons.apartment_outlined, Icons.apartment_rounded),
     (Icons.people_alt_outlined, Icons.people_alt_rounded),
+    (Icons.checklist_outlined, Icons.checklist_rounded),
   ];
 
   final AuthService _authService = AuthService();
   final _premisesKey = GlobalKey<PremisesViewState>();
   final _usersKey = GlobalKey<UsersViewState>();
-
-  final PremiseService _premiseService = PremiseService();
 
   int _selectedIndex = 0;
 
@@ -103,6 +100,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         unawaited(store.premisesData.load());
       case 2:
         unawaited(store.usersData.load());
+      case 3:
+        unawaited(store.reasonCatalogData.load());
     }
   }
 
@@ -131,23 +130,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     }
   }
 
-  /// Sincroniza el catálogo de motivos con el sistema externo (acción rápida
-  /// de Inicio). No depende de que la sección Predios esté abierta.
-  Future<void> _syncReasonsFromHome() async {
-    try {
-      final message = await _premiseService.syncReasons();
-      if (!mounted) return;
-      showAppPopup(context, message);
-      await AdminDataStore.instance.refreshQuietly();
-    } on ApiException catch (e) {
-      if (e.isUnauthorized) {
-        _goToLogin();
-        return;
-      }
-      if (!mounted) return;
-      showAppPopup(context, e.message, kind: PopupKind.error);
-    }
-  }
+  void _goToReasons() => _showSection(3);
 
   Future<void> _openQrSettings() async {
     await showDialog<bool>(
@@ -176,7 +159,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               user: _user,
               onAddPremise: () => _goToPremises(openCreateDialog: true),
               onOpenPremises: _goToPremises,
-              onSyncReasons: _syncReasonsFromHome,
+              onOpenReasons: _goToReasons,
               onOpenUsers: _goToUsers,
               onAddManager: () => _goToUsers(openCreateManager: true),
             ),
@@ -186,6 +169,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               const SizedBox.shrink(),
             if (_visited.contains(2))
               UsersView(key: _usersKey)
+            else
+              const SizedBox.shrink(),
+            if (_visited.contains(3))
+              const ReasonsView()
             else
               const SizedBox.shrink(),
           ],

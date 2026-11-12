@@ -14,12 +14,18 @@ class PremiseService {
 
   Dio get _dio => _apiClient.dio;
 
-  /// Obtiene la lista completa de predios con sus razones asignadas
-  Future<List<Premise>> getPremisesWithReasons() async {
+  /// Obtiene la lista completa de predios con sus razones asignadas y el
+  /// radio (metros) de la geocerca que usa el servidor.
+  Future<({List<Premise> premises, double? geofenceRadiusMeters})>
+  getPremisesListing() async {
     try {
       final response = await _dio.get(ApiRoutes.premises);
       final List<dynamic> data = response.data['data'] ?? [];
-      return data.map((json) => Premise.fromJson(json)).toList();
+      return (
+        premises: data.map((json) => Premise.fromJson(json)).toList(),
+        geofenceRadiusMeters: (response.data['geofence_radius_m'] as num?)
+            ?.toDouble(),
+      );
     } on DioException catch (e) {
       throw ApiException.fromDio(e, fallback: 'Error al obtener predios.');
     }
@@ -85,20 +91,6 @@ class PremiseService {
       return Premise.fromJson(response.data['data']);
     } on DioException catch (e) {
       throw ApiException.fromDio(e, fallback: 'Error al guardar el predio.');
-    }
-  }
-
-  /// Sincroniza el catálogo de motivos de salida con el servicio externo
-  Future<String> syncReasons() async {
-    try {
-      final response = await _dio.post(ApiRoutes.syncReasons);
-      return (response.data['message'] as String?) ??
-          'Motivos sincronizados correctamente.';
-    } on DioException catch (e) {
-      throw ApiException.fromDio(
-        e,
-        fallback: 'Error al sincronizar los motivos.',
-      );
     }
   }
 }

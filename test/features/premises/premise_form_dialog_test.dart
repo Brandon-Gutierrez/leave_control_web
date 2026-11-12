@@ -84,6 +84,23 @@ class _FakeUsers implements UserAdminService {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+/// Solo hay empleados: ningún usuario puede ser responsable de un predio.
+class _FakeUsersWithoutManagers implements UserAdminService {
+  @override
+  Future<List<ManagedUser>> getUsers() async => [
+    ManagedUser(
+      id: 8,
+      name: 'Luis Empleado',
+      item: '2',
+      role: AppRole(id: 1, name: 'EMPLOYEE'),
+    ),
+  ];
+
+  /// Gestiona metodos no implementados.
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 Widget _host(Widget dialog) => MaterialApp(
   home: Scaffold(
     body: Builder(
@@ -136,6 +153,52 @@ void main() {
     expect(premises.created, isFalse);
     expect(
       find.text('Toca el mapa para fijar la ubicación del predio.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('"Campo requerido" desaparece en cuanto se escribe el nombre', (
+    t,
+  ) async {
+    await _open(
+      t,
+      PremiseFormDialog(
+        premiseService: _FakePremises(),
+        userService: _FakeUsers(),
+      ),
+    );
+
+    // Sin aviso antes de intentar guardar.
+    expect(find.text('Campo requerido'), findsNothing);
+    await t.tap(find.text('Crear predio'));
+    await t.pump();
+    expect(find.text('Campo requerido'), findsOneWidget);
+
+    await t.enterText(
+      find.widgetWithText(TextFormField, 'Nombre del predio'),
+      'Sede',
+    );
+    await t.pump();
+    expect(find.text('Campo requerido'), findsNothing);
+  });
+
+  testWidgets('sin gestores, el aviso usa el nombre del rol en español', (
+    t,
+  ) async {
+    await _open(
+      t,
+      PremiseFormDialog(
+        premiseService: _FakePremises(),
+        userService: _FakeUsersWithoutManagers(),
+      ),
+    );
+
+    expect(find.textContaining('MANAGE_PREMISE'), findsNothing);
+    expect(
+      find.text(
+        'Aún no hay usuarios con el rol Gestor de predio. '
+        'Créalos en la sección Usuarios.',
+      ),
       findsOneWidget,
     );
   });

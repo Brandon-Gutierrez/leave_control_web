@@ -16,9 +16,11 @@ import '../state/admin_data_store.dart';
 class HomeView extends StatefulWidget {
   final AuthUser? user;
   final VoidCallback onAddPremise;
-  final Future<void> Function() onSyncReasons;
   final VoidCallback onOpenUsers;
   final VoidCallback? onOpenPremises;
+
+  /// Lleva a la sección "Motivos de salida" (p. ej. si falló la sincronización).
+  final VoidCallback? onOpenReasons;
 
   /// Acceso directo para crear la cuenta de un responsable de predio.
   final VoidCallback? onAddManager;
@@ -27,9 +29,9 @@ class HomeView extends StatefulWidget {
     super.key,
     required this.user,
     required this.onAddPremise,
-    required this.onSyncReasons,
     required this.onOpenUsers,
     this.onOpenPremises,
+    this.onOpenReasons,
     this.onAddManager,
   });
 
@@ -47,20 +49,22 @@ class _Issue {
   final String action;
   final VoidCallback onTap;
 
+  /// Si el título empieza con la cantidad ("2 · Predios sin ubicación").
+  final bool counted;
+
   const _Issue(
     this.level,
     this.count,
     this.title,
     this.help,
     this.action,
-    this.onTap,
-  );
+    this.onTap, {
+    this.counted = true,
+  });
 }
 
 class HomeViewState extends State<HomeView> {
   final AdminDataStore _store = AdminDataStore.instance;
-
-  bool _isSyncing = false;
 
   StoreResource<AdminSummary?> get _summary => _store.summaryData;
 
@@ -84,15 +88,6 @@ class HomeViewState extends State<HomeView> {
 
   Future<void> _reload() => _summary.load(force: true);
 
-  Future<void> _handleSync() async {
-    if (_isSyncing) return;
-    setState(() => _isSyncing = true);
-    // La sincronización ya vuelve a pedir lo que estaba cargado (incluido el resumen).
-    await widget.onSyncReasons();
-    if (!mounted) return;
-    setState(() => _isSyncing = false);
-  }
-
   void _openPremises() => (widget.onOpenPremises ?? widget.onAddPremise).call();
 
   List<_Issue> get _issues {
@@ -105,6 +100,17 @@ class HomeViewState extends State<HomeView> {
     final employeesUnbound = summary.employeesWithoutApp;
 
     return [
+      // Sin predios no hay nada que revisar: lo primero es crear el primero.
+      if (summary.premises == 0)
+        _Issue(
+          _Level.urgent,
+          0,
+          'Aún no hay predios registrados',
+          'Nadie puede registrar salidas hasta que agregue el primer predio.',
+          'Agregar predio',
+          widget.onAddPremise,
+          counted: false,
+        ),
       if (noLocation > 0)
         _Issue(
           _Level.urgent,
@@ -157,6 +163,16 @@ class HomeViewState extends State<HomeView> {
           'Su teléfono se vincula solo la primera vez que inician sesión.',
           'Ver usuarios',
           widget.onOpenUsers,
+        ),
+      if (summary.reasonsSync?.failed == true)
+        _Issue(
+          _Level.pending,
+          1,
+          'No se pudieron sincronizar los motivos con Comteco',
+          'Se conserva el catálogo anterior. ${summary.reasonsSync!.error ?? 'Reintente la sincronización.'}',
+          'Ver motivos',
+          widget.onOpenReasons ?? () {},
+          counted: false,
         ),
     ];
   }
@@ -276,7 +292,11 @@ class HomeViewState extends State<HomeView> {
     if (_summary.isInitialLoad) {
       body = const SkeletonPulse(
         child: Column(
-          children: [_SkeletonBanner(), SizedBox(height: 10), _SkeletonBanner()],
+          children: [
+            _SkeletonBanner(),
+            SizedBox(height: 10),
+            _SkeletonBanner(),
+          ],
         ),
       );
     } else if (_summary.hasFailed && _summary.value == null) {
@@ -332,12 +352,6 @@ class HomeViewState extends State<HomeView> {
             label: 'Crear responsable de predio',
             onTap: widget.onAddManager!,
           ),
-        _QuickAction(
-          icon: Icons.sync_rounded,
-          label: 'Actualizar motivos de salida',
-          onTap: _handleSync,
-          isLoading: _isSyncing,
-        ),
         _QuickAction(
           icon: Icons.people_alt_rounded,
           label: 'Administrar usuarios',
@@ -398,7 +412,7 @@ class _IssueRow extends StatelessWidget {
       color: color,
       background: bg,
       icon: icon,
-      title: '${issue.count} · ${issue.title}',
+      title: issue.counted ? '${issue.count} · ${issue.title}' : issue.title,
       help: issue.help,
       action: issue.action,
       onTap: issue.onTap,
@@ -489,13 +503,11 @@ class _QuickAction extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-  final bool isLoading;
 
   const _QuickAction({
     required this.icon,
     required this.label,
     required this.onTap,
-    this.isLoading = false,
   });
 
   @override
@@ -503,7 +515,7 @@ class _QuickAction extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: OutlinedButton(
-        onPressed: isLoading ? null : onTap,
+        onPressed: onTap,
         style: OutlinedButton.styleFrom(
           alignment: Alignment.centerLeft,
           minimumSize: const Size.fromHeight(54),
@@ -514,16 +526,7 @@ class _QuickAction extends StatelessWidget {
         ),
         child: Row(
           children: [
-            isLoading
-                ? const SizedBox(
-                    height: 24,
-                    width: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      color: AppColors.primaryRed,
-                    ),
-                  )
-                : Icon(icon, color: AppColors.primaryRed, size: 26),
+            Icon(icon, color: AppColors.primaryRed, size: 26),
             const SizedBox(width: 14),
             Expanded(
               child: Text(

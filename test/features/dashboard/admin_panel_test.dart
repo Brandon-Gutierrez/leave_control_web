@@ -106,6 +106,39 @@ const _summaryPayload = {
   },
 };
 
+const _catalogPayload = {
+  'status': 0,
+  'data': {
+    'reasons': [
+      {
+        'reason_id': 1,
+        'name': 'Banco',
+        'code': 'B',
+        'active': true,
+        'premises_count': 2,
+      },
+      {
+        'reason_id': 2,
+        'name': 'Visita antigua',
+        'code': 'V',
+        'active': false,
+        'premises_count': 0,
+      },
+    ],
+    'sync': {
+      'status': 'success',
+      'source': 'scheduled',
+      'at': '2026-11-11T00:00:00-04:00',
+      'actor': null,
+      'added': 1,
+      'updated': 0,
+      'reactivated': 0,
+      'deactivated': 1,
+      'error': null,
+      'last_success_at': '2026-11-11T00:00:00-04:00',
+    },
+  },
+};
 const _rolesPayload = {
   'status': 0,
   'data': [
@@ -145,10 +178,18 @@ class _FakeAdapter implements HttpClientAdapter {
         'status': 0,
         'reasons': ['Banco', 'Comisión de servicio', 'Médico', 'Personal'],
       };
+    } else if (path == '/api/admin/reasons/catalog' && method == 'GET') {
+      body = _catalogPayload;
     } else if (path == '/api/admin/reasons/sync' && method == 'POST') {
       body = {
         'status': 0,
         'message': 'Motivos de salida actualizados correctamente',
+        'result': {
+          'added': 1,
+          'updated': 0,
+          'reactivated': 0,
+          'deactivated': 0,
+        },
       };
     } else if (path == '/api/admin/premises' && method == 'POST') {
       statusCode = 201;
@@ -252,7 +293,8 @@ void main() {
       expect(find.text('Administrador del sistema'), findsOneWidget);
       expect(find.text('Predios registrados'), findsOneWidget);
       expect(find.text('Agregar un predio nuevo'), findsOneWidget);
-      expect(find.text('Actualizar motivos de salida'), findsOneWidget);
+      // La sincronización de motivos ya no es una acción rápida de Inicio.
+      expect(find.text('Actualizar motivos de salida'), findsNothing);
       expect(find.text('Administrar usuarios'), findsOneWidget);
     });
 
@@ -369,19 +411,23 @@ void main() {
     },
   );
 
-  testWidgets('Sincronizar motivos desde Inicio muestra confirmación', (
+  testWidgets('Sincronizar motivos desde la sección Motivos muestra confirmación', (
     tester,
   ) async {
+    tester.view.physicalSize = const Size(1600, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(const MaterialApp(home: AdminDashboardPage()));
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Actualizar motivos de salida'));
-    await tester.tap(find.text('Actualizar motivos de salida'));
+    await tester.tap(find.text('Motivos').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sincronizar ahora'));
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
     expect(
-      find.text('Motivos de salida actualizados correctamente'),
+      find.text('Motivos de salida actualizados correctamente (1 nuevo)'),
       findsOneWidget,
     );
   });

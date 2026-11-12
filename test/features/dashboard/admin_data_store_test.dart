@@ -17,6 +17,7 @@ CountingAdapter _adapter() => CountingAdapter({
     'data': [
       {'id': 1, 'name': 'Predio 1'},
     ],
+    'geofence_radius_m': 80,
   },
   _users: {
     'status': 0,
@@ -196,5 +197,14 @@ void main() {
     expect(summary.employeesWithoutApp, 0);
     expect(adapter.hitsOf(_premises), 0);
     expect(adapter.hitsOf(_users), 0);
+  });
+
+  test('el radio de la geocerca llega con la lista de predios', () async {
+    // Antes de cargar se usa el valor por defecto.
+    expect(store.geofenceRadiusMeters, 50);
+
+    await store.premisesData.load();
+
+    expect(store.geofenceRadiusMeters, 80);
   });
 }

@@ -1,3 +1,5 @@
+import '../../reasons/models/reason_catalog.dart';
+
 /// Contadores de la pantalla de inicio (`GET /admin/summary`): el servidor los
 /// calcula, así "Inicio" no descarga las listas completas solo para contarlas.
 class AdminSummary {
@@ -10,6 +12,9 @@ class AdminSummary {
   final int managersWithoutPremise;
   final int employeesWithoutApp;
 
+  /// Última sincronización de motivos con Comteco (null si nunca se hizo).
+  final ReasonSyncStatus? reasonsSync;
+
   const AdminSummary({
     required this.premises,
     required this.premisesWithoutLocation,
@@ -19,6 +24,7 @@ class AdminSummary {
     required this.admins,
     required this.managersWithoutPremise,
     required this.employeesWithoutApp,
+    this.reasonsSync,
   });
 
   factory AdminSummary.fromJson(Map<String, dynamic> json) {
@@ -26,6 +32,7 @@ class AdminSummary {
         map is Map ? (map[key] as num?)?.toInt() ?? 0 : 0;
     final premises = json['premises'];
     final users = json['users'];
+    final sync = json['reasons_sync'];
     return AdminSummary(
       premises: count(premises, 'total'),
       premisesWithoutLocation: count(premises, 'without_location'),
@@ -35,6 +42,9 @@ class AdminSummary {
       admins: count(users, 'admins'),
       managersWithoutPremise: count(users, 'managers_without_premise'),
       employeesWithoutApp: count(users, 'employees_without_app'),
+      reasonsSync: sync is Map<String, dynamic>
+          ? ReasonSyncStatus.fromJson(sync)
+          : null,
     );
   }
 }

@@ -17,6 +17,8 @@ const _users = '/api/admin/users';
 const _roles = '/api/admin/roles';
 const _reasons = '/api/admin/reasons';
 const _summary = '/api/admin/summary';
+const _catalog = '/api/admin/reasons/catalog';
+const _sync = '/api/admin/reasons/sync';
 
 CountingAdapter _adapter() => CountingAdapter({
   _summary: {
@@ -71,6 +73,26 @@ CountingAdapter _adapter() => CountingAdapter({
   _reasons: {
     'status': 0,
     'reasons': ['Banco'],
+  },
+  _catalog: {
+    'status': 0,
+    'data': {
+      'reasons': [
+        {
+          'reason_id': 1,
+          'name': 'Banco',
+          'code': 'B',
+          'active': true,
+          'premises_count': 1,
+        },
+      ],
+      'sync': null,
+    },
+  },
+  _sync: {
+    'status': 0,
+    'message': 'Motivos de salida actualizados correctamente',
+    'result': {'added': 0, 'updated': 0, 'reactivated': 0, 'deactivated': 0},
   },
 });
 
@@ -205,19 +227,37 @@ void main() {
       expect(find.text('Predio 1'), findsOneWidget);
     });
 
-    testWidgets('sincronizar desde Inicio funciona sin abrir Predios', (
+    testWidgets('el catálogo de motivos se pide solo al abrir esa sección', (
       tester,
     ) async {
       await _open(tester);
       await tester.pumpAndSettle();
+      expect(adapter.hitsOf(_catalog), 0);
 
-      await tester.tap(find.text('Actualizar motivos de salida'));
+      await tester.tap(find.text('Motivos').first);
       await tester.pumpAndSettle();
 
-      expect(adapter.hitsOf('/api/admin/reasons/sync'), 1);
-      // Se refresca lo que estaba cargado (el resumen), no lo demás.
+      expect(adapter.hitsOf(_catalog), 1);
+      expect(find.text('Banco'), findsOneWidget);
+    });
+
+    testWidgets('sincronizar vuelve a pedir solo lo que ya estaba cargado', (
+      tester,
+    ) async {
+      await _open(tester);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Motivos').first);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Sincronizar ahora'));
+      await tester.pumpAndSettle();
+
+      expect(adapter.hitsOf(_sync), 1);
+      // Catálogo y resumen ya estaban cargados; predios y usuarios no.
+      expect(adapter.hitsOf(_catalog), 2);
       expect(adapter.hitsOf(_summary), 2);
       expect(adapter.hitsOf(_premises), 0);
+      expect(adapter.hitsOf(_users), 0);
     });
   });
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/constants/role_names.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_modal.dart';
@@ -322,6 +323,9 @@ class _PremiseFormDialogState extends State<PremiseFormDialog> {
             controller: _nameController,
             style: const TextStyle(color: darkText, fontSize: 15),
             decoration: _decoration('Nombre del predio'),
+            // Tras el primer intento de guardar, el aviso se revisa al escribir
+            // y desaparece en cuanto el nombre es válido.
+            autovalidateMode: AutovalidateMode.onUserInteraction,
             validator: (v) =>
                 (v == null || v.trim().isEmpty) ? 'Campo requerido' : null,
           ),
@@ -331,6 +335,7 @@ class _PremiseFormDialogState extends State<PremiseFormDialog> {
             loadLibrary: map.loadLibrary,
             placeholderHeight: 320,
             builder: (context) => map.LocationPicker(
+              radiusMeters: AdminDataStore.instance.geofenceRadiusMeters,
               initial: _position,
               onChanged: (p) => setState(() {
                 _position = p;
@@ -366,7 +371,9 @@ class _PremiseFormDialogState extends State<PremiseFormDialog> {
             Padding(
               padding: const EdgeInsets.only(top: 6),
               child: Text(
-                'Aún no hay usuarios con el rol MANAGE_PREMISE. Créalos en la sección Usuarios.',
+                'Aún no hay usuarios con el rol '
+                '${RoleNames.label(RoleNames.managePremise)}. '
+                'Créalos en la sección Usuarios.',
                 style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
               ),
             ),

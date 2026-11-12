@@ -21,6 +21,7 @@ abstract final class ApiRoutes {
   static const String premises = '/api/admin/premises';
   static const String reasons = '/api/admin/reasons';
   static const String syncReasons = '/api/admin/reasons/sync';
+  static const String reasonCatalog = '/api/admin/reasons/catalog';
 
   static String premise(int premiseId) => '/api/admin/premises/$premiseId';
 
