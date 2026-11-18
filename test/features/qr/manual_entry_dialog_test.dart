@@ -32,13 +32,17 @@ class _FakeQrService implements QrService {
     return step;
   }
 
+  /// Hora que "devuelve" el servidor al confirmar la salida.
+  DateTime? leftAt = DateTime(2026, 3, 2, 8, 15, 30);
+
   @override
-  Future<void> confirmManualEntry({
+  Future<DateTime?> confirmManualEntry({
     required String item,
     required String leaveTicket,
     required String reason,
   }) async {
     confirmedReason = reason;
+    return leftAt;
   }
 
   @override
@@ -161,7 +165,11 @@ void main() {
     await tester.pump();
 
     expect(service.confirmedReason, 'Cita médica');
-    expect(find.textContaining('Salida registrada'), findsOneWidget);
+    // El popup de confirmación muestra la hora de salida.
+    expect(
+      find.textContaining('Salida registrada a las 08:15'),
+      findsOneWidget,
+    );
 
     // Se cierra solo y vuelve a la pantalla anterior (el QR).
     await tester.pumpAndSettle(const Duration(milliseconds: 400));
@@ -209,10 +217,11 @@ void main() {
     tester,
   ) async {
     final service = _FakeQrService()
-      ..step = const ManualEntryStep(
+      ..step = ManualEntryStep(
         action: 'showHome',
         person: 'Juan Pérez',
         item: '2057',
+        returnedAt: DateTime(2026, 3, 2, 17, 45),
       );
     await _open(tester, service);
 
@@ -222,7 +231,11 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(find.textContaining('Retorno registrado'), findsOneWidget);
+    // El popup de confirmación muestra la hora de retorno.
+    expect(
+      find.textContaining('Retorno registrado a las 17:45'),
+      findsOneWidget,
+    );
     await tester.pumpAndSettle(const Duration(milliseconds: 400));
     expect(find.text('abrir'), findsOneWidget);
   });

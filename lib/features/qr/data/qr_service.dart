@@ -53,16 +53,21 @@ class QrService {
   }
 
   /// Registro manual, paso 2: confirma la salida con el motivo elegido.
-  Future<void> confirmManualEntry({
+  /// Devuelve la hora en que quedó registrada (null si el servidor no la envió).
+  Future<DateTime?> confirmManualEntry({
     required String item,
     required String leaveTicket,
     required String reason,
   }) async {
     try {
-      await _dio.post(
+      final response = await _dio.post(
         ApiRoutes.managerManualConfirm,
         data: {'item': item, 'leaveTicket': leaveTicket, 'reason': reason},
       );
+      final data = response.data;
+      return data is Map
+          ? DateTime.tryParse(data['left_at']?.toString() ?? '')
+          : null;
     } on DioException catch (e) {
       throw ApiException.fromDio(
         e,

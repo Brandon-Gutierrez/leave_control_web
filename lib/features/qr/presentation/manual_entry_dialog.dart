@@ -80,7 +80,10 @@ class _ManualEntryDialogState extends State<ManualEntryDialog> {
         });
         _startCountdown(step);
       } else {
-        _finish('Retorno registrado. Bienvenido de regreso, ${step.person}.');
+        _finish(
+          'Retorno registrado${_atTime(step.returnedAt)}. '
+          'Bienvenido de regreso, ${step.person}.',
+        );
       }
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -123,13 +126,15 @@ class _ManualEntryDialogState extends State<ManualEntryDialog> {
       _error = null;
     });
     try {
-      await _service.confirmManualEntry(
+      final leftAt = await _service.confirmManualEntry(
         item: step.item,
         leaveTicket: step.leaveTicket ?? '',
         reason: reason,
       );
       if (!mounted) return;
-      _finish('Salida registrada. Hasta pronto, ${step.person}.');
+      _finish(
+        'Salida registrada${_atTime(leftAt)}. Hasta pronto, ${step.person}.',
+      );
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -137,6 +142,15 @@ class _ManualEntryDialogState extends State<ManualEntryDialog> {
         _busy = false;
       });
     }
+  }
+
+  /// " a las 14:32" con la hora local, o vacío si el servidor no la envió.
+  static String _atTime(DateTime? time) {
+    if (time == null) return '';
+    final local = time.toLocal();
+    final hh = local.hour.toString().padLeft(2, '0');
+    final mm = local.minute.toString().padLeft(2, '0');
+    return ' a las $hh:$mm';
   }
 
   void _finish(String message) {
