@@ -78,7 +78,7 @@ void main() {
     final service = _FakeQrService();
     await _open(tester, service);
 
-    expect(find.text('Ingreso manual'), findsOneWidget);
+    expect(find.text('Registro manual'), findsOneWidget);
     await tester.tap(find.text('Validar'));
     await tester.pump();
 
@@ -86,6 +86,56 @@ void main() {
     expect(find.text('Ingrese su carnet'), findsOneWidget);
     expect(service.validatedItem, isNull);
   });
+
+  testWidgets(
+    'un carnet de solo espacios no pasa y los espacios sobrantes se quitan',
+    (tester) async {
+      final service = _FakeQrService();
+      await _open(tester, service);
+
+      await tester.enterText(find.byType(TextFormField).at(0), '2057');
+      await tester.enterText(find.byType(TextFormField).at(1), '   ');
+      await tester.tap(find.text('Validar'));
+      await tester.pump();
+      expect(find.text('Ingrese su carnet'), findsOneWidget);
+      expect(service.validatedItem, isNull);
+
+      await tester.enterText(find.byType(TextFormField).at(1), '  1234567  ');
+      await tester.tap(find.text('Validar'));
+      await tester.pumpAndSettle();
+      expect(service.validatedItem, '2057');
+      expect(service.validatedCarnet, '1234567');
+    },
+  );
+
+  testWidgets(
+    'al agotarse el tiempo de los motivos se cierra todo el diálogo',
+    (tester) async {
+      final service = _FakeQrService()
+        ..step = ManualEntryStep(
+          action: 'showReasons',
+          person: 'Juan Pérez',
+          item: '2057',
+          premise: 'Prado',
+          reasons: const ['Trámite bancario'],
+          leaveTicket: 'tk-1',
+          // Comprobante ya vencido: el contador lo detecta de inmediato.
+          ticketExpiresAt: DateTime.now().subtract(const Duration(seconds: 1)),
+        );
+      await _open(tester, service);
+
+      await tester.enterText(find.byType(TextFormField).at(0), '2057');
+      await tester.enterText(find.byType(TextFormField).at(1), '1234567');
+      await tester.tap(find.text('Validar'));
+      await tester.pumpAndSettle();
+
+      // Ni los motivos ni el formulario de datos siguen abiertos.
+      expect(find.text('Hola, Juan Pérez'), findsNothing);
+      expect(find.text('Registro manual'), findsNothing);
+      expect(find.byType(TextFormField), findsNothing);
+      expect(find.text('abrir'), findsOneWidget);
+    },
+  );
 
   testWidgets('valida, muestra los motivos, confirma y vuelve solo', (
     tester,
@@ -115,7 +165,7 @@ void main() {
 
     // Se cierra solo y vuelve a la pantalla anterior (el QR).
     await tester.pumpAndSettle(const Duration(milliseconds: 400));
-    expect(find.text('Ingreso manual'), findsNothing);
+    expect(find.text('Registro manual'), findsNothing);
     expect(find.text('abrir'), findsOneWidget);
   });
 

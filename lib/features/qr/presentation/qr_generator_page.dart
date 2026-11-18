@@ -361,7 +361,7 @@ class _QrGeneratorPageState extends State<QrGeneratorPage> {
       child: FilledButton.icon(
         onPressed: _openManualEntry,
         icon: const Icon(Icons.badge_outlined, size: 26),
-        label: const Text('Ingreso manual'),
+        label: const Text('Registro manual'),
         style: FilledButton.styleFrom(
           // Blanco sólido con texto rojo: se separa del fondo rojo del panel.
           backgroundColor: Colors.white,
@@ -376,7 +376,7 @@ class _QrGeneratorPageState extends State<QrGeneratorPage> {
     );
   }
 
-  /// Abre el ingreso manual; al terminar se vuelve solo al QR.
+  /// Abre el registro manual; al terminar se vuelve solo al QR.
   Future<void> _openManualEntry() async {
     await showDialog<bool>(
       context: context,

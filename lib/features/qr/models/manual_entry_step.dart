@@ -28,7 +28,7 @@ class BlockedReason {
   }
 }
 
-/// Resultado de validar item y carnet en el ingreso manual: o la persona debe
+/// Resultado de validar item y carnet en el registro manual: o la persona debe
 /// elegir un motivo para su salida, o ya se registró su retorno.
 class ManualEntryStep {
   /// `showReasons` (falta elegir el motivo) o `showHome` (retorno registrado).

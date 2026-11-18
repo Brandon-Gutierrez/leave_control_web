@@ -11,7 +11,7 @@ import '../../../core/widgets/dialog_tone.dart';
 import '../data/qr_service.dart';
 import '../models/manual_entry_step.dart';
 
-/// Ingreso manual desde la pantalla del QR: la persona dicta su item y su
+/// Registro manual desde la pantalla del QR: la persona dicta su item y su
 /// carnet, se validan en el sistema externo y luego elige el motivo de su
 /// salida (o, si ya estaba fuera, se registra su retorno). Al terminar se
 /// cierra solo y la pantalla vuelve al QR.
@@ -91,7 +91,8 @@ class _ManualEntryDialogState extends State<ManualEntryDialog> {
     }
   }
 
-  /// El comprobante dura pocos segundos: al vencer se vuelve al formulario.
+  /// El comprobante dura pocos segundos: al vencer se cierra todo el diálogo
+  /// (motivos y datos) y la pantalla vuelve al QR.
   void _startCountdown(ManualEntryStep step) {
     _ticker?.cancel();
     final expires = step.ticketExpiresAt;
@@ -100,12 +101,9 @@ class _ManualEntryDialogState extends State<ManualEntryDialog> {
       final left = expires.difference(DateTime.now()).inSeconds;
       if (left <= 0) {
         _ticker?.cancel();
-        if (!mounted || _phase != _Phase.reasons) return;
-        setState(() {
-          _phase = _Phase.form;
-          _step = null;
-          _error = 'Se agotó el tiempo para elegir el motivo. Ingrese sus datos de nuevo.';
-        });
+        // Mientras se registra la salida no se cierra: la respuesta decide.
+        if (!mounted || _phase != _Phase.reasons || _busy) return;
+        Navigator.of(context).pop(false);
       } else if (mounted) {
         setState(() => _secondsLeft = left);
       }
@@ -168,7 +166,7 @@ class _ManualEntryDialogState extends State<ManualEntryDialog> {
     return AppModal(
       tone: DialogTone.create,
       icon: Icons.badge_outlined,
-      title: 'Ingreso manual',
+      title: 'Registro manual',
       subtitle: 'Escriba su item y su carnet',
       maxWidth: 460,
       actions: [

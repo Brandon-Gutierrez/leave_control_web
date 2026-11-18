@@ -31,7 +31,7 @@ class QrService {
     }
   }
 
-  /// Ingreso manual, paso 1: valida item y carnet en el sistema externo.
+  /// Registro manual, paso 1: valida item y carnet en el sistema externo.
   Future<ManualEntryStep> validateManualEntry({
     required String item,
     required String carnet,
@@ -52,7 +52,7 @@ class QrService {
     }
   }
 
-  /// Ingreso manual, paso 2: confirma la salida con el motivo elegido.
+  /// Registro manual, paso 2: confirma la salida con el motivo elegido.
   Future<void> confirmManualEntry({
     required String item,
     required String leaveTicket,
