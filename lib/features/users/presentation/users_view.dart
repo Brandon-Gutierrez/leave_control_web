@@ -17,9 +17,11 @@ import '../../../core/widgets/skeleton.dart';
 import '../../auth/state/session_controller.dart';
 import '../../dashboard/state/admin_data_store.dart';
 import '../data/user_admin_service.dart';
+import '../models/device_match.dart';
 import '../models/managed_user.dart';
 import 'change_role_dialog.dart';
 import 'create_manager_dialog.dart';
+import 'device_code_dialog.dart';
 import 'devices_dialog.dart';
 import 'manager_password_dialog.dart';
 
@@ -248,14 +250,34 @@ class UsersViewState extends State<UsersView> {
       builder: (context) => DevicesDialog(user: user),
     );
     if (platform == null || !mounted) return;
+    await _confirmAndResetDevice(user.id, user.name, platform);
+  }
 
+  /// Busca por el código que la persona ve en su app (y dicta a RR. HH.) a
+  /// quién está vinculado ese teléfono y permite desvincularlo.
+  Future<void> _openDeviceCodeSearch() async {
+    final match = await showDialog<DeviceMatch>(
+      context: context,
+      builder: (context) => const DeviceCodeDialog(),
+    );
+    if (match == null || !mounted) return;
+    await _confirmAndResetDevice(match.userId, match.name, match.platform);
+  }
+
+  /// Pide confirmación y desvincula el dispositivo de la cuenta en [platform].
+  Future<void> _confirmAndResetDevice(
+    int userId,
+    String userName,
+    ClientPlatform platform,
+  ) async {
+    if (_updatingUserIds.contains(userId)) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AppModal(
         tone: DialogTone.danger,
         icon: Icons.link_off_rounded,
         title: 'Desvincular ${platform.deviceNoun}',
-        subtitle: user.name,
+        subtitle: userName,
         maxWidth: 460,
         actions: [
           ModalButton(
@@ -270,7 +292,7 @@ class UsersViewState extends State<UsersView> {
           ),
         ],
         child: Text(
-          'El ${platform.deviceNoun} actual de ${user.name} dejará de '
+          'El ${platform.deviceNoun} actual de $userName dejará de '
           'funcionar en ${platform.label.toLowerCase()} y su sesión ahí se '
           'cerrará. El próximo inicio de sesión quedará vinculado al nuevo '
           '${platform.deviceNoun}.',
@@ -280,20 +302,20 @@ class UsersViewState extends State<UsersView> {
     );
     if (confirmed != true || !mounted) return;
 
-    setState(() => _updatingUserIds.add(user.id));
+    setState(() => _updatingUserIds.add(userId));
     try {
-      await _userAdminService.resetUserDevice(user.id, platform);
+      await _userAdminService.resetUserDevice(userId, platform);
       unawaited(_store.refreshQuietly());
       if (!mounted) return;
       setState(() {
-        final index = _users.indexWhere((u) => u.id == user.id);
+        final index = _users.indexWhere((u) => u.id == userId);
         if (index != -1) {
           final devices = Map.of(_users[index].devices)..remove(platform);
           _users[index] = _users[index].copyWith(devices: devices);
         }
       });
       _showSnackBar(
-        '${platform.label}: ${platform.deviceNoun} de ${user.name} '
+        '${platform.label}: ${platform.deviceNoun} de $userName '
         'desvinculado. Ya puede entrar desde uno nuevo.',
         AppColors.success,
       );
@@ -304,7 +326,7 @@ class UsersViewState extends State<UsersView> {
       }
       _showSnackBar(e.message, AppColors.danger);
     } finally {
-      if (mounted) setState(() => _updatingUserIds.remove(user.id));
+      if (mounted) setState(() => _updatingUserIds.remove(userId));
     }
   }
 
@@ -446,6 +468,48 @@ class UsersViewState extends State<UsersView> {
     );
   }
 
+  /// Acciones principales: crear un responsable y buscar un dispositivo por su
+  /// código (el que la persona dicta a Recursos Humanos).
+  Widget _buildTopActions(bool sideBySide) {
+    final create = SizedBox(
+      height: AppDimens.buttonHeight,
+      child: ElevatedButton.icon(
+        onPressed: openCreateManagerDialog,
+        icon: const Icon(Icons.person_add_alt_1_rounded),
+        label: const Text('Nuevo responsable de predio'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryRed,
+          foregroundColor: Colors.white,
+        ),
+      ),
+    );
+    final search = SizedBox(
+      height: AppDimens.buttonHeight,
+      child: OutlinedButton.icon(
+        onPressed: _openDeviceCodeSearch,
+        icon: const Icon(Icons.manage_search_rounded),
+        label: const Text('Buscar por código de dispositivo'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: darkText,
+          side: const BorderSide(color: Color(0xFFB0B0B0)),
+        ),
+      ),
+    );
+    if (!sideBySide) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [create, const SizedBox(height: 10), search],
+      );
+    }
+    return Row(
+      children: [
+        Expanded(child: create),
+        const SizedBox(width: 12),
+        Expanded(child: search),
+      ],
+    );
+  }
+
   Widget _buildContent() {
     final users = _filteredUsers;
     final pageUsers = pageSlice(users, _page, _pageSize);
@@ -467,18 +531,7 @@ class UsersViewState extends State<UsersView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  SizedBox(
-                    height: AppDimens.buttonHeight,
-                    child: ElevatedButton.icon(
-                      onPressed: openCreateManagerDialog,
-                      icon: const Icon(Icons.person_add_alt_1_rounded),
-                      label: const Text('Nuevo responsable de predio'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryRed,
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                  ),
+                  _buildTopActions(constraints.maxWidth >= 640),
                   const SizedBox(height: 12),
                   Row(
                     children: [

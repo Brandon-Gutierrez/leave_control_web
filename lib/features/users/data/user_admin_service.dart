@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import '../../../core/config/api_routes.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_exception.dart';
+import '../models/device_match.dart';
 import '../models/managed_user.dart';
 
 /// Resultado de crear una cuenta de responsable de predio.
@@ -112,6 +113,29 @@ class UserAdminService {
       throw ApiException.fromDio(
         e,
         fallback: 'No se pudo desvincular el dispositivo.',
+      );
+    }
+  }
+
+  /// Busca a qué cuentas está vinculado el dispositivo con ese código (el que
+  /// la persona ve en su app y dicta a Recursos Humanos). Lista vacía si
+  /// ninguna cuenta lo tiene vinculado.
+  Future<List<DeviceMatch>> findDevicesByCode(String code) async {
+    try {
+      final response = await _dio.get(
+        ApiRoutes.deviceLookup,
+        queryParameters: {'code': code.trim()},
+      );
+      final List<dynamic> data = response.data['data'] ?? [];
+      return [
+        for (final item in data)
+          if (item is Map)
+            ?DeviceMatch.fromJson(Map<String, dynamic>.from(item)),
+      ];
+    } on DioException catch (e) {
+      throw ApiException.fromDio(
+        e,
+        fallback: 'No se pudo buscar el código del dispositivo.',
       );
     }
   }

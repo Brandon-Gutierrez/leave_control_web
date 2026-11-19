@@ -28,6 +28,7 @@ abstract final class ApiRoutes {
   // Administración - usuarios y roles
   static const String users = '/api/admin/users';
   static const String roles = '/api/admin/roles';
+  static const String deviceLookup = '/api/admin/devices';
   static const String premiseManagers = '/api/admin/users/premise-managers';
 
   static String userRole(int userId) => '/api/admin/users/$userId/role';
