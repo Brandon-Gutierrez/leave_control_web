@@ -173,7 +173,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             else
               const SizedBox.shrink(),
             if (_visited.contains(3))
-              const ReasonsView()
+              ReasonsView(onOpenSettings: _goToSettings)
             else
               const SizedBox.shrink(),
             if (_visited.contains(4))

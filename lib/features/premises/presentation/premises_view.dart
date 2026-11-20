@@ -11,6 +11,7 @@ import '../../../core/widgets/admin_page.dart';
 import '../../../core/widgets/app_modal.dart';
 import '../../../core/widgets/app_popup.dart';
 import '../../../core/widgets/dialog_tone.dart';
+import '../../../core/widgets/discard_changes_dialog.dart';
 import '../../../core/widgets/master_detail.dart';
 import '../../dashboard/state/admin_data_store.dart';
 import '../../users/models/managed_user.dart';
@@ -156,34 +157,12 @@ class PremisesViewState extends State<PremisesView> {
   /// true si no había cambios sin guardar o si se aceptó descartarlos.
   Future<bool> _confirmDiscard() async {
     if (_detailKey.currentState?.hasUnsavedChanges != true) return true;
-    final discard = await showDialog<bool>(
-      context: context,
-      builder: (context) => AppModal(
-        tone: DialogTone.caution,
-        icon: Icons.edit_off_rounded,
-        title: 'Cambios sin guardar',
-        subtitle: _selected?.name,
-        maxWidth: 460,
-        actions: [
-          ModalButton(
-            label: 'Seguir editando',
-            onPressed: () => Navigator.pop(context, false),
-          ),
-          ModalButton(
-            label: 'Descartar',
-            primary: true,
-            color: AppColors.warning,
-            onPressed: () => Navigator.pop(context, true),
-          ),
-        ],
-        child: const Text(
-          'Cambió el nombre, la ubicación o los motivos y todavía no guardó. '
-          'Si sigue, esos cambios se pierden.',
-          style: AppText.body,
-        ),
-      ),
+    return confirmDiscardChanges(
+      context,
+      subtitle: _selected?.name,
+      description:
+          'Cambió el nombre, la ubicación o los motivos y todavía no guardó.',
     );
-    return discard == true;
   }
 
   // -------------------------------------------------------------------------

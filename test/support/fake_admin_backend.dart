@@ -66,6 +66,19 @@ class FakeAdminBackend implements HttpClientAdapter {
   /// Si se indica, guardar un predio (PUT) falla con este mensaje (422).
   String? premiseUpdateError;
 
+  /// Catálogo de `/api/admin/reasons/catalog` (la cantidad de predios se
+  /// calcula con los predios de este servidor) y su última sincronización.
+  List<Map<String, dynamic>> catalogReasons = [];
+  Map<String, dynamic>? sync;
+
+  /// Límite por motivo de `/api/admin/settings/leave-limits`.
+  Map<String, dynamic> reasonLimit = {
+    'period': 'day',
+    'mode': 'general',
+    'general': 1,
+    'custom': <Object>[],
+  };
+
   /// Motivos del catálogo que devuelve `/api/admin/reasons`.
   List<String> reasons = ['Banco', 'Médico', 'Trámite'];
 
@@ -183,16 +196,7 @@ class FakeAdminBackend implements HttpClientAdapter {
     } else if (path == '/api/admin/settings/leave-limits' && method == 'GET') {
       body = {
         'status': 0,
-        'data': {
-          'period': 'day',
-          'max_exits': 3,
-          'reason_limit': {
-            'period': 'day',
-            'mode': 'general',
-            'general': 1,
-            'custom': <Object>[],
-          },
-        },
+        'data': {'period': 'day', 'max_exits': 3, 'reason_limit': reasonLimit},
       };
     } else if (path == '/api/admin/settings/qr' && method == 'GET') {
       body = {
@@ -202,7 +206,21 @@ class FakeAdminBackend implements HttpClientAdapter {
     } else if (path == '/api/admin/reasons/catalog' && method == 'GET') {
       body = {
         'status': 0,
-        'data': {'reasons': <Object>[], 'sync': null},
+        'data': {
+          'reasons': [
+            for (final reason in catalogReasons)
+              {
+                ...reason,
+                'premises_count': premises
+                    .where(
+                      (p) =>
+                          (p['reason_names'] as List).contains(reason['name']),
+                    )
+                    .length,
+              },
+          ],
+          'sync': sync,
+        },
       };
     } else {
       body = {'status': 0};

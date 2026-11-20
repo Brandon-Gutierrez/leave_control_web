@@ -120,6 +120,23 @@ class PremiseService {
     }
   }
 
+  /// Cambia solo los motivos de salida que ofrece el predio (la lista
+  /// completa; el servidor reemplaza la anterior).
+  Future<Premise> setReasons(int premiseId, List<String> reasonNames) async {
+    try {
+      final response = await _dio.put(
+        ApiRoutes.premise(premiseId),
+        data: {'reasons': reasonNames},
+      );
+      return Premise.fromJson(response.data['data']);
+    } on DioException catch (e) {
+      throw ApiException.fromDio(
+        e,
+        fallback: 'Error al cambiar los motivos del predio.',
+      );
+    }
+  }
+
   /// Cambia solo al responsable del predio (`userId` null lo deja sin
   /// responsable). El servidor cierra la sesión del responsable anterior y
   /// mueve aquí al nuevo si ya tenía otro predio.

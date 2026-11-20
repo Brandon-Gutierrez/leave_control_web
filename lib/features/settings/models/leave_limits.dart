@@ -52,6 +52,26 @@ class ReasonLimit {
     'general': maxGeneral,
     'custom': [for (final cap in caps) cap.toJson()],
   };
+
+  /// Tope de veces para el motivo [reasonId]; null si no tiene tope.
+  int? capFor(int reasonId) {
+    if (mode == general) return maxGeneral;
+    for (final cap in caps) {
+      if (cap.reasonId == reasonId) return cap.max;
+    }
+    return null;
+  }
+
+  /// «1 vez por día», «3 veces por semana» o «Sin tope».
+  String describeCap(int? max) {
+    if (max == null) return 'Sin tope';
+    final unit = switch (period) {
+      'week' => 'semana',
+      'month' => 'mes',
+      _ => 'día',
+    };
+    return '$max ${max == 1 ? 'vez' : 'veces'} por $unit';
+  }
 }
 
 /// Límites de salidas, iguales para todas las personas: por persona y por

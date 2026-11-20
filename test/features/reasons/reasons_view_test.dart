@@ -142,12 +142,14 @@ void main() {
       await _openReasons(tester, _adapter(sync: _success));
 
       expect(find.text('Almuerzo'), findsOneWidget);
-      expect(find.text('Habilitado en 3 predios'), findsOneWidget);
+      expect(find.text('A · 3 predios'), findsOneWidget);
       expect(find.text('Médico'), findsOneWidget);
-      expect(find.text('Habilitado en 1 predio'), findsOneWidget);
+      expect(find.text('M · 1 predio'), findsOneWidget);
       expect(find.text('Comisión antigua'), findsOneWidget);
-      expect(find.text('Retirado por Comteco'), findsOneWidget);
-      expect(find.text('3 de 3 motivos'), findsOneWidget);
+      expect(find.text('C · ya no se ofrece'), findsOneWidget);
+      expect(find.text('Activo'), findsNWidgets(2));
+      expect(find.text('Retirado'), findsOneWidget);
+      expect(find.text('Todos 3'), findsOneWidget);
     });
 
     testWidgets('muestra la última sincronización correcta', (tester) async {
@@ -179,9 +181,7 @@ void main() {
       await _openReasons(tester, _adapter(sync: _failed));
 
       expect(
-        find.text(
-          'La última sincronización falló el 12/11/2026 00:30 (automática).',
-        ),
+        find.text('Fue el 12/11/2026 00:30 (automática).'),
         findsOneWidget,
       );
       expect(find.textContaining('lista de motivos vacía'), findsOneWidget);
@@ -194,12 +194,11 @@ void main() {
     testWidgets('el filtro de estado deja solo los retirados', (tester) async {
       await _openReasons(tester, _adapter(sync: _success));
 
-      await tester.tap(find.text('Retirados por Comteco'));
+      await tester.tap(find.text('Retirados 1'));
       await tester.pumpAndSettle();
 
       expect(find.text('Comisión antigua'), findsOneWidget);
       expect(find.text('Almuerzo'), findsNothing);
-      expect(find.text('1 de 3 motivos'), findsOneWidget);
     });
 
     testWidgets('se puede buscar por nombre', (tester) async {
@@ -299,7 +298,10 @@ void main() {
         await tester.tap(find.text('Ver motivos'));
         await tester.pumpAndSettle();
 
-        expect(find.text('Sincronización con Comteco'), findsOneWidget);
+        expect(
+          find.text('La última sincronización con Comteco falló'),
+          findsOneWidget,
+        );
       },
     );
 
