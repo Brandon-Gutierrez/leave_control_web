@@ -124,16 +124,26 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     }
   }
 
-  void _goToUsers({bool openCreateManager = false}) {
+  void _goToUsers({
+    bool openCreateManager = false,
+    bool openDeviceSearch = false,
+  }) {
     _showSection(2);
     if (openCreateManager) {
       WidgetsBinding.instance.addPostFrameCallback(
         (_) => _usersKey.currentState?.openCreateManagerDialog(),
       );
     }
+    if (openDeviceSearch) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _usersKey.currentState?.openDeviceCodeSearch(),
+      );
+    }
   }
 
   void _goToReasons() => _showSection(3);
+
+  void _goToSettings() => _showSection(4);
 
   @override
   Widget build(BuildContext context) {
@@ -151,6 +161,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               onOpenReasons: _goToReasons,
               onOpenUsers: _goToUsers,
               onAddManager: () => _goToUsers(openCreateManager: true),
+              onSearchDevice: () => _goToUsers(openDeviceSearch: true),
+              onOpenSettings: _goToSettings,
             ),
             if (_visited.contains(1))
               PremisesView(key: _premisesKey)

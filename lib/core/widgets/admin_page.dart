@@ -10,8 +10,14 @@ class AdminPage extends StatelessWidget {
   final String title;
   final String? subtitle;
 
+  /// Rótulo pequeño en mayúsculas sobre el título (p. ej. la fecha de hoy).
+  final String? eyebrow;
+
   /// Botones de la sección (p. ej. «+ Nuevo predio»).
   final List<Widget> actions;
+
+  /// Si se indica, arrastrar hacia abajo recarga la sección (pantallas táctiles).
+  final Future<void> Function()? onRefresh;
 
   final Widget child;
 
@@ -19,7 +25,9 @@ class AdminPage extends StatelessWidget {
     super.key,
     required this.title,
     this.subtitle,
+    this.eyebrow,
     this.actions = const [],
+    this.onRefresh,
     required this.child,
   });
 
@@ -41,6 +49,19 @@ class AdminPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (eyebrow != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text(
+                        eyebrow!.toUpperCase(),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.4,
+                          color: Color(0xFF777777),
+                        ),
+                      ),
+                    ),
                   Text(
                     title,
                     style: AppText.pageTitle.copyWith(
@@ -66,7 +87,10 @@ class AdminPage extends StatelessWidget {
           ],
         );
 
-        return SingleChildScrollView(
+        Widget scroll = SingleChildScrollView(
+          physics: onRefresh == null
+              ? null
+              : const AlwaysScrollableScrollPhysics(),
           child: Center(
             child: ConstrainedBox(
               constraints: BoxConstraints(
@@ -86,6 +110,16 @@ class AdminPage extends StatelessWidget {
             ),
           ),
         );
+
+        if (onRefresh != null) {
+          scroll = RefreshIndicator(
+            onRefresh: onRefresh!,
+            color: Colors.white,
+            backgroundColor: AppColors.primaryRed,
+            child: scroll,
+          );
+        }
+        return scroll;
       },
     );
   }

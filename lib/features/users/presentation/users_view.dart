@@ -255,7 +255,7 @@ class UsersViewState extends State<UsersView> {
 
   /// Busca por el código que la persona ve en su app (y dicta a RR. HH.) a
   /// quién está vinculado ese teléfono y permite desvincularlo.
-  Future<void> _openDeviceCodeSearch() async {
+  Future<void> openDeviceCodeSearch() async {
     final match = await showDialog<DeviceMatch>(
       context: context,
       builder: (context) => const DeviceCodeDialog(),
@@ -486,7 +486,7 @@ class UsersViewState extends State<UsersView> {
     final search = SizedBox(
       height: AppDimens.buttonHeight,
       child: OutlinedButton.icon(
-        onPressed: _openDeviceCodeSearch,
+        onPressed: openDeviceCodeSearch,
         icon: const Icon(Icons.manage_search_rounded),
         label: const Text('Buscar por código de dispositivo'),
         style: OutlinedButton.styleFrom(

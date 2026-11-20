@@ -2,17 +2,18 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_text_styles.dart';
-import '../../../core/widgets/load_error.dart';
-import '../../../core/widgets/skeleton.dart';
+import '../../../core/format/date_text.dart';
+import '../../../core/widgets/admin_button.dart';
+import '../../../core/widgets/admin_page.dart';
 import '../../auth/models/auth_user.dart';
+import '../../reasons/presentation/reason_sync_action.dart';
 import '../models/admin_summary.dart';
 import '../state/admin_data_store.dart';
+import 'home_parts.dart';
 
-/// Sección "Inicio": le dice a la persona qué falta resolver, con colores
-/// (rojo = urgente, ámbar = pendiente, azul = informativo, verde = todo bien)
-/// y un botón directo para resolverlo.
+/// Sección "Inicio": un saludo, las cifras del sistema, una vista rápida de los
+/// predios y, a un lado, lo que falta resolver y las reglas vigentes. Cada
+/// pendiente lleva un botón directo para resolverlo.
 class HomeView extends StatefulWidget {
   final AuthUser? user;
   final VoidCallback onAddPremise;
@@ -25,6 +26,15 @@ class HomeView extends StatefulWidget {
   /// Acceso directo para crear la cuenta de un responsable de predio.
   final VoidCallback? onAddManager;
 
+  /// Acceso directo para buscar un teléfono por su código.
+  final VoidCallback? onSearchDevice;
+
+  /// Lleva a «Ajustes» (editar las reglas vigentes).
+  final VoidCallback? onOpenSettings;
+
+  /// Reloj de la pantalla (pruebas): fecha y saludo.
+  final DateTime Function()? clock;
+
   const HomeView({
     super.key,
     required this.user,
@@ -33,6 +43,9 @@ class HomeView extends StatefulWidget {
     this.onOpenPremises,
     this.onOpenReasons,
     this.onAddManager,
+    this.onSearchDevice,
+    this.onOpenSettings,
+    this.clock,
   });
 
   @override
@@ -65,15 +78,19 @@ class _Issue {
 
 class HomeViewState extends State<HomeView> {
   final AdminDataStore _store = AdminDataStore.instance;
+  bool _syncing = false;
 
   StoreResource<AdminSummary?> get _summary => _store.summaryData;
+
+  DateTime _now() => (widget.clock ?? DateTime.now)();
 
   @override
   void initState() {
     super.initState();
     _store.addListener(_onStoreChanged);
-    // Inicio solo necesita los contadores, no las listas completas.
-    unawaited(_summary.load());
+    // Inicio pide los contadores, los predios (para la vista rápida y la
+    // distancia) y las dos reglas que muestra; no las listas de usuarios.
+    unawaited(_load());
   }
 
   @override
@@ -86,7 +103,24 @@ class HomeViewState extends State<HomeView> {
     if (mounted) setState(() {});
   }
 
-  Future<void> _reload() => _summary.load(force: true);
+  Future<void> _load({bool force = false}) => Future.wait([
+    _summary.load(force: force),
+    _store.premisesData.load(force: force),
+    _store.qrSettingsData.load(force: force),
+    _store.leaveLimitsData.load(force: force),
+  ]);
+
+  Future<void> _reload() => _load(force: true);
+
+  Future<void> _syncReasons() async {
+    if (_syncing) return;
+    setState(() => _syncing = true);
+    try {
+      await runReasonSync(context);
+    } finally {
+      if (mounted) setState(() => _syncing = false);
+    }
+  }
 
   void _openPremises() => (widget.onOpenPremises ?? widget.onAddPremise).call();
 
@@ -169,7 +203,9 @@ class HomeViewState extends State<HomeView> {
           _Level.pending,
           1,
           'No se pudieron sincronizar los motivos con Comteco',
-          'Se conserva el catálogo anterior. ${summary.reasonsSync!.error ?? 'Reintente la sincronización.'}',
+          'Se conserva el catálogo anterior. '
+              '${_sentence(summary.reasonsSync!.error ?? 'Reintente la sincronización')} '
+              'Se reintenta solo en el próximo horario programado.',
           'Ver motivos',
           widget.onOpenReasons ?? () {},
           counted: false,
@@ -177,365 +213,123 @@ class HomeViewState extends State<HomeView> {
     ];
   }
 
+  /// El texto con un punto final (sin duplicarlo si ya lo trae).
+  static String _sentence(String text) {
+    final trimmed = text.trim();
+    return RegExp(r'[.!?]$').hasMatch(trimmed) ? trimmed : '$trimmed.';
+  }
+
+  /// Cada pendiente ya va numerado (1, 2, 3...): la cantidad solo se escribe
+  /// cuando es más de una («3 predios sin ubicación en el mapa»).
+  static String _titleOf(_Issue issue) {
+    if (!issue.counted || issue.count <= 1) return issue.title;
+    final title = issue.title;
+    return '${issue.count} ${title[0].toLowerCase()}${title.substring(1)}';
+  }
+
+  List<PendingItem> get _pending => [
+    for (final issue in _issues)
+      PendingItem(
+        title: _titleOf(issue),
+        help: issue.help,
+        action: issue.action,
+        onTap: issue.onTap,
+        neutral: issue.level == _Level.info,
+      ),
+  ];
+
+  String get _greeting {
+    final name = (widget.user?.name.isNotEmpty ?? false)
+        ? widget.user!.name
+        : 'Administrador';
+    return '${DateText.greeting(_now())}, $name';
+  }
+
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final wide = constraints.maxWidth >= 980;
-        final pad = constraints.maxWidth >= Breakpoints.tablet ? 32.0 : 16.0;
+    final now = _now();
+    final premises = _store.premisesData;
+    final summaryLoading = _summary.isInitialLoad;
+    final summaryFailed = _summary.hasFailed && _summary.value == null;
 
-        final attention = _buildAttention();
-        final actions = _buildActions();
-
-        return RefreshIndicator(
-          onRefresh: _reload,
-          color: Colors.white,
-          backgroundColor: AppColors.primaryRed,
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: EdgeInsets.symmetric(horizontal: pad, vertical: 24),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1100),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildTotals(),
-                    const SizedBox(height: 28),
-                    if (wide)
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(flex: 3, child: attention),
-                          const SizedBox(width: 32),
-                          Expanded(flex: 2, child: actions),
-                        ],
-                      )
-                    else ...[
-                      attention,
-                      const SizedBox(height: 28),
-                      actions,
-                    ],
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // Números en una franja simple separada por líneas, no en tarjetas.
-  Widget _buildTotals() {
-    final summary = _summary.value;
-    final loading = _summary.isInitialLoad;
-    final narrow = MediaQuery.sizeOf(context).width < 640;
-    Widget item(IconData icon, int? value, String label) => Expanded(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          children: [
-            if (!narrow) ...[
-              Icon(icon, size: 30, color: Colors.grey.shade700),
-              const SizedBox(width: 12),
-            ],
-            Flexible(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (loading)
-                    const SkeletonBox(width: 48, height: 28)
-                  else
-                    Text(
-                      value == null ? '–' : '$value',
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                        height: 1,
-                      ),
-                    ),
-                  const SizedBox(height: 2),
-                  Text(label, style: AppText.caption, maxLines: 2),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
-      decoration: const BoxDecoration(
-        border: Border.symmetric(horizontal: BorderSide(color: AppColors.line)),
-      ),
-      child: SkeletonPulse(
-        active: loading,
-        child: Row(
-          children: [
-            item(
-              Icons.apartment_rounded,
-              summary?.premises,
-              'Predios registrados',
-            ),
-            item(Icons.groups_rounded, summary?.users, 'Personas registradas'),
-            item(Icons.shield_rounded, summary?.admins, 'Administradores'),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAttention() {
-    final Widget body;
-    if (_summary.isInitialLoad) {
-      body = const SkeletonPulse(
-        child: Column(
-          children: [
-            _SkeletonBanner(),
-            SizedBox(height: 10),
-            _SkeletonBanner(),
-          ],
-        ),
-      );
-    } else if (_summary.hasFailed && _summary.value == null) {
-      body = LoadErrorNotice(
-        message: _summary.error ?? 'No se pudo cargar el resumen',
-        onRetry: _reload,
-      );
-    } else if (_issues.isEmpty) {
-      body = const _Banner(
-        color: AppColors.success,
-        background: AppColors.successBg,
-        icon: Icons.check_circle_rounded,
-        title: 'Todo está en orden',
-        help: 'Todos los predios tienen ubicación, motivos y responsable.',
-      );
-    } else {
-      body = Column(
-        children: [
-          for (final issue in _issues) ...[
-            _IssueRow(issue: issue),
-            const SizedBox(height: 10),
-          ],
-        ],
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const Text('Requiere su atención', style: AppText.sectionTitle),
-        const SizedBox(height: 4),
-        Text('Lo más urgente aparece primero.', style: AppText.caption),
-        const SizedBox(height: 14),
-        body,
-      ],
-    );
-  }
-
-  Widget _buildActions() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const Text('Acciones rápidas', style: AppText.sectionTitle),
-        const SizedBox(height: 14),
-        _QuickAction(
-          icon: Icons.add_location_alt_rounded,
-          label: 'Agregar un predio nuevo',
-          onTap: widget.onAddPremise,
+    return AdminPage(
+      eyebrow: DateText.longDate(now),
+      title: _greeting,
+      onRefresh: _reload,
+      actions: [
+        AdminButton.primary(
+          label: '+ Nuevo predio',
+          onPressed: widget.onAddPremise,
         ),
         if (widget.onAddManager != null)
-          _QuickAction(
-            icon: Icons.person_add_alt_1_rounded,
-            label: 'Crear responsable de predio',
-            onTap: widget.onAddManager!,
+          AdminButton(
+            label: 'Crear responsable',
+            onPressed: widget.onAddManager,
           ),
-        _QuickAction(
-          icon: Icons.people_alt_rounded,
-          label: 'Administrar usuarios',
-          onTap: widget.onOpenUsers,
+        if (widget.onSearchDevice != null)
+          AdminButton(
+            label: 'Código de dispositivo',
+            onPressed: widget.onSearchDevice,
+          ),
+        AdminButton(
+          label: _syncing ? 'Sincronizando…' : 'Sincronizar motivos',
+          onPressed: _syncing ? null : _syncReasons,
         ),
       ],
-    );
-  }
-}
-
-/// Hueco con la forma de una franja de aviso mientras llega el resumen.
-class _SkeletonBanner extends StatelessWidget {
-  const _SkeletonBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(left: BorderSide(color: AppColors.line, width: 6)),
-      ),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SkeletonBox(width: 220, height: 18),
-          SizedBox(height: 8),
-          SkeletonBox(height: 14),
-          SizedBox(height: 12),
-          SkeletonBox(width: 130, height: 36, radius: 6),
-        ],
-      ),
-    );
-  }
-}
-
-class _IssueRow extends StatelessWidget {
-  final _Issue issue;
-
-  const _IssueRow({required this.issue});
-
-  @override
-  Widget build(BuildContext context) {
-    final (color, bg, icon) = switch (issue.level) {
-      _Level.urgent => (
-        AppColors.danger,
-        AppColors.dangerBg,
-        Icons.error_rounded,
-      ),
-      _Level.pending => (
-        AppColors.warning,
-        AppColors.warningBg,
-        Icons.warning_rounded,
-      ),
-      _Level.info => (AppColors.info, AppColors.infoBg, Icons.info_rounded),
-    };
-    return _Banner(
-      color: color,
-      background: bg,
-      icon: icon,
-      title: issue.counted ? '${issue.count} · ${issue.title}' : issue.title,
-      help: issue.help,
-      action: issue.action,
-      onTap: issue.onTap,
-    );
-  }
-}
-
-/// Franja de color con ícono, mensaje y un botón de acción opcional.
-class _Banner extends StatelessWidget {
-  final Color color;
-  final Color background;
-  final IconData icon;
-  final String title;
-  final String help;
-  final String? action;
-  final VoidCallback? onTap;
-
-  const _Banner({
-    required this.color,
-    required this.background,
-    required this.icon,
-    required this.title,
-    required this.help,
-    this.action,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: background,
-        border: Border(left: BorderSide(color: color, width: 6)),
-      ),
-      padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(icon, color: color, size: 30),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                        color: color,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(help, style: AppText.body.copyWith(fontSize: 15)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          if (action != null) ...[
-            const SizedBox(height: 10),
-            Padding(
-              padding: const EdgeInsets.only(left: 42),
-              child: FilledButton(
-                onPressed: onTap,
-                style: FilledButton.styleFrom(
-                  backgroundColor: color,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size(0, 44),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(6),
+          HomeStats(summary: _summary.value, loading: summaryLoading, now: now),
+          const SizedBox(height: 26),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final wide = constraints.maxWidth >= 900;
+
+              final glance = PremisesGlance(
+                premises: premises.value,
+                loading: premises.isInitialLoad,
+                error: premises.hasFailed ? premises.error : null,
+                onRetry: () => premises.load(force: true),
+                onSeeAll: _openPremises,
+              );
+              final aside = Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  PendingList(
+                    items: _pending,
+                    loading: summaryLoading,
+                    error: summaryFailed
+                        ? (_summary.error ?? 'No se pudo cargar el resumen')
+                        : null,
+                    onRetry: _reload,
                   ),
-                ),
-                child: Text(action!),
-              ),
-            ),
-          ],
+                  const SizedBox(height: 30),
+                  CurrentRules(
+                    qr: _store.qrSettingsData.value,
+                    limits: _store.leaveLimitsData.value,
+                    radiusMeters: _store.geofenceRadiusMeters,
+                    onEdit: widget.onOpenSettings,
+                  ),
+                ],
+              );
+
+              if (!wide) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [aside, const SizedBox(height: 30), glance],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(flex: 3, child: glance),
+                  const SizedBox(width: 36),
+                  Expanded(flex: 2, child: aside),
+                ],
+              );
+            },
+          ),
         ],
-      ),
-    );
-  }
-}
-
-class _QuickAction extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _QuickAction({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: OutlinedButton(
-        onPressed: onTap,
-        style: OutlinedButton.styleFrom(
-          alignment: Alignment.centerLeft,
-          minimumSize: const Size.fromHeight(54),
-          foregroundColor: AppColors.darkText,
-          side: const BorderSide(color: AppColors.line),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: AppColors.primaryRed, size: 26),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(
-                label,
-                style: AppText.body.copyWith(fontWeight: FontWeight.w600),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

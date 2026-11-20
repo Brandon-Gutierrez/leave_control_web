@@ -48,6 +48,9 @@ class FakeAdminBackend implements HttpClientAdapter {
     },
   ];
 
+  /// Cuántas veces se pidió «Sincronizar ahora».
+  int syncCalls = 0;
+
   /// Instala este adaptador en el cliente HTTP compartido.
   FakeAdminBackend install() {
     ApiClient().dio.httpClientAdapter = this;
@@ -77,6 +80,18 @@ class FakeAdminBackend implements HttpClientAdapter {
           {'role_id': 2, 'name': 'ADMIN'},
           {'role_id': 3, 'name': 'MANAGE_PREMISE'},
         ],
+      };
+    } else if (path == '/api/admin/reasons/sync' && method == 'POST') {
+      syncCalls++;
+      body = {
+        'status': 0,
+        'message': 'Motivos de salida actualizados correctamente',
+        'result': {
+          'added': 1,
+          'updated': 0,
+          'reactivated': 0,
+          'deactivated': 0,
+        },
       };
     } else if (path == '/api/admin/settings/leave-limits' && method == 'GET') {
       body = {

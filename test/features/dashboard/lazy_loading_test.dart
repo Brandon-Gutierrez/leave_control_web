@@ -19,6 +19,8 @@ const _reasons = '/api/admin/reasons';
 const _summary = '/api/admin/summary';
 const _catalog = '/api/admin/reasons/catalog';
 const _sync = '/api/admin/reasons/sync';
+const _qrSettings = '/api/admin/settings/qr';
+const _leaveLimits = '/api/admin/settings/leave-limits';
 
 CountingAdapter _adapter() => CountingAdapter({
   _summary: {
@@ -89,6 +91,14 @@ CountingAdapter _adapter() => CountingAdapter({
       'sync': null,
     },
   },
+  _qrSettings: {
+    'status': 0,
+    'data': {'qr_ttl_seconds': 300},
+  },
+  _leaveLimits: {
+    'status': 0,
+    'data': {'period': 'day', 'max_exits': 3},
+  },
   _sync: {
     'status': 0,
     'message': 'Motivos de salida actualizados correctamente',
@@ -120,12 +130,18 @@ void main() {
   });
 
   group('carga por partes del panel', () {
-    testWidgets('al iniciar solo se pide el resumen de Inicio', (tester) async {
+    testWidgets('al iniciar Inicio pide su resumen, los predios y dos reglas', (
+      tester,
+    ) async {
       await _open(tester);
       await tester.pumpAndSettle();
 
       expect(adapter.hitsOf(_summary), 1);
-      expect(adapter.hitsOf(_premises), 0);
+      // La vista rápida de predios y la distancia salen de los predios.
+      expect(adapter.hitsOf(_premises), 1);
+      expect(adapter.hitsOf(_qrSettings), 1);
+      expect(adapter.hitsOf(_leaveLimits), 1);
+      // Las listas de usuarios y motivos no hacen falta.
       expect(adapter.hitsOf(_users), 0);
       expect(adapter.hitsOf(_roles), 0);
       expect(adapter.hitsOf(_reasons), 0);
@@ -158,9 +174,10 @@ void main() {
       await tester.tap(find.text('Usuarios'));
       await tester.pumpAndSettle();
       expect(adapter.hitsOf(_users), 1);
-      // Ni roles ni predios hacen falta para ver la lista.
+      // Los roles no hacen falta para ver la lista; los predios ya los pidió
+      // Inicio y siguen al día.
       expect(adapter.hitsOf(_roles), 0);
-      expect(adapter.hitsOf(_premises), 0);
+      expect(adapter.hitsOf(_premises), 1);
 
       await tester.tap(find.text('Predios'));
       await tester.pumpAndSettle();
@@ -253,10 +270,13 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(adapter.hitsOf(_sync), 1);
-      // Catálogo y resumen ya estaban cargados; predios y usuarios no.
+      // Lo que Inicio y Motivos ya habían cargado se vuelve a pedir; los
+      // usuarios, que nunca se abrieron, no.
       expect(adapter.hitsOf(_catalog), 2);
       expect(adapter.hitsOf(_summary), 2);
-      expect(adapter.hitsOf(_premises), 0);
+      expect(adapter.hitsOf(_premises), 2);
+      expect(adapter.hitsOf(_qrSettings), 2);
+      expect(adapter.hitsOf(_leaveLimits), 2);
       expect(adapter.hitsOf(_users), 0);
     });
   });

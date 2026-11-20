@@ -303,11 +303,15 @@ void main() {
         expect(find.text(section), findsWidgets);
       }
       expect(find.text('Ajustes'), findsOneWidget);
-      expect(find.text('Predios registrados'), findsOneWidget);
-      expect(find.text('Agregar un predio nuevo'), findsOneWidget);
-      // La sincronización de motivos ya no es una acción rápida de Inicio.
-      expect(find.text('Actualizar motivos de salida'), findsNothing);
-      expect(find.text('Administrar usuarios'), findsOneWidget);
+      // Franja de cifras y accesos directos de Inicio.
+      expect(find.text('PREDIOS'), findsOneWidget);
+      expect(find.text('USUARIOS'), findsOneWidget);
+      expect(find.text('RESPONSABLES'), findsOneWidget);
+      expect(find.text('MOTIVOS ACTIVOS'), findsOneWidget);
+      expect(find.text('+ Nuevo predio'), findsOneWidget);
+      expect(find.text('Crear responsable'), findsOneWidget);
+      expect(find.text('Código de dispositivo'), findsOneWidget);
+      expect(find.text('Sincronizar motivos'), findsOneWidget);
     });
 
     testWidgets('Predios no desborda en ${entry.key}', (tester) async {
@@ -414,8 +418,8 @@ void main() {
       await tester.pumpWidget(const MaterialApp(home: AdminDashboardPage()));
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Agregar un predio nuevo'));
-      await tester.tap(find.text('Agregar un predio nuevo'));
+      await tester.ensureVisible(find.text('+ Nuevo predio'));
+      await tester.tap(find.text('+ Nuevo predio'));
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
@@ -449,8 +453,7 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: AdminDashboardPage()));
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Administrar usuarios'));
-    await tester.tap(find.text('Administrar usuarios'));
+    await tester.tap(find.text('Usuarios'));
     await tester.pumpAndSettle();
 
     expect(find.text('Ana Pérez'), findsOneWidget);

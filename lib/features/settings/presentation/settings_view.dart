@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/admin_button.dart';
 import '../../../core/widgets/admin_page.dart';
+import '../../dashboard/state/admin_data_store.dart';
 import 'leave_limits_dialog.dart';
 import 'qr_settings_dialog.dart';
 
@@ -12,17 +15,20 @@ class SettingsView extends StatelessWidget {
   const SettingsView({super.key});
 
   Future<void> _openLeaveLimits(BuildContext context) async {
-    await showDialog<bool>(
+    final saved = await showDialog<bool>(
       context: context,
       builder: (context) => const LeaveLimitsDialog(),
     );
+    // Inicio muestra estas reglas: si cambiaron, se vuelven a leer.
+    if (saved == true) unawaited(AdminDataStore.instance.refreshQuietly());
   }
 
   Future<void> _openQrSettings(BuildContext context) async {
-    await showDialog<bool>(
+    final saved = await showDialog<bool>(
       context: context,
       builder: (context) => const QrSettingsDialog(),
     );
+    if (saved == true) unawaited(AdminDataStore.instance.refreshQuietly());
   }
 
   @override

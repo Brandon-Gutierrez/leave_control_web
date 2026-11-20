@@ -2,17 +2,15 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../../core/widgets/app_popup.dart';
 import '../../../core/widgets/filter_sidebar.dart';
 import '../../../core/widgets/lazy_card_grid.dart';
 import '../../../core/widgets/load_error.dart';
 import '../../../core/widgets/skeleton.dart';
 import '../../dashboard/state/admin_data_store.dart';
-import '../data/reason_catalog_service.dart';
 import '../models/reason_catalog.dart';
+import 'reason_sync_action.dart';
 
 enum _Status { all, active, retired }
 
@@ -28,7 +26,6 @@ class ReasonsView extends StatefulWidget {
 
 class ReasonsViewState extends State<ReasonsView> {
   final AdminDataStore _store = AdminDataStore.instance;
-  final ReasonCatalogService _service = ReasonCatalogService();
   final _searchController = TextEditingController();
 
   String _query = '';
@@ -62,25 +59,10 @@ class ReasonsViewState extends State<ReasonsView> {
     if (_syncing) return;
     setState(() => _syncing = true);
     try {
-      final result = await _service.syncNow();
-      if (!mounted) return;
-      final detail = result.summary;
-      showAppPopup(
-        context,
-        detail == null ? result.message : '${result.message} ($detail)',
-      );
-    } on ApiException catch (e) {
-      if (e.isUnauthorized) {
-        _store.sessionExpired();
-        return;
-      }
-      if (mounted) showAppPopup(context, e.message, kind: PopupKind.error);
+      await runReasonSync(context);
     } finally {
       if (mounted) setState(() => _syncing = false);
     }
-    // Tanto si salió bien como si falló, el servidor guardó el resultado: se
-    // vuelve a leer lo que ya estaba cargado (catálogo, resumen de Inicio...).
-    unawaited(_store.refreshQuietly());
   }
 
   List<CatalogReason> get _filtered {

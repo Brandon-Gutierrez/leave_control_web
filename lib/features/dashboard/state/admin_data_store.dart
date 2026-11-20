@@ -9,6 +9,9 @@ import '../../premises/models/premise.dart';
 import '../../premises/models/reason.dart';
 import '../../reasons/data/reason_catalog_service.dart';
 import '../../reasons/models/reason_catalog.dart';
+import '../../settings/data/settings_service.dart';
+import '../../settings/models/leave_limits.dart';
+import '../../settings/models/qr_settings.dart';
 import '../../users/data/user_admin_service.dart';
 import '../../users/models/managed_user.dart';
 import '../data/summary_service.dart';
@@ -127,6 +130,7 @@ class AdminDataStore extends ChangeNotifier {
   final PremiseService _premiseService = PremiseService();
   final UserAdminService _userService = UserAdminService();
   final ReasonCatalogService _catalogService = ReasonCatalogService();
+  final SettingsService _settingsService = SettingsService();
 
   /// Se llama (una sola vez) cuando una petición responde 401: la sesión
   /// caducó y hay que volver al inicio de sesión.
@@ -191,6 +195,24 @@ class AdminDataStore extends ChangeNotifier {
         'No se pudo cargar el catálogo de motivos',
       );
 
+  /// Vida del código QR (Inicio muestra la configuración vigente).
+  late final StoreResource<QrSettings?> qrSettingsData =
+      StoreResource<QrSettings?>._(
+        this,
+        _settingsService.getQrSettings,
+        null,
+        'No se pudo cargar la configuración del QR',
+      );
+
+  /// Límite de salidas por persona (Inicio muestra la configuración vigente).
+  late final StoreResource<LeaveLimits?> leaveLimitsData =
+      StoreResource<LeaveLimits?>._(
+        this,
+        _settingsService.getLeaveLimits,
+        null,
+        'No se pudo cargar el límite de salidas',
+      );
+
   List<StoreResource<Object?>> get _all => [
     summaryData,
     premisesData,
@@ -198,6 +220,8 @@ class AdminDataStore extends ChangeNotifier {
     rolesData,
     reasonsData,
     reasonCatalogData,
+    qrSettingsData,
+    leaveLimitsData,
   ];
 
   AdminSummary? get summary => summaryData.value;
