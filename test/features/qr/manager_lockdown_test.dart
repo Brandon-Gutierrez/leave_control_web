@@ -405,8 +405,13 @@ void main() {
       await openUsers(tester);
 
       expect(find.text('Ana Gestora'), findsOneWidget);
-      expect(find.text('Predio: Predio Central'), findsOneWidget);
-      expect(find.text('Gestor de predio'), findsOneWidget);
+      expect(find.text('Responsable de Predio Central'), findsOneWidget);
+
+      // En su detalle: su rol y su predio.
+      await tester.tap(find.text('Ana Gestora'));
+      await _settle(tester);
+      expect(find.text('Responsable de predio'), findsOneWidget);
+      expect(find.text('Predio Central'), findsOneWidget);
 
       await _teardown(tester);
     });
@@ -416,7 +421,7 @@ void main() {
     ) async {
       await openUsers(tester);
 
-      await tester.tap(find.text('Nuevo responsable de predio'));
+      await tester.tap(find.text('+ Nuevo responsable de predio'));
       await _settle(tester);
       expect(find.text('Nuevo responsable de predio'), findsWidgets);
 
@@ -463,15 +468,15 @@ void main() {
     ) async {
       await openUsers(tester);
 
+      // Elige a Ana en la lista y toca el rol de responsable en su detalle.
       await tester.tap(find.text('Ana Pérez'));
+      await _settle(tester);
+      await tester.tap(find.text('Responsable de predio'));
       await _settle(tester);
 
       final save = find.widgetWithText(FilledButton, 'Guardar cambio');
       final dialog = find.byType(Dialog);
-      await tester.tap(
-        find.descendant(of: dialog, matching: find.text('Gestor de predio')),
-      );
-      await _settle(tester);
+      expect(dialog, findsOneWidget);
 
       // Con el rol elegido pero sin predio no se puede guardar.
       expect(tester.widget<FilledButton>(save).onPressed, isNull);
@@ -489,7 +494,7 @@ void main() {
       expect(backend.lastBody, {'role_id': 3, 'premise_id': 8});
       expect(backend.count('PUT /api/admin/users/2/role'), 1);
       expect(
-        find.textContaining('ahora es Gestor de predio en Predio Norte'),
+        find.textContaining('ahora es Responsable de predio en Predio Norte'),
         findsOneWidget,
       );
 

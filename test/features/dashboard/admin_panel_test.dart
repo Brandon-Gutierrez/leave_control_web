@@ -450,6 +450,9 @@ void main() {
   );
 
   testWidgets('Cambiar el rol de un usuario pide confirmación', (tester) async {
+    tester.view.physicalSize = const Size(1600, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(const MaterialApp(home: AdminDashboardPage()));
     await tester.pumpAndSettle();
 
@@ -458,8 +461,11 @@ void main() {
 
     expect(find.text('Ana Pérez'), findsOneWidget);
 
-    // Toca la fila de Ana para abrir el selector de rol
+    // Elige a Ana en la lista y toca el rol Administrador en su detalle.
     await tester.tap(find.text('Ana Pérez'));
+    await tester.pumpAndSettle();
+    expect(find.byType(Dialog), findsNothing);
+    await tester.tap(find.text('Administrador'));
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
@@ -476,11 +482,16 @@ void main() {
       findsOneWidget,
     );
 
-    // El botón de guardar empieza deshabilitado hasta elegir un rol distinto
+    // El rol tocado sale elegido; volver al actual deshabilita el guardado.
     final saveButtonFinder = find.widgetWithText(
       FilledButton,
       'Guardar cambio',
     );
+    expect(tester.widget<FilledButton>(saveButtonFinder).onPressed, isNotNull);
+    await tester.tap(
+      find.descendant(of: dialogFinder, matching: find.text('Empleado')),
+    );
+    await tester.pumpAndSettle();
     expect(tester.widget<FilledButton>(saveButtonFinder).onPressed, isNull);
 
     await tester.tap(adminOptionFinder);
@@ -533,7 +544,8 @@ void filtersTests() {
     await tester.pumpAndSettle();
 
     expect(find.text('Ana Pérez'), findsOneWidget);
-    await tester.tap(find.text('Administradores'));
+    expect(find.text('Todos 3'), findsOneWidget); // cada pestaña dice cuántos
+    await tester.tap(find.text('Admin 1'));
     await tester.pumpAndSettle();
     expect(find.text('Ana Pérez'), findsNothing);
     expect(find.text('Luis Gómez'), findsOneWidget);
@@ -553,10 +565,21 @@ void filtersTests() {
     await tester.tap(find.text('Marta Gestora'));
     await tester.pumpAndSettle();
 
+    // En su detalle solo se ofrece el rol de responsable.
+    expect(find.text('Responsable de predio'), findsOneWidget);
+    expect(find.text('Empleado'), findsNothing);
+    expect(
+      find.textContaining('solo puede ser responsable de predio'),
+      findsOneWidget,
+    );
+
+    // Lo que sí puede cambiar es su predio.
+    await tester.tap(find.text('Cambiar predio'));
+    await tester.pumpAndSettle();
     final dialog = find.byType(Dialog);
     expect(dialog, findsOneWidget);
     expect(
-      find.descendant(of: dialog, matching: find.text('Gestor de predio')),
+      find.descendant(of: dialog, matching: find.text('Responsable de predio')),
       findsOneWidget,
     );
     expect(
@@ -587,6 +610,9 @@ void filtersTests() {
     // El nombre también sale en el encabezado de perfil: se toca el de la lista.
     await tester.tap(find.text('Luis Gómez').last);
     await tester.pumpAndSettle();
+    // En su detalle intenta pasar a Empleado.
+    await tester.tap(find.text('Empleado'));
+    await tester.pumpAndSettle();
 
     expect(find.byType(Dialog), findsNothing);
     expect(
@@ -596,6 +622,8 @@ void filtersTests() {
 
     // Otra persona sí abre el selector de rol.
     await tester.tap(find.text('Ana Pérez'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Administrador'));
     await tester.pumpAndSettle();
     expect(find.text('Cambiar rol'), findsOneWidget);
   });
@@ -666,7 +694,10 @@ void passwordAndLoginTests() {
       await tester.tap(find.text('Usuarios'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byTooltip('Cambiar o regenerar contraseña'));
+      await tester.tap(find.text('Marta Gestora'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Cambiar o regenerar contraseña'));
+      await tester.tap(find.text('Cambiar o regenerar contraseña'));
       await tester.pumpAndSettle();
       expect(find.text('Cambiar contraseña'), findsOneWidget);
       await tester.tap(find.text('Cambiar'));
@@ -691,7 +722,10 @@ void passwordAndLoginTests() {
     await tester.tap(find.text('Usuarios'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Cambiar o regenerar contraseña'));
+    await tester.tap(find.text('Marta Gestora'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Cambiar o regenerar contraseña'));
+    await tester.tap(find.text('Cambiar o regenerar contraseña'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Escribir una contraseña'));
     await tester.pumpAndSettle();

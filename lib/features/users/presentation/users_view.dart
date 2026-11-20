@@ -6,15 +6,14 @@ import '../../../core/constants/role_names.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/admin_button.dart';
+import '../../../core/widgets/admin_page.dart';
 import '../../../core/widgets/app_modal.dart';
 import '../../../core/widgets/app_popup.dart';
 import '../../../core/widgets/dialog_tone.dart';
-import '../../../core/widgets/filter_sidebar.dart';
-import '../../../core/widgets/lazy_card_grid.dart';
-import '../../../core/widgets/load_error.dart';
-import '../../../core/widgets/pagination_bar.dart';
-import '../../../core/widgets/skeleton.dart';
+import '../../../core/widgets/master_detail.dart';
 import '../../auth/state/session_controller.dart';
+import '../../dashboard/presentation/user_profile_header.dart';
 import '../../dashboard/state/admin_data_store.dart';
 import '../data/user_admin_service.dart';
 import '../models/device_match.dart';
@@ -22,15 +21,16 @@ import '../models/managed_user.dart';
 import 'change_role_dialog.dart';
 import 'create_manager_dialog.dart';
 import 'device_code_dialog.dart';
-import 'devices_dialog.dart';
 import 'manager_password_dialog.dart';
+import 'user_detail_pane.dart';
 
-/// Sección "Usuarios" del panel de administración: busca usuarios, gestiona
-/// roles y asigna predios a los gestores, siempre con confirmación.
-enum _RoleFilter { all, employee, admin, manager }
+/// Qué personas muestra la lista.
+enum UserTab { all, employees, admins, managers }
 
-enum _PremiseFilter { any, assigned, unassigned }
-
+/// Sección "Usuarios": a la izquierda la lista (con búsqueda, pestañas por
+/// tipo y letras) y a la derecha el detalle de la persona elegida, donde se
+/// cambia su rol y se desvincula su teléfono o navegador, siempre con
+/// confirmación.
 class UsersView extends StatefulWidget {
   const UsersView({super.key});
 
@@ -39,9 +39,6 @@ class UsersView extends StatefulWidget {
 }
 
 class UsersViewState extends State<UsersView> {
-  static const primaryRed = AppColors.primaryRed;
-  static const darkText = AppColors.darkText;
-
   final _searchController = TextEditingController();
   final UserAdminService _userAdminService = UserAdminService();
   final AdminDataStore _store = AdminDataStore.instance;
@@ -50,11 +47,12 @@ class UsersViewState extends State<UsersView> {
   List<AppRole> _roles = [];
   List<UserPremise> _premises = [];
   final Set<int> _occupiedPremiseIds = {};
-  _RoleFilter _roleFilter = _RoleFilter.all;
-  _PremiseFilter _premiseFilter = _PremiseFilter.any;
-  String _searchQuery = '';
-  int _page = 0;
-  static const _pageSize = 10;
+  UserTab _tab = UserTab.all;
+  String _query = '';
+  int? _selectedId;
+
+  /// En pantallas angostas: se ve el detalle en lugar de la lista.
+  bool _detailOpen = false;
   final Set<int> _updatingUserIds = {};
 
   @override
@@ -75,54 +73,9 @@ class UsersViewState extends State<UsersView> {
     super.dispose();
   }
 
-  List<ManagedUser> get _filteredUsers {
-    final query = _searchQuery.toLowerCase().trim();
-    return _users.where((u) {
-      if (query.isNotEmpty &&
-          !u.name.toLowerCase().contains(query) &&
-          !u.item.contains(query)) {
-        return false;
-      }
-      switch (_roleFilter) {
-        case _RoleFilter.all:
-          break;
-        case _RoleFilter.employee:
-          if (!u.isEmployee) return false;
-        case _RoleFilter.admin:
-          if (!u.isAdmin) return false;
-        case _RoleFilter.manager:
-          if (!u.managesPremise) return false;
-      }
-      if (_premiseFilter == _PremiseFilter.assigned && u.premise == null) {
-        return false;
-      }
-      if (_premiseFilter == _PremiseFilter.unassigned && u.premise != null) {
-        return false;
-      }
-      return true;
-    }).toList();
-  }
-
-  int get _activeFilters =>
-      (_roleFilter == _RoleFilter.all ? 0 : 1) +
-      (_premiseFilter == _PremiseFilter.any ? 0 : 1) +
-      (_searchQuery.trim().isEmpty ? 0 : 1);
-
-  void _clearFilters() => setState(() {
-    _roleFilter = _RoleFilter.all;
-    _premiseFilter = _PremiseFilter.any;
-    _searchQuery = '';
-    _page = 0;
-    _searchController.clear();
-  });
-
-  /// Predios que todavía no tienen responsable (solo puede haber uno por
-  /// predio), más el predio actual de [user] si ya es su responsable.
-  List<UserPremise> _availablePremises([ManagedUser? user]) => _premises
-      .where(
-        (p) => !_occupiedPremiseIds.contains(p.id) || p.id == user?.premise?.id,
-      )
-      .toList();
+  // -------------------------------------------------------------------------
+  // Datos
+  // -------------------------------------------------------------------------
 
   /// Copia los datos compartidos cada vez que cualquier sección los actualiza.
   void _applyStore() {
@@ -148,6 +101,43 @@ class UsersViewState extends State<UsersView> {
   /// Vuelve a pedir la lista de usuarios.
   Future<void> _reload() => _store.usersData.load(force: true);
 
+  ManagedUser? get _selected {
+    final id = _selectedId;
+    if (id == null) return null;
+    for (final user in _users) {
+      if (user.id == id) return user;
+    }
+    return null;
+  }
+
+  static bool _inTab(ManagedUser u, UserTab tab) => switch (tab) {
+    UserTab.all => true,
+    UserTab.employees => u.isEmployee,
+    UserTab.admins => u.isAdmin,
+    UserTab.managers => u.managesPremise,
+  };
+
+  /// Los de la pestaña y la búsqueda, ordenados por nombre sin mirar
+  /// mayúsculas ni tildes.
+  List<ManagedUser> get _visibleUsers {
+    final query = foldText(_query).trim();
+    final list = _users.where((u) {
+      if (!_inTab(u, _tab)) return false;
+      if (query.isEmpty) return true;
+      return foldText(u.name).contains(query) || u.item.contains(query);
+    }).toList();
+    list.sort((a, b) => foldText(a.name).compareTo(foldText(b.name)));
+    return list;
+  }
+
+  /// Predios que todavía no tienen responsable (solo puede haber uno por
+  /// predio), más el predio actual de [user] si ya es su responsable.
+  List<UserPremise> _availablePremises([ManagedUser? user]) => _premises
+      .where(
+        (p) => !_occupiedPremiseIds.contains(p.id) || p.id == user?.premise?.id,
+      )
+      .toList();
+
   /// Pide lo que un diálogo necesita (roles, predios...) solo cuando se abre.
   /// Devuelve false —y avisa— si alguno no se pudo cargar.
   Future<bool> _ensureLoaded(List<StoreResource<Object?>> needed) async {
@@ -170,6 +160,49 @@ class UsersViewState extends State<UsersView> {
     );
   }
 
+  // -------------------------------------------------------------------------
+  // Texto de la lista
+  // -------------------------------------------------------------------------
+
+  /// Línea bajo el nombre: item y rol, o el predio si es responsable.
+  static String subtitleOf(ManagedUser u) {
+    if (u.managesPremise) {
+      final premise = u.premise?.name;
+      return premise == null
+          ? 'Responsable sin predio asignado'
+          : 'Responsable de $premise';
+    }
+    final role = u.role == null ? 'Sin rol' : RoleNames.label(u.role!.name);
+    return u.item.isEmpty ? role : 'Item ${u.item} · $role';
+  }
+
+  /// Nota a la derecha: qué dispositivos tiene vinculados. En ámbar si le
+  /// falta alguno que su rol usa.
+  static (String, Color) deviceNote(ManagedUser u) {
+    final mobile = u.devices.containsKey(ClientPlatform.mobile);
+    final web = u.devices.containsKey(ClientPlatform.web);
+    final usesMobile = u.platforms.contains(ClientPlatform.mobile);
+    final usesWeb = u.platforms.contains(ClientPlatform.web);
+    if (!usesMobile && !usesWeb) return ('', AppColors.muted);
+
+    final linked = [if (mobile) 'teléfono', if (web) 'web'];
+    if (linked.isEmpty) {
+      final text = usesMobile && usesWeb
+          ? 'sin vincular'
+          : usesMobile
+          ? 'sin teléfono'
+          : 'sin navegador';
+      return (text, AppColors.warning);
+    }
+    if (mobile && web) return ('teléfono + web', AppColors.success);
+    if (web && !usesMobile) return ('navegador', AppColors.success);
+    return (linked.join(' + '), AppColors.success);
+  }
+
+  // -------------------------------------------------------------------------
+  // Acciones
+  // -------------------------------------------------------------------------
+
   /// Abre el formulario para crear un responsable de predio. Público para que
   /// "Inicio" pueda ofrecerlo como acceso directo.
   Future<void> openCreateManagerDialog() async {
@@ -191,11 +224,15 @@ class UsersViewState extends State<UsersView> {
     );
     if (created == null || !mounted) return;
     unawaited(_store.refreshQuietly());
-    setState(
-      () =>
-          _users = [..._users, created.user]
-            ..sort((a, b) => a.name.compareTo(b.name)),
-    );
+    setState(() {
+      _users = [..._users, created.user];
+      // La nueva cuenta queda elegida en el detalle.
+      _selectedId = created.user.id;
+      _detailOpen = true;
+      _tab = UserTab.all;
+      _query = '';
+      _searchController.clear();
+    });
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -203,7 +240,24 @@ class UsersViewState extends State<UsersView> {
     );
   }
 
-  Future<void> _openChangeRoleDialog(ManagedUser user) async {
+  /// Busca por el código que la persona ve en su app (y dicta a RR. HH.) a
+  /// quién está vinculado ese teléfono y permite desvincularlo.
+  Future<void> openDeviceCodeSearch() async {
+    final match = await showDialog<DeviceMatch>(
+      context: context,
+      builder: (context) => const DeviceCodeDialog(),
+    );
+    if (match == null || !mounted) return;
+    await _confirmAndResetDevice(match.userId, match.name, match.platform);
+  }
+
+  /// Abre el cuadro de cambio de rol (y de predio, si es responsable). Con
+  /// [roleName] sale elegido ese rol; sin él, el actual (para cambiar solo el
+  /// predio).
+  Future<void> _openChangeRoleDialog(
+    ManagedUser user, {
+    String? roleName,
+  }) async {
     if (_updatingUserIds.contains(user.id)) return;
 
     // Un administrador no se cambia su propio rol: otro administrador lo hace.
@@ -231,37 +285,24 @@ class UsersViewState extends State<UsersView> {
               .toList();
     if (roles.isEmpty) return;
 
+    int? initial;
+    if (roleName != null) {
+      for (final role in roles) {
+        if (RoleNames.matches(role.name, roleName)) initial = role.id;
+      }
+    }
+
     final selection = await showDialog<RoleChangeSelection>(
       context: context,
       builder: (context) => ChangeRoleDialog(
         user: user,
         roles: roles,
         premises: _availablePremises(user),
+        initialRoleId: initial,
       ),
     );
     if (selection == null) return;
     await _changeUser(user, selection);
-  }
-
-  Future<void> _openDevicesDialog(ManagedUser user) async {
-    if (_updatingUserIds.contains(user.id)) return;
-    final platform = await showDialog<ClientPlatform>(
-      context: context,
-      builder: (context) => DevicesDialog(user: user),
-    );
-    if (platform == null || !mounted) return;
-    await _confirmAndResetDevice(user.id, user.name, platform);
-  }
-
-  /// Busca por el código que la persona ve en su app (y dicta a RR. HH.) a
-  /// quién está vinculado ese teléfono y permite desvincularlo.
-  Future<void> openDeviceCodeSearch() async {
-    final match = await showDialog<DeviceMatch>(
-      context: context,
-      builder: (context) => const DeviceCodeDialog(),
-    );
-    if (match == null || !mounted) return;
-    await _confirmAndResetDevice(match.userId, match.name, match.platform);
   }
 
   /// Pide confirmación y desvincula el dispositivo de la cuenta en [platform].
@@ -311,7 +352,11 @@ class UsersViewState extends State<UsersView> {
         final index = _users.indexWhere((u) => u.id == userId);
         if (index != -1) {
           final devices = Map.of(_users[index].devices)..remove(platform);
-          _users[index] = _users[index].copyWith(devices: devices);
+          final codes = Map.of(_users[index].deviceCodes)..remove(platform);
+          _users[index] = _users[index].copyWith(
+            devices: devices,
+            deviceCodes: codes,
+          );
         }
       });
       _showSnackBar(
@@ -407,7 +452,7 @@ class UsersViewState extends State<UsersView> {
         if (index != -1) _users[index] = updated;
       });
       final displayName = user.name.isEmpty ? 'El usuario' : user.name;
-      final roleLabel = _roleLabel(selection.role);
+      final roleLabel = RoleNames.label(selection.role.name);
       final premiseLabel = selection.premiseId == null
           ? ''
           : ' en ${_premises.firstWhere((p) => p.id == selection.premiseId).name}';
@@ -426,447 +471,152 @@ class UsersViewState extends State<UsersView> {
     }
   }
 
-  String _roleLabel(AppRole role) => RoleNames.label(role.name);
+  // -------------------------------------------------------------------------
+  // Pantalla
+  // -------------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
-    return FilterSidebarLayout(
-      wideBreakpoint: 1100,
-      search: _buildSearchField(),
-      activeCount: _activeFilters,
-      onClear: _clearFilters,
-      filters: [
-        FilterGroup<_RoleFilter>(
-          title: 'Tipo de usuario',
-          value: _roleFilter,
-          options: const {
-            _RoleFilter.all: 'Todos',
-            _RoleFilter.employee: 'Empleados',
-            _RoleFilter.admin: 'Administradores',
-            _RoleFilter.manager: 'Responsables de predio',
-          },
-          onChanged: (v) => setState(() {
-            _roleFilter = v;
-            _page = 0;
-          }),
-        ),
-        FilterGroup<_PremiseFilter>(
-          title: 'Predio asignado',
-          value: _premiseFilter,
-          options: const {
-            _PremiseFilter.any: 'Todos',
-            _PremiseFilter.assigned: 'Con predio',
-            _PremiseFilter.unassigned: 'Sin predio',
-          },
-          onChanged: (v) => setState(() {
-            _premiseFilter = v;
-            _page = 0;
-          }),
-        ),
-      ],
-      content: _buildContent(),
-    );
-  }
-
-  /// Acciones principales: crear un responsable y buscar un dispositivo por su
-  /// código (el que la persona dicta a Recursos Humanos).
-  Widget _buildTopActions(bool sideBySide) {
-    final create = SizedBox(
-      height: AppDimens.buttonHeight,
-      child: ElevatedButton.icon(
-        onPressed: openCreateManagerDialog,
-        icon: const Icon(Icons.person_add_alt_1_rounded),
-        label: const Text('Nuevo responsable de predio'),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: primaryRed,
-          foregroundColor: Colors.white,
-        ),
-      ),
-    );
-    final search = SizedBox(
-      height: AppDimens.buttonHeight,
-      child: OutlinedButton.icon(
-        onPressed: openDeviceCodeSearch,
-        icon: const Icon(Icons.manage_search_rounded),
-        label: const Text('Buscar por código de dispositivo'),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: darkText,
-          side: const BorderSide(color: Color(0xFFB0B0B0)),
-        ),
-      ),
-    );
-    if (!sideBySide) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [create, const SizedBox(height: 10), search],
-      );
-    }
-    return Row(
-      children: [
-        Expanded(child: create),
-        const SizedBox(width: 12),
-        Expanded(child: search),
-      ],
-    );
-  }
-
-  Widget _buildContent() {
-    final users = _filteredUsers;
-    final pageUsers = pageSlice(users, _page, _pageSize);
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final horizontalPadding = constraints.maxWidth >= Breakpoints.tablet
-            ? 24.0
-            : 16.0;
-        return Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 900),
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(
-                horizontalPadding,
-                16,
-                horizontalPadding,
-                0,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildTopActions(constraints.maxWidth >= 640),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _store.usersData.isInitialLoad
-                            ? const Align(
-                                alignment: Alignment.centerLeft,
-                                child: SkeletonPulse(
-                                  child: SkeletonBox(width: 180, height: 14),
-                                ),
-                              )
-                            : Text(
-                                '${users.length} de ${_users.length} usuarios · '
-                                'Toca a una persona para cambiar su rol.',
-                                style: AppText.caption,
-                              ),
-                      ),
-                      IconButton(
-                        icon: const Icon(
-                          Icons.refresh_rounded,
-                          color: darkText,
-                          size: AppDimens.iconSize,
-                        ),
-                        tooltip: 'Actualizar',
-                        onPressed: _store.usersData.isLoading ? null : _reload,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Expanded(child: _buildBody(users, pageUsers)),
-                  PaginationBar(
-                    page: _page,
-                    pageSize: _pageSize,
-                    total: users.length,
-                    onChanged: (p) => setState(() => _page = p),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  /// Cambia de lista (filtro, búsqueda o página): la lista vuelve al inicio.
-  Key get _listKey => ValueKey(
-    '$_page|$_searchQuery|${_roleFilter.index}|${_premiseFilter.index}',
-  );
-
-  /// Lo que hay bajo el encabezado: esqueletos mientras llegan los usuarios, un
-  /// aviso con "Reintentar" si no se pudieron cargar, o la lista.
-  Widget _buildBody(List<ManagedUser> users, List<ManagedUser> pageUsers) {
     final data = _store.usersData;
-    if (data.isInitialLoad) {
-      return SkeletonPulse(
-        child: LazyCardGrid<int>(
-          items: List.generate(6, (i) => i),
-          columns: 1,
-          itemBuilder: (context, _) => const _SkeletonUserTile(),
-        ),
-      );
-    }
-    if (data.hasFailed && !data.hasLoaded) {
-      return Align(
-        alignment: Alignment.topCenter,
-        child: LoadErrorNotice(
-          message: data.error ?? 'No se pudo cargar la lista de usuarios',
-          onRetry: _reload,
-        ),
-      );
-    }
-    if (users.isEmpty) {
-      return Center(
-        child: Text(
-          'No se encontraron usuarios con esos filtros.',
-          style: AppText.body.copyWith(color: Colors.grey.shade600),
-        ),
-      );
-    }
-    return RefreshIndicator(
+    final visible = _visibleUsers;
+    final selected = _selected;
+
+    return AdminPage(
+      title: 'Usuarios',
+      subtitle: 'Elige a una persona de la lista para ver y cambiar su rol y su teléfono.',
       onRefresh: _reload,
-      color: Colors.white,
-      backgroundColor: primaryRed,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          const minCardWidth = 400.0;
-          final columns = ((constraints.maxWidth + 12) / (minCardWidth + 12))
-              .floor()
-              .clamp(1, 2)
-              .toInt();
-          // Las tarjetas se construyen por filas, solo cuando se acercan a la pantalla.
-          return LazyCardGrid<ManagedUser>(
-            key: _listKey,
-            items: pageUsers,
-            columns: columns,
-            itemBuilder: (context, user) => _buildUserTile(user),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildSearchField() {
-    return TextField(
-      controller: _searchController,
-      onChanged: (value) => setState(() {
-        _searchQuery = value;
-        _page = 0;
-      }),
-      style: AppText.body,
-      decoration: InputDecoration(
-        hintText: 'Buscar por nombre o item...',
-        hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 15),
-        prefixIcon: const Icon(
-          Icons.search_rounded,
-          color: darkText,
-          size: AppDimens.iconSize,
+      actions: [
+        AdminButton(
+          label: 'Buscar por código de dispositivo',
+          onPressed: openDeviceCodeSearch,
         ),
-        filled: true,
-        fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(vertical: 16),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppDimens.fieldRadius),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+        AdminButton.primary(
+          label: '+ Nuevo responsable de predio',
+          onPressed: openCreateManagerDialog,
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppDimens.fieldRadius),
-          borderSide: const BorderSide(color: primaryRed, width: 1.5),
+      ],
+      child: MasterDetailLayout(
+        showDetail: _detailOpen && selected != null,
+        master: MasterList<ManagedUser>(
+          height: masterListHeight(context),
+          searchHint: 'Buscar por nombre o item...',
+          searchController: _searchController,
+          onSearch: (value) => setState(() => _query = value),
+          tabs: [
+            ListTabSpec('Todos', _users.length),
+            ListTabSpec(
+              'Empleados',
+              _users.where((u) => _inTab(u, UserTab.employees)).length,
+            ),
+            ListTabSpec(
+              'Admin',
+              _users.where((u) => _inTab(u, UserTab.admins)).length,
+            ),
+            ListTabSpec(
+              'Responsables',
+              _users.where((u) => _inTab(u, UserTab.managers)).length,
+            ),
+          ],
+          tabIndex: _tab.index,
+          onTab: (i) => setState(() => _tab = UserTab.values[i]),
+          items: visible,
+          groupOf: (u) => groupLetterOf(u.name),
+          loading: data.isInitialLoad,
+          error: data.hasFailed && !data.hasLoaded
+              ? (data.error ?? 'No se pudo cargar la lista de usuarios')
+              : null,
+          onRetry: _reload,
+          emptyText: 'No se encontraron usuarios con esos filtros.',
+          onTap: (u) => setState(() {
+            _selectedId = u.id;
+            _detailOpen = true;
+          }),
+          rowBuilder: (context, u) {
+            final (note, color) = deviceNote(u);
+            return MasterRowTile(
+              leading: RowBadge(text: UserAvatar.initials(u.name)),
+              title: u.name.isEmpty ? 'Sin nombre' : u.name,
+              subtitle: subtitleOf(u),
+              note: note.isEmpty ? null : note,
+              noteColor: color,
+              selected: u.id == _selectedId,
+            );
+          },
         ),
-      ),
-    );
-  }
-
-  Widget _buildUserTile(ManagedUser user) {
-    final isUpdating = _updatingUserIds.contains(user.id);
-    final isAdmin = user.isAdmin;
-    final roleLabel = user.role == null ? 'Sin rol' : _roleLabel(user.role!);
-
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(AppDimens.cardRadius),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(AppDimens.cardRadius),
-        onTap: isUpdating ? null : () => _openChangeRoleDialog(user),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppDimens.cardRadius),
-            border: Border.all(color: Colors.grey.shade300),
-          ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final avatar = CircleAvatar(
-                radius: 22,
-                backgroundColor: isAdmin
-                    ? primaryRed.withValues(alpha: 0.12)
-                    : Colors.grey.shade200,
-                child: Icon(
-                  isAdmin ? Icons.shield_rounded : Icons.badge_rounded,
-                  color: isAdmin ? primaryRed : Colors.grey.shade600,
+        detailBuilder: (narrow) => selected == null
+            ? const _NothingSelected()
+            : UserDetailPane(
+                key: ValueKey(selected.id),
+                user: selected,
+                busy: _updatingUserIds.contains(selected.id),
+                onChangeRole: (role) =>
+                    _openChangeRoleDialog(selected, roleName: role),
+                onChangePremise: () => _openChangeRoleDialog(selected),
+                onResetDevice: (platform) => _confirmAndResetDevice(
+                  selected.id,
+                  selected.name,
+                  platform,
                 ),
-              );
-              final info = Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    user.name.isEmpty ? 'Sin nombre' : user.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppText.cardTitle,
-                  ),
-                  const SizedBox(height: 3),
-                  Text('Item: ${user.item}', style: AppText.caption),
-                  if (user.managesPremise && user.premise != null)
-                    Text(
-                      'Predio: ${user.premise!.name}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppText.caption,
-                    ),
-                  if (user.platforms.isNotEmpty)
-                    Text(
-                      user.platforms
-                          .map(
-                            (p) =>
-                                '${p.label}: ${user.devices.containsKey(p) ? 'vinculado' : 'sin vincular'}',
-                          )
-                          .join(' · '),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppText.caption,
-                    ),
-                ],
-              );
-              final indicator = isUpdating
-                  ? const SizedBox(
-                      height: 22,
-                      width: 22,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        color: primaryRed,
-                      ),
-                    )
-                  : Wrap(
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        if (user.managesPremise && user.username != null)
-                          IconButton(
-                            icon: const Icon(
-                              Icons.key_rounded,
-                              color: darkText,
-                            ),
-                            tooltip: 'Cambiar o regenerar contraseña',
-                            onPressed: () => _openPasswordDialog(user),
-                          ),
-                        if (user.platforms.isNotEmpty)
-                          IconButton(
-                            icon: const Icon(
-                              Icons.devices_rounded,
-                              color: darkText,
-                            ),
-                            tooltip: 'Dispositivos',
-                            onPressed: () => _openDevicesDialog(user),
-                          ),
-                        _RoleBadge(label: roleLabel, isAdmin: isAdmin),
-                      ],
-                    );
-
-              // En pantallas muy angostas, la insignia de rol no cabe junto
-              // al nombre: se acomoda debajo para que nada se recorte.
-              if (constraints.maxWidth < 420) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        avatar,
-                        const SizedBox(width: 14),
-                        Expanded(child: info),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Align(alignment: Alignment.centerLeft, child: indicator),
-                  ],
-                );
-              }
-
-              return Row(
-                children: [
-                  avatar,
-                  const SizedBox(width: 14),
-                  Expanded(child: info),
-                  const SizedBox(width: 8),
-                  indicator,
-                ],
-              );
-            },
-          ),
-        ),
+                onChangePassword: () => _openPasswordDialog(selected),
+                onBack: narrow
+                    ? () => setState(() => _detailOpen = false)
+                    : null,
+              ),
       ),
     );
   }
-}
 
-class _RoleBadge extends StatelessWidget {
-  final String label;
-  final bool isAdmin;
+  /// La inicial para agrupar la lista: sin tildes y en mayúscula; «#» si el
+  /// nombre no empieza con una letra.
+  static String groupLetterOf(String name) {
+    final folded = foldText(name).trim();
+    if (folded.isEmpty) return '#';
+    final first = folded[0].toUpperCase();
+    return RegExp(r'[A-Z]').hasMatch(first) ? first : '#';
+  }
 
-  const _RoleBadge({required this.label, required this.isAdmin});
-
-  @override
-  Widget build(BuildContext context) {
-    final color = isAdmin ? AppColors.primaryRed : Colors.grey.shade700;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: isAdmin
-            ? AppColors.primaryRed.withValues(alpha: 0.1)
-            : Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isAdmin ? AppColors.primaryRed : Colors.grey.shade400,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: color,
-            ),
-          ),
-          const SizedBox(width: 4),
-          Icon(Icons.edit_rounded, size: 15, color: color),
-        ],
-      ),
-    );
+  /// El texto en minúsculas y sin tildes, para ordenar y buscar.
+  static String foldText(String text) {
+    const from = 'áàäâãéèëêíìïîóòöôõúùüûñç';
+    const to = 'aaaaaeeeeiiiiooooouuuunc';
+    final lower = text.toLowerCase();
+    final buffer = StringBuffer();
+    for (final unit in lower.runes) {
+      final char = String.fromCharCode(unit);
+      final index = from.indexOf(char);
+      buffer.write(index == -1 ? char : to[index]);
+    }
+    return buffer.toString();
   }
 }
 
-/// Hueco con la forma de una tarjeta de usuario mientras llegan los datos.
-class _SkeletonUserTile extends StatelessWidget {
-  const _SkeletonUserTile();
+/// Lo que se ve a la derecha mientras no se ha elegido a nadie.
+class _NothingSelected extends StatelessWidget {
+  const _NothingSelected();
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppDimens.cardRadius),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: const Row(
-        children: [
-          SkeletonBox(width: 44, height: 44, radius: 22),
-          SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SkeletonBox(width: 180, height: 18),
-                SizedBox(height: 8),
-                SkeletonBox(width: 90, height: 12),
-              ],
-            ),
+    return const DetailPanel(
+      child: SizedBox(
+        height: 260,
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.touch_app_outlined, size: 40, color: AppColors.label),
+              SizedBox(height: 12),
+              Text(
+                'Elige a una persona de la lista',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+              ),
+              SizedBox(height: 4),
+              Text(
+                'Aquí verás su rol, su teléfono y su navegador.',
+                style: TextStyle(fontSize: 14, color: AppColors.muted),
+              ),
+            ],
           ),
-          SizedBox(width: 12),
-          SkeletonBox(width: 90, height: 32, radius: 16),
-        ],
+        ),
       ),
     );
   }

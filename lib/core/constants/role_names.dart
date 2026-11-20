@@ -14,7 +14,7 @@ abstract final class RoleNames {
   /// Nombre del rol para mostrar en listas y selectores.
   static String label(String roleName) => switch (roleName.toUpperCase()) {
     admin => 'Administrador',
-    managePremise => 'Gestor de predio',
+    managePremise => 'Responsable de predio',
     employee => 'Empleado',
     _ => roleName,
   };

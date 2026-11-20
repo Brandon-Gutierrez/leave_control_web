@@ -196,7 +196,7 @@ void main() {
     expect(find.textContaining('MANAGE_PREMISE'), findsNothing);
     expect(
       find.text(
-        'Aún no hay usuarios con el rol Gestor de predio. '
+        'Aún no hay usuarios con el rol Responsable de predio. '
         'Créalos en la sección Usuarios.',
       ),
       findsOneWidget,

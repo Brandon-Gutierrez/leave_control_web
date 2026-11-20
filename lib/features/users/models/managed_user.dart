@@ -39,6 +39,9 @@ class ManagedUser {
   /// ahí (nunca entró, o administración desvinculó el anterior).
   final Map<ClientPlatform, DateTime> devices;
 
+  /// Código corto de cada dispositivo vinculado (el que la persona ve en su app).
+  final Map<ClientPlatform, String> deviceCodes;
+
   ManagedUser({
     required this.id,
     required this.name,
@@ -47,6 +50,7 @@ class ManagedUser {
     this.premise,
     this.username,
     this.devices = const {},
+    this.deviceCodes = const {},
   });
 
   bool get isAdmin => RoleNames.matches(role?.name, RoleNames.admin);
@@ -64,11 +68,16 @@ class ManagedUser {
     final roleJson = json['role'];
     final premiseJson = json['premise'];
     final devices = <ClientPlatform, DateTime>{};
+    final deviceCodes = <ClientPlatform, String>{};
     for (final device in (json['devices'] as List? ?? const [])) {
       if (device is! Map) continue;
       final platform = ClientPlatform.fromApi(device['platform']?.toString());
       final boundAt = DateTime.tryParse('${device['bound_at']}');
-      if (platform != null && boundAt != null) devices[platform] = boundAt;
+      if (platform != null && boundAt != null) {
+        devices[platform] = boundAt;
+        final code = device['code']?.toString().trim() ?? '';
+        if (code.isNotEmpty) deviceCodes[platform] = code;
+      }
     }
     return ManagedUser(
       id: json['user_id'] ?? 0,
@@ -80,6 +89,7 @@ class ManagedUser {
       premise: premiseJson is Map ? UserPremise.fromJson(premiseJson) : null,
       username: json['username'] as String?,
       devices: devices,
+      deviceCodes: deviceCodes,
     );
   }
 
@@ -88,6 +98,7 @@ class ManagedUser {
     AppRole? role,
     UserPremise? premise,
     Map<ClientPlatform, DateTime>? devices,
+    Map<ClientPlatform, String>? deviceCodes,
   }) => ManagedUser(
     id: id,
     name: name,
@@ -96,6 +107,7 @@ class ManagedUser {
     premise: premise ?? this.premise,
     username: username,
     devices: devices ?? this.devices,
+    deviceCodes: deviceCodes ?? this.deviceCodes,
   );
 }
 

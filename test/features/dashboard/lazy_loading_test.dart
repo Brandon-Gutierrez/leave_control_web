@@ -202,7 +202,11 @@ void main() {
       await tester.pumpAndSettle();
       expect(adapter.hitsOf(_roles), 0);
 
+      // Elegir a la persona no pide nada más; tocar un rol sí abre el cambio.
       await tester.tap(find.text('Persona 1'));
+      await tester.pumpAndSettle();
+      expect(adapter.hitsOf(_roles), 0);
+      await tester.tap(find.text('Administrador'));
       await tester.pumpAndSettle();
 
       expect(find.text('Cambiar rol'), findsOneWidget);
@@ -293,9 +297,14 @@ void main() {
       await tester.tap(find.text('Usuarios'));
       await tester.pumpAndSettle();
 
-      // 60 usuarios, 10 por página: solo se construyen las filas visibles.
+      // 60 usuarios: solo se construyen las filas cercanas a la pantalla.
       expect(find.text('Persona 1'), findsOneWidget);
-      expect(find.text('Persona 10'), findsNothing);
+      expect(find.text('Persona 60'), findsNothing);
+      expect(
+        find.textContaining('Persona ').evaluate().length,
+        lessThan(30),
+        reason: 'no debe construir las 60 filas',
+      );
     });
 
     testWidgets('LazyCardGrid construye solo lo que se ve', (tester) async {

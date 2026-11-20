@@ -15,11 +15,16 @@ class ChangeRoleDialog extends StatefulWidget {
   final List<AppRole> roles;
   final List<UserPremise> premises;
 
+  /// Rol que aparece elegido al abrir (p. ej. el que se tocó en el detalle del
+  /// usuario). Por defecto, el rol actual.
+  final int? initialRoleId;
+
   const ChangeRoleDialog({
     super.key,
     required this.user,
     required this.roles,
     required this.premises,
+    this.initialRoleId,
   });
 
   @override
@@ -27,7 +32,7 @@ class ChangeRoleDialog extends StatefulWidget {
 }
 
 class _ChangeRoleDialogState extends State<ChangeRoleDialog> {
-  late int? _selectedRoleId = widget.user.role?.id;
+  late int? _selectedRoleId = widget.initialRoleId ?? widget.user.role?.id;
   late int? _selectedPremiseId = widget.user.premise?.id;
 
   bool _isAdminRole(AppRole role) =>

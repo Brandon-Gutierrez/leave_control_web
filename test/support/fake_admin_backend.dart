@@ -51,6 +51,14 @@ class FakeAdminBackend implements HttpClientAdapter {
   /// Cuántas veces se pidió «Sincronizar ahora».
   int syncCalls = 0;
 
+  /// Desvinculaciones pedidas: `idDelUsuario:plataforma`.
+  final List<String> deviceResets = [];
+
+  /// Cambios de rol pedidos: `idDelUsuario:idDelRol`.
+  final List<String> roleChanges = [];
+
+  static const _roleNames = {1: 'EMPLOYEE', 2: 'ADMIN', 3: 'MANAGE_PREMISE'};
+
   /// Instala este adaptador en el cliente HTTP compartido.
   FakeAdminBackend install() {
     ApiClient().dio.httpClientAdapter = this;
@@ -81,6 +89,28 @@ class FakeAdminBackend implements HttpClientAdapter {
           {'role_id': 3, 'name': 'MANAGE_PREMISE'},
         ],
       };
+    } else if (RegExp(r'^/api/admin/users/(\d+)/device/reset$').firstMatch(path)
+        case final match? when method == 'POST') {
+      final id = int.parse(match.group(1)!);
+      final platform = (options.data as Map)['platform'];
+      deviceResets.add('$id:$platform');
+      for (final user in users) {
+        if (user['user_id'] == id) {
+          (user['devices'] as List?)?.removeWhere(
+            (d) => (d as Map)['platform'] == platform,
+          );
+        }
+      }
+      body = {'status': 0};
+    } else if (RegExp(r'^/api/admin/users/(\d+)/role$').firstMatch(path)
+        case final match? when method == 'PUT') {
+      final id = int.parse(match.group(1)!);
+      final roleId = (options.data as Map)['role_id'] as int;
+      roleChanges.add('$id:$roleId');
+      final user = users.firstWhere((u) => u['user_id'] == id);
+      user['role_id'] = roleId;
+      user['role'] = {'role_id': roleId, 'name': _roleNames[roleId]};
+      body = {'status': 0, 'data': user};
     } else if (path == '/api/admin/reasons/sync' && method == 'POST') {
       syncCalls++;
       body = {
