@@ -119,6 +119,8 @@ class MasterList<T> extends StatelessWidget {
         borderRadius: BorderRadius.circular(6),
       ),
       child: Column(
+        // La barra de pestañas ocupa todo el ancho aunque tenga pocas.
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
@@ -492,6 +494,50 @@ class DetailPanel extends StatelessWidget {
         borderRadius: BorderRadius.circular(6),
       ),
       child: child,
+    );
+  }
+}
+
+/// Lo que se ve a la derecha mientras no se ha elegido nada en la lista.
+class DetailPlaceholder extends StatelessWidget {
+  final String title;
+  final String hint;
+
+  const DetailPlaceholder({super.key, required this.title, required this.hint});
+
+  @override
+  Widget build(BuildContext context) {
+    return DetailPanel(
+      child: SizedBox(
+        height: 260,
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.touch_app_outlined,
+                size: 40,
+                color: AppColors.label,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                hint,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 14, color: AppColors.muted),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

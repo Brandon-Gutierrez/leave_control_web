@@ -93,8 +93,10 @@ void main() {
       await tester.pumpWidget(_app(AdminDashboardPage(user: _admin)));
       await tester.pumpAndSettle();
 
+      // El título de la página repite el nombre de la pestaña: la del
+      // encabezado es la primera.
       TextStyle? styleOf(String tab) =>
-          tester.widget<Text>(find.text(tab)).style;
+          tester.widget<Text>(find.text(tab).first).style;
       expect(styleOf('Inicio')?.fontWeight, FontWeight.w800);
       expect(styleOf('Predios')?.fontWeight, FontWeight.w700);
       expect(styleOf('Inicio')?.color, isNot(styleOf('Predios')?.color));

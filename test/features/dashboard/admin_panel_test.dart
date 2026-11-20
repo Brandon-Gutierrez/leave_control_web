@@ -15,6 +15,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../support/blank_tile_provider.dart';
+
 const _premisesPayload = {
   'status': 0,
   'data': [
@@ -252,6 +254,7 @@ void main() {
   filtersTests();
   setUp(() {
     ApiClient().dio.httpClientAdapter = _FakeAdapter();
+    BlankTileProvider.install();
     // La store es única: cada prueba empieza sin datos en memoria.
     AdminDataStore.instance.clear();
   });
@@ -324,21 +327,21 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.text('Predio 1'), findsOneWidget);
 
-      // Sin lista desplegable: cada predio muestra su botón Editar y su QR
-      expect(find.byType(ExpansionTile), findsNothing);
-      expect(find.text('Editar'), findsWidgets);
-      expect(find.text('QR'), findsNothing); // ya no hay botón de QR
-      expect(find.textContaining('Responsable:'), findsWidgets);
-
-      // Tres tarjetas por fila como mínimo en pantallas anchas
-      if (entry.value.width >= 1366) {
-        final y1 = tester.getTopLeft(find.text('Predio 1')).dy;
-        expect(tester.getTopLeft(find.text('Predio 2')).dy, y1);
-        expect(
-          tester.getTopLeft(find.textContaining('Predio con un nombre')).dy,
-          y1,
-        );
+      // La lista dice qué le falta a cada predio.
+      expect(find.text('Responsable: Marta Gestora'), findsOneWidget);
+      expect(find.text('Sin ubicación en el mapa'), findsWidgets);
+      if (entry.value.width >= 1000) {
+        expect(find.text('Elige un predio de la lista'), findsOneWidget);
       }
+
+      // Al elegir uno se ve su detalle (en pantallas angostas, en lugar de la
+      // lista) sin desbordar.
+      await tester.tap(find.text('Predio 1'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.text('NOMBRE DEL PREDIO'), findsOneWidget);
+      expect(find.text('RESPONSABLE DEL PREDIO'), findsOneWidget);
+      expect(find.text('Guardar cambios'), findsOneWidget);
     });
 
     testWidgets('Usuarios no desborda en ${entry.key}', (tester) async {
@@ -368,7 +371,7 @@ void main() {
       await tester.tap(find.text('Predios'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Agregar predio'));
+      await tester.tap(find.text('+ Nuevo predio'));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
       expect(find.text('Crear predio'), findsOneWidget);
@@ -507,7 +510,7 @@ void main() {
 }
 
 void filtersTests() {
-  testWidgets('La barra de filtros de predios filtra por responsable', (
+  testWidgets('Las pestañas de predios filtran por lo que les falta', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1600, 1000);
@@ -518,18 +521,17 @@ void filtersTests() {
     await tester.tap(find.text('Predios'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Filtros'), findsOneWidget); // panel lateral fijo
+    expect(find.text('Todos 7'), findsOneWidget); // cada pestaña dice cuántos
     expect(find.text('Predio 2'), findsOneWidget);
 
-    await tester.tap(find.text('Con responsable'));
+    await tester.tap(find.text('Sin responsable 6'));
     await tester.pumpAndSettle();
-    expect(find.text('Predio 1'), findsOneWidget); // único con responsable
-    expect(find.text('Predio 2'), findsNothing);
-    expect(find.text('1 de 7 predios'), findsOneWidget);
-
-    await tester.tap(find.text('Limpiar todo'));
-    await tester.pumpAndSettle();
+    expect(find.text('Predio 1'), findsNothing); // el único con responsable
     expect(find.text('Predio 2'), findsOneWidget);
+
+    await tester.tap(find.text('Todos 7'));
+    await tester.pumpAndSettle();
+    expect(find.text('Predio 1'), findsOneWidget);
   });
 
   testWidgets('La barra de filtros de usuarios filtra por tipo', (
@@ -628,7 +630,7 @@ void filtersTests() {
     expect(find.text('Cambiar rol'), findsOneWidget);
   });
 
-  testWidgets('En teléfono los filtros se despliegan con el botón Filtros', (
+  testWidgets('En teléfono el predio elegido reemplaza a la lista', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(360, 740);
@@ -639,10 +641,15 @@ void filtersTests() {
     await tester.tap(find.text('Predios'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Limpiar todo'), findsNothing);
-    await tester.tap(find.text('Filtros'));
+    expect(find.text('Volver a la lista'), findsNothing);
+    await tester.tap(find.text('Predio 2'));
     await tester.pumpAndSettle();
-    expect(find.text('Limpiar todo'), findsOneWidget);
+    expect(find.text('Volver a la lista'), findsOneWidget);
+    expect(find.text('Predio 5'), findsNothing); // ya no se ve la lista
+
+    await tester.tap(find.text('Volver a la lista'));
+    await tester.pumpAndSettle();
+    expect(find.text('Predio 5'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

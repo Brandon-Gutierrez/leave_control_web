@@ -57,6 +57,18 @@ class FakeAdminBackend implements HttpClientAdapter {
   /// Cambios de rol pedidos: `idDelUsuario:idDelRol`.
   final List<String> roleChanges = [];
 
+  /// Actualizaciones de predios pedidas: el `id` y lo que viajó en la petición.
+  final List<Map<String, dynamic>> premiseUpdates = [];
+
+  /// Cada petición recibida: `METODO ruta`.
+  final List<String> requests = [];
+
+  /// Si se indica, guardar un predio (PUT) falla con este mensaje (422).
+  String? premiseUpdateError;
+
+  /// Motivos del catálogo que devuelve `/api/admin/reasons`.
+  List<String> reasons = ['Banco', 'Médico', 'Trámite'];
+
   static const _roleNames = {1: 'EMPLOYEE', 2: 'ADMIN', 3: 'MANAGE_PREMISE'};
 
   /// Instala este adaptador en el cliente HTTP compartido.
@@ -73,11 +85,15 @@ class FakeAdminBackend implements HttpClientAdapter {
   ) async {
     final path = options.path;
     final method = options.method.toUpperCase();
+    requests.add('$method $path');
     final Object body;
+    var statusCode = 200;
     if (path == '/api/admin/summary' && method == 'GET') {
       body = {'status': 0, 'data': summary};
     } else if (path == '/api/admin/premises' && method == 'GET') {
       body = {'status': 0, 'data': premises};
+    } else if (path == '/api/admin/reasons' && method == 'GET') {
+      body = {'status': 0, 'reasons': reasons};
     } else if (path == '/api/admin/users' && method == 'GET') {
       body = {'status': 0, 'data': users};
     } else if (path == '/api/admin/roles' && method == 'GET') {
@@ -111,6 +127,47 @@ class FakeAdminBackend implements HttpClientAdapter {
       user['role_id'] = roleId;
       user['role'] = {'role_id': roleId, 'name': _roleNames[roleId]};
       body = {'status': 0, 'data': user};
+    } else if (RegExp(r'^/api/admin/premises/(\d+)$').firstMatch(path)
+        case final match? when method == 'PUT') {
+      final id = int.parse(match.group(1)!);
+      final data = Map<String, dynamic>.from(options.data as Map);
+      premiseUpdates.add({'id': id, ...data});
+      final premise = premises.firstWhere((p) => p['id'] == id);
+      if (premiseUpdateError != null) {
+        statusCode = 422;
+        body = {'status': 'ERROR', 'message': premiseUpdateError};
+        return _respond(body, statusCode);
+      }
+      if (data.containsKey('name')) premise['name'] = data['name'];
+      if (data.containsKey('latitude')) {
+        premise['latitude'] = '${data['latitude']}';
+        premise['longitude'] = '${data['longitude']}';
+      }
+      if (data.containsKey('reasons')) {
+        premise['reason_names'] = data['reasons'];
+      }
+      if (data.containsKey('manager_user_id')) {
+        final managerId = data['manager_user_id'] as int?;
+        if (managerId == null) {
+          premise.remove('manager');
+        } else {
+          final user = users.firstWhere((u) => u['user_id'] == managerId);
+          premise['manager'] = {'user_id': managerId, 'name': user['name']};
+        }
+      }
+      body = {'status': 0, 'data': premise};
+    } else if (path == '/api/admin/premises' && method == 'POST') {
+      final data = Map<String, dynamic>.from(options.data as Map);
+      final premise = <String, dynamic>{
+        'id': 100 + premises.length,
+        'name': data['name'],
+        'latitude': '${data['latitude']}',
+        'longitude': '${data['longitude']}',
+        'reason_names': data['reasons'] ?? <String>[],
+      };
+      premises.add(premise);
+      statusCode = 201;
+      body = {'status': 0, 'data': premise};
     } else if (path == '/api/admin/reasons/sync' && method == 'POST') {
       syncCalls++;
       body = {
@@ -150,14 +207,16 @@ class FakeAdminBackend implements HttpClientAdapter {
     } else {
       body = {'status': 0};
     }
-    return ResponseBody.fromString(
-      jsonEncode(body),
-      200,
-      headers: {
-        Headers.contentTypeHeader: [Headers.jsonContentType],
-      },
-    );
+    return _respond(body, statusCode);
   }
+
+  ResponseBody _respond(Object body, int statusCode) => ResponseBody.fromString(
+    jsonEncode(body),
+    statusCode,
+    headers: {
+      Headers.contentTypeHeader: [Headers.jsonContentType],
+    },
+  );
 
   @override
   void close({bool force = false}) {}

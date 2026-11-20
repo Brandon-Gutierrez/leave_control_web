@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/role_names.dart';
+import '../../../core/format/text_utils.dart' as text_utils;
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -544,7 +545,10 @@ class UsersViewState extends State<UsersView> {
           },
         ),
         detailBuilder: (narrow) => selected == null
-            ? const _NothingSelected()
+            ? const DetailPlaceholder(
+                title: 'Elige a una persona de la lista',
+                hint: 'Aquí verás su rol, su teléfono y su navegador.',
+              )
             : UserDetailPane(
                 key: ValueKey(selected.id),
                 user: selected,
@@ -566,58 +570,9 @@ class UsersViewState extends State<UsersView> {
     );
   }
 
-  /// La inicial para agrupar la lista: sin tildes y en mayúscula; «#» si el
-  /// nombre no empieza con una letra.
-  static String groupLetterOf(String name) {
-    final folded = foldText(name).trim();
-    if (folded.isEmpty) return '#';
-    final first = folded[0].toUpperCase();
-    return RegExp(r'[A-Z]').hasMatch(first) ? first : '#';
-  }
+  /// La inicial para agrupar la lista (ver [groupLetterOf]).
+  static String groupLetterOf(String name) => text_utils.groupLetterOf(name);
 
-  /// El texto en minúsculas y sin tildes, para ordenar y buscar.
-  static String foldText(String text) {
-    const from = 'áàäâãéèëêíìïîóòöôõúùüûñç';
-    const to = 'aaaaaeeeeiiiiooooouuuunc';
-    final lower = text.toLowerCase();
-    final buffer = StringBuffer();
-    for (final unit in lower.runes) {
-      final char = String.fromCharCode(unit);
-      final index = from.indexOf(char);
-      buffer.write(index == -1 ? char : to[index]);
-    }
-    return buffer.toString();
-  }
-}
-
-/// Lo que se ve a la derecha mientras no se ha elegido a nadie.
-class _NothingSelected extends StatelessWidget {
-  const _NothingSelected();
-
-  @override
-  Widget build(BuildContext context) {
-    return const DetailPanel(
-      child: SizedBox(
-        height: 260,
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.touch_app_outlined, size: 40, color: AppColors.label),
-              SizedBox(height: 12),
-              Text(
-                'Elige a una persona de la lista',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
-              ),
-              SizedBox(height: 4),
-              Text(
-                'Aquí verás su rol, su teléfono y su navegador.',
-                style: TextStyle(fontSize: 14, color: AppColors.muted),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  /// El texto en minúsculas y sin tildes (ver [foldText]).
+  static String foldText(String text) => text_utils.foldText(text);
 }

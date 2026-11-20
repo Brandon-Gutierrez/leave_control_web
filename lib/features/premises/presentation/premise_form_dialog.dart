@@ -4,11 +4,10 @@ import '../../../core/constants/role_names.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_modal.dart';
-import '../../../core/widgets/deferred_widget.dart';
 import '../../../core/widgets/dialog_tone.dart';
 import '../../dashboard/state/admin_data_store.dart';
 import '../../map/models/lat_lng.dart';
-import '../../map/presentation/location_picker.dart' deferred as map;
+import '../../map/presentation/map_library.dart';
 import '../../users/data/user_admin_service.dart';
 import '../../users/models/managed_user.dart';
 import '../data/premise_service.dart';
@@ -331,17 +330,13 @@ class _PremiseFormDialogState extends State<PremiseFormDialog> {
           ),
           _sectionTitle('Ubicación en el mapa'),
           // El mapa se descarga la primera vez que se abre este formulario.
-          DeferredWidget(
-            loadLibrary: map.loadLibrary,
-            placeholderHeight: 320,
-            builder: (context) => map.LocationPicker(
-              radiusMeters: AdminDataStore.instance.geofenceRadiusMeters,
-              initial: _position,
-              onChanged: (p) => setState(() {
-                _position = p;
-                _submitError = null;
-              }),
-            ),
+          deferredLocationPicker(
+            radiusMeters: AdminDataStore.instance.geofenceRadiusMeters,
+            initial: _position,
+            onChanged: (p) => setState(() {
+              _position = p;
+              _submitError = null;
+            }),
           ),
           _sectionTitle('Responsable del predio'),
           DropdownButtonFormField<int?>(

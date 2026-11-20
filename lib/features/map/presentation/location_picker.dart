@@ -9,6 +9,111 @@ import '../constants/map_defaults.dart';
 import '../data/geocoding_service.dart';
 import '../models/lat_lng.dart';
 
+/// Mapa pequeño que solo muestra la ubicación de un predio (el marcador y el
+/// círculo donde se aceptan los escaneos). No se mueve ni se acerca: para
+/// cambiar el punto se usa [LocationPicker].
+class LocationPreview extends StatelessWidget {
+  /// Punto guardado; null cuando el predio todavía no tiene ubicación.
+  final LatLng? position;
+
+  /// Radio (metros) donde se aceptan los escaneos; lo define el servidor.
+  final double radiusMeters;
+  final double height;
+
+  const LocationPreview({
+    super.key,
+    required this.position,
+    this.radiusMeters = MapDefaults.premiseRadiusMeters,
+    this.height = 150,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final point = position;
+    return Container(
+      height: height,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: const Color(0xFFEDEDE8),
+        border: Border.all(color: AppColors.panelLine),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: point == null
+          ? const Center(
+              child: Padding(
+                padding: EdgeInsets.all(12),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.location_off_outlined, color: AppColors.label),
+                    SizedBox(height: 6),
+                    Text(
+                      'Sin ubicación fijada',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.muted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : FlutterMap(
+              // Un punto nuevo reconstruye el mapa ya centrado en él.
+              key: ValueKey('${point.latitude},${point.longitude}'),
+              options: MapOptions(
+                initialCenter: ll.LatLng(point.latitude, point.longitude),
+                initialZoom: 17,
+                interactionOptions: const InteractionOptions(
+                  flags: InteractiveFlag.none,
+                ),
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.controlsalida.web',
+                  tileProvider: LocationPicker.tileProviderOverride,
+                ),
+                CircleLayer(
+                  circles: [
+                    CircleMarker(
+                      point: ll.LatLng(point.latitude, point.longitude),
+                      radius: radiusMeters,
+                      useRadiusInMeter: true,
+                      color: AppColors.primaryRed.withValues(alpha: 0.2),
+                      borderColor: AppColors.primaryRed,
+                      borderStrokeWidth: 2,
+                    ),
+                  ],
+                ),
+                MarkerLayer(
+                  markers: [
+                    Marker(
+                      point: ll.LatLng(point.latitude, point.longitude),
+                      width: 36,
+                      height: 36,
+                      alignment: Alignment.topCenter,
+                      child: const Icon(
+                        Icons.location_on,
+                        color: AppColors.primaryRed,
+                        size: 36,
+                      ),
+                    ),
+                  ],
+                ),
+                const RichAttributionWidget(
+                  attributions: [
+                    TextSourceAttribution('© OpenStreetMap contributors'),
+                  ],
+                ),
+              ],
+            ),
+    );
+  }
+}
+
 /// Selector de ubicación solo por mapa (OpenStreetMap, sin API key).
 ///
 /// - Un toque fija el marcador; el círculo rojo es la zona (el radio que define el servidor) donde se
