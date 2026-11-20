@@ -4,6 +4,7 @@ import '../../../core/constants/role_names.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/admin_button.dart';
+import '../../../core/widgets/admin_field.dart';
 import '../../../core/widgets/load_error.dart';
 import '../../../core/widgets/master_detail.dart';
 import '../../../core/widgets/skeleton.dart';
@@ -277,7 +278,7 @@ class PremiseDetailPaneState extends State<PremiseDetailPane> {
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
                 ),
-                decoration: _fieldDecoration(
+                decoration: adminFieldDecoration(
                   errorText: _nameTouched && !_nameValid
                       ? 'Campo requerido'
                       : null,
@@ -315,36 +316,6 @@ class PremiseDetailPaneState extends State<PremiseDetailPane> {
       ),
     );
   }
-
-  InputDecoration _fieldDecoration({String? errorText}) => InputDecoration(
-    isDense: true,
-    errorText: errorText,
-    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-    enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(8),
-      borderSide: const BorderSide(color: AppColors.buttonLine),
-    ),
-    disabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(8),
-      borderSide: const BorderSide(color: AppColors.buttonLine),
-    ),
-    border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(8),
-      borderSide: const BorderSide(color: AppColors.buttonLine),
-    ),
-    focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(8),
-      borderSide: const BorderSide(color: AppColors.primaryRed, width: 2),
-    ),
-    errorBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(8),
-      borderSide: const BorderSide(color: AppColors.danger, width: 1.5),
-    ),
-    focusedErrorBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(8),
-      borderSide: const BorderSide(color: AppColors.danger, width: 2),
-    ),
-  );
 
   // -------------------------------------------------------------------------
   // Ubicación

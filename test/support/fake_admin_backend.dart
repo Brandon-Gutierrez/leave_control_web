@@ -71,6 +71,17 @@ class FakeAdminBackend implements HttpClientAdapter {
   List<Map<String, dynamic>> catalogReasons = [];
   Map<String, dynamic>? sync;
 
+  /// Ajustes: período y tope de salidas por persona, y vida del QR.
+  String leavePeriod = 'day';
+  int? maxExits = 3;
+  int qrSeconds = 300;
+
+  /// Cambios de ajustes pedidos (PUT): `path` y lo que viajó.
+  final List<Map<String, dynamic>> settingsUpdates = [];
+
+  /// Si se indica, guardar un ajuste (PUT) falla con este mensaje (422).
+  String? settingsError;
+
   /// Límite por motivo de `/api/admin/settings/leave-limits`.
   Map<String, dynamic> reasonLimit = {
     'period': 'day',
@@ -193,15 +204,38 @@ class FakeAdminBackend implements HttpClientAdapter {
           'deactivated': 0,
         },
       };
-    } else if (path == '/api/admin/settings/leave-limits' && method == 'GET') {
+    } else if (path == '/api/admin/settings/leave-limits' &&
+        (method == 'GET' || method == 'PUT')) {
+      if (method == 'PUT') {
+        settingsUpdates.add({'path': path, ...options.data as Map});
+        if (settingsError != null) {
+          return _respond({'status': 'ERROR', 'message': settingsError}, 422);
+        }
+        final data = Map<String, dynamic>.from(options.data as Map);
+        leavePeriod = data['period'] as String;
+        maxExits = data['max_exits'] as int?;
+        reasonLimit = Map<String, dynamic>.from(data['reason_limit'] as Map);
+      }
       body = {
         'status': 0,
-        'data': {'period': 'day', 'max_exits': 3, 'reason_limit': reasonLimit},
+        'data': {
+          'period': leavePeriod,
+          'max_exits': maxExits,
+          'reason_limit': reasonLimit,
+        },
       };
-    } else if (path == '/api/admin/settings/qr' && method == 'GET') {
+    } else if (path == '/api/admin/settings/qr' &&
+        (method == 'GET' || method == 'PUT')) {
+      if (method == 'PUT') {
+        settingsUpdates.add({'path': path, ...options.data as Map});
+        if (settingsError != null) {
+          return _respond({'status': 'ERROR', 'message': settingsError}, 422);
+        }
+        qrSeconds = (options.data as Map)['qr_ttl_seconds'] as int;
+      }
       body = {
         'status': 0,
-        'data': {'qr_ttl_seconds': 300},
+        'data': {'qr_ttl_seconds': qrSeconds},
       };
     } else if (path == '/api/admin/reasons/catalog' && method == 'GET') {
       body = {

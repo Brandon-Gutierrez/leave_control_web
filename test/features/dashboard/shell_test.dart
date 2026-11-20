@@ -107,16 +107,19 @@ void main() {
       expect(styleOf('Inicio')?.fontWeight, FontWeight.w700);
     });
 
-    testWidgets('Ajustes abre el cuadro del límite de salidas', (tester) async {
+    testWidgets('Ajustes muestra las dos reglas en la misma página', (
+      tester,
+    ) async {
       _size(tester, const Size(1280, 800));
       await tester.pumpWidget(_app(AdminDashboardPage(user: _admin)));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Ajustes'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Cambiar').first);
-      await tester.pumpAndSettle();
-      expect(find.text('Límite de salidas'), findsNWidgets(2));
+      // Sin cuadros emergentes: cada regla es una tarjeta con sus campos.
+      expect(find.byType(Dialog), findsNothing);
+      expect(find.text('Límite de salidas'), findsOneWidget);
+      expect(find.text('Vida del código QR'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   });
