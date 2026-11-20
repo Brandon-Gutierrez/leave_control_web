@@ -289,8 +289,20 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(find.textContaining('Hola'), findsNothing);
-      expect(find.text('Ana Pérez'), findsOneWidget);
-      expect(find.text('Administrador del sistema'), findsOneWidget);
+      // Arriba: quién inició sesión (en pantallas angostas, su foto o sus
+      // iniciales y un botón para salir).
+      if (entry.value.width >= 1000) {
+        expect(find.text('Ana Pérez'), findsOneWidget);
+        expect(find.text('Cerrar sesión'), findsOneWidget);
+      } else {
+        expect(find.text('AP'), findsOneWidget);
+        expect(find.byTooltip('Cerrar sesión'), findsOneWidget);
+      }
+      // Las cinco secciones, en pestañas o en la barra inferior.
+      for (final section in ['Inicio', 'Predios', 'Usuarios', 'Motivos']) {
+        expect(find.text(section), findsWidgets);
+      }
+      expect(find.text('Ajustes'), findsOneWidget);
       expect(find.text('Predios registrados'), findsOneWidget);
       expect(find.text('Agregar un predio nuevo'), findsOneWidget);
       // La sincronización de motivos ya no es una acción rápida de Inicio.
@@ -411,26 +423,27 @@ void main() {
     },
   );
 
-  testWidgets('Sincronizar motivos desde la sección Motivos muestra confirmación', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(1600, 1000);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
-    await tester.pumpWidget(const MaterialApp(home: AdminDashboardPage()));
-    await tester.pumpAndSettle();
+  testWidgets(
+    'Sincronizar motivos desde la sección Motivos muestra confirmación',
+    (tester) async {
+      tester.view.physicalSize = const Size(1600, 1000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(const MaterialApp(home: AdminDashboardPage()));
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Motivos').first);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Sincronizar ahora'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Motivos').first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Sincronizar ahora'));
+      await tester.pumpAndSettle();
 
-    expect(tester.takeException(), isNull);
-    expect(
-      find.text('Motivos de salida actualizados correctamente (1 nuevo)'),
-      findsOneWidget,
-    );
-  });
+      expect(tester.takeException(), isNull);
+      expect(
+        find.text('Motivos de salida actualizados correctamente (1 nuevo)'),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets('Cambiar el rol de un usuario pide confirmación', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: AdminDashboardPage()));
@@ -627,7 +640,7 @@ void passwordAndLoginTests() {
         passwordField.controller!.text,
         isEmpty,
       ); // se vació para reintentar
-      final button = tester.widget<ElevatedButton>(find.byType(ElevatedButton));
+      final button = tester.widget<FilledButton>(find.byType(FilledButton));
       expect(button.onPressed, isNotNull);
 
       // Se puede volver a escribir y enviar

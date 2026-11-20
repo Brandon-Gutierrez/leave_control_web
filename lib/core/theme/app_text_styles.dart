@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
 
+/// Nombre de la tipografía del panel (declarada en pubspec.yaml). Los estilos
+/// de botón reemplazan —no mezclan— la fuente del tema: deben indicarla ellos.
+const appFontFamily = 'Manrope';
+
 /// Tamaños de texto pensados para que se lean cómodamente incluso personas
 /// mayores o que no usan aplicaciones seguido: nada por debajo de 14px, y
 /// el texto importante siempre en 16px o más.
@@ -11,6 +15,15 @@ abstract final class AppText {
     fontWeight: FontWeight.w800,
     color: AppColors.darkText,
     letterSpacing: -0.3,
+  );
+
+  /// Título grande de una página (p. ej. «Usuarios»).
+  static const TextStyle pageTitle = TextStyle(
+    fontSize: 34,
+    fontWeight: FontWeight.w800,
+    color: AppColors.darkText,
+    letterSpacing: -1,
+    height: 1.15,
   );
 
   static const TextStyle sectionTitle = TextStyle(
@@ -43,4 +56,16 @@ abstract final class AppDimens {
   static const double cardRadius = 8.0;
   static const double fieldRadius = 8.0;
   static const double iconSize = 26.0;
+
+  /// Alto de la barra superior con las pestañas.
+  static const double topBarHeight = 68.0;
+
+  /// Ancho máximo del panel blanco de cada sección.
+  static const double pageMaxWidth = 1240.0;
+
+  /// Botón principal del inicio de sesión y de los formularios.
+  static const double primaryButtonHeight = 56.0;
+  static const double fieldHeight = 54.0;
+  static const double radiusField = 12.0;
+  static const double radiusButton = 12.0;
 }

@@ -127,7 +127,12 @@ void main() {
   test('describe los cambios de una sincronización', () {
     expect(describeReasonChanges(), isNull);
     expect(
-      describeReasonChanges(added: 2, updated: 1, reactivated: 1, deactivated: 1),
+      describeReasonChanges(
+        added: 2,
+        updated: 1,
+        reactivated: 1,
+        deactivated: 1,
+      ),
       '2 nuevos · 1 actualizado · 1 reactivado · 1 retirado',
     );
   });
@@ -174,7 +179,9 @@ void main() {
       await _openReasons(tester, _adapter(sync: _failed));
 
       expect(
-        find.text('La última sincronización falló el 12/11/2026 00:30 (automática).'),
+        find.text(
+          'La última sincronización falló el 12/11/2026 00:30 (automática).',
+        ),
         findsOneWidget,
       );
       expect(find.textContaining('lista de motivos vacía'), findsOneWidget);
@@ -215,7 +222,9 @@ void main() {
       await tester.pump();
 
       expect(find.text('Sincronizando...'), findsOneWidget);
-      final button = tester.widget<FilledButton>(find.byType(FilledButton).first);
+      final button = tester.widget<FilledButton>(
+        find.byType(FilledButton).first,
+      );
       expect(button.onPressed, isNull);
 
       adapter.gate!.complete();
@@ -224,25 +233,28 @@ void main() {
       expect(find.text('Sincronizar ahora'), findsOneWidget);
       expect(adapter.hitsOf(_sync), 1);
       expect(
-        find.text('Motivos de salida actualizados correctamente (2 nuevos · 1 retirado)'),
+        find.text(
+          'Motivos de salida actualizados correctamente (2 nuevos · 1 retirado)',
+        ),
         findsOneWidget,
       );
     });
 
-    testWidgets('si la sincronización falla lo avisa y vuelve a leer el estado', (
-      tester,
-    ) async {
-      final adapter = _adapter(sync: _success)..failStatus[_sync] = 502;
-      await _openReasons(tester, adapter);
+    testWidgets(
+      'si la sincronización falla lo avisa y vuelve a leer el estado',
+      (tester) async {
+        final adapter = _adapter(sync: _success)..failStatus[_sync] = 502;
+        await _openReasons(tester, adapter);
 
-      await tester.tap(find.text('Sincronizar ahora'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('Sincronizar ahora'));
+        await tester.pumpAndSettle();
 
-      expect(find.text('Fallo 502 en $_sync'), findsOneWidget);
-      // El servidor guarda el fallo: se vuelve a leer el catálogo.
-      expect(adapter.hitsOf(_catalog), 2);
-      expect(find.text('Sincronizar ahora'), findsOneWidget);
-    });
+        expect(find.text('Fallo 502 en $_sync'), findsOneWidget);
+        // El servidor guarda el fallo: se vuelve a leer el catálogo.
+        expect(adapter.hitsOf(_catalog), 2);
+        expect(find.text('Sincronizar ahora'), findsOneWidget);
+      },
+    );
 
     testWidgets('si el catálogo no carga se puede reintentar', (tester) async {
       final adapter = _adapter(sync: _success)..failStatus[_catalog] = 500;
@@ -275,20 +287,21 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('si la última sincronización falló, Inicio lo avisa y lleva a Motivos', (
-      tester,
-    ) async {
-      await openHome(tester, _adapter(sync: _failed));
+    testWidgets(
+      'si la última sincronización falló, Inicio lo avisa y lleva a Motivos',
+      (tester) async {
+        await openHome(tester, _adapter(sync: _failed));
 
-      expect(
-        find.text('No se pudieron sincronizar los motivos con Comteco'),
-        findsOneWidget,
-      );
-      await tester.tap(find.text('Ver motivos'));
-      await tester.pumpAndSettle();
+        expect(
+          find.text('No se pudieron sincronizar los motivos con Comteco'),
+          findsOneWidget,
+        );
+        await tester.tap(find.text('Ver motivos'));
+        await tester.pumpAndSettle();
 
-      expect(find.text('Sincronización con Comteco'), findsOneWidget);
-    });
+        expect(find.text('Sincronización con Comteco'), findsOneWidget);
+      },
+    );
 
     testWidgets('si la última sincronización fue bien, Inicio no avisa nada', (
       tester,

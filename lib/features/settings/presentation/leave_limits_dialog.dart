@@ -336,7 +336,9 @@ class _LeaveLimitsDialogState extends State<LeaveLimitsDialog> {
                     isDense: true,
                     hintText: 'Sin tope',
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppDimens.fieldRadius),
+                      borderRadius: BorderRadius.circular(
+                        AppDimens.fieldRadius,
+                      ),
                     ),
                   ),
                 ),

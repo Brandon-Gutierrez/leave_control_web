@@ -287,10 +287,8 @@ void main() {
               child: LazyCardGrid<int>(
                 items: List.generate(500, (i) => i),
                 columns: 2,
-                itemBuilder: (context, i) => SizedBox(
-                  height: 50,
-                  child: Text('Tarjeta $i'),
-                ),
+                itemBuilder: (context, i) =>
+                    SizedBox(height: 50, child: Text('Tarjeta $i')),
               ),
             ),
           ),
@@ -322,10 +320,8 @@ void main() {
             body: LazyCardGrid<int>(
               items: const [1, 2, 3],
               columns: 2,
-              itemBuilder: (context, i) => SizedBox(
-                height: 40,
-                child: Text('Item $i'),
-              ),
+              itemBuilder: (context, i) =>
+                  SizedBox(height: 40, child: Text('Item $i')),
             ),
           ),
         ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_logo.dart';
 import '../../dashboard/presentation/admin_dashboard_page.dart';
 import '../data/auth_service.dart';
 import '../models/auth_user.dart';
@@ -34,7 +35,14 @@ class _AuthGateState extends State<AuthGate> {
           return const Scaffold(
             backgroundColor: AppColors.loginBg,
             body: Center(
-              child: CircularProgressIndicator(color: AppColors.primaryRed),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AppLogo(size: 160),
+                  SizedBox(height: 20),
+                  CircularProgressIndicator(color: AppColors.primaryRed),
+                ],
+              ),
             ),
           );
         }

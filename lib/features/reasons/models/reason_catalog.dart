@@ -7,7 +7,8 @@ String? describeReasonChanges({
 }) {
   final parts = [
     if (added > 0) '$added ${added == 1 ? 'nuevo' : 'nuevos'}',
-    if (updated > 0) '$updated ${updated == 1 ? 'actualizado' : 'actualizados'}',
+    if (updated > 0)
+      '$updated ${updated == 1 ? 'actualizado' : 'actualizados'}',
     if (reactivated > 0)
       '$reactivated ${reactivated == 1 ? 'reactivado' : 'reactivados'}',
     if (deactivated > 0)

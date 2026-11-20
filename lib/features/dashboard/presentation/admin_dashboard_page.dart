@@ -4,22 +4,22 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/app_logo.dart';
 import '../../auth/data/auth_service.dart';
 import '../../auth/models/auth_user.dart';
 import '../../auth/presentation/admin_login_page.dart';
 import '../../auth/state/session_controller.dart';
 import '../../premises/presentation/premises_view.dart';
 import '../../reasons/presentation/reasons_view.dart';
-import '../../settings/presentation/leave_limits_dialog.dart';
-import '../../settings/presentation/qr_settings_dialog.dart';
+import '../../settings/presentation/settings_view.dart';
 import '../../users/presentation/users_view.dart';
 import '../state/admin_data_store.dart';
 import 'home_view.dart';
 import 'user_profile_header.dart';
 
-/// Estructura del panel: en pantallas anchas una barra lateral fija con la
-/// persona que inició sesión, las secciones y los ajustes; en teléfono, una
-/// barra superior con la persona y navegación abajo.
+/// Estructura del panel: arriba el logo, las pestañas de las secciones y la
+/// persona que inició sesión; en pantallas angostas, una barra superior con la
+/// persona y la navegación abajo.
 class AdminDashboardPage extends StatefulWidget {
   /// Persona que inició sesión (módulo de usuario). Si no se indica se toma de
   /// la sesión compartida.
@@ -32,16 +32,19 @@ class AdminDashboardPage extends StatefulWidget {
 }
 
 class _AdminDashboardPageState extends State<AdminDashboardPage> {
-  static const primaryRed = AppColors.primaryRed;
-  static const darkText = AppColors.darkText;
-  static const lightBg = AppColors.lightBg;
-
-  static const _titles = ['Inicio', 'Predios', 'Usuarios', 'Motivos'];
+  static const _titles = [
+    'Inicio',
+    'Predios',
+    'Usuarios',
+    'Motivos',
+    'Ajustes',
+  ];
   static const _destinationIcons = [
     (Icons.home_outlined, Icons.home_rounded),
-    (Icons.apartment_outlined, Icons.apartment_rounded),
-    (Icons.people_alt_outlined, Icons.people_alt_rounded),
-    (Icons.checklist_outlined, Icons.checklist_rounded),
+    (Icons.place_outlined, Icons.place_rounded),
+    (Icons.groups_outlined, Icons.groups_rounded),
+    (Icons.format_list_bulleted_rounded, Icons.format_list_bulleted_rounded),
+    (Icons.tune_rounded, Icons.tune_rounded),
   ];
 
   final AuthService _authService = AuthService();
@@ -132,25 +135,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   void _goToReasons() => _showSection(3);
 
-  Future<void> _openQrSettings() async {
-    await showDialog<bool>(
-      context: context,
-      builder: (context) => const QrSettingsDialog(),
-    );
-  }
-
-  Future<void> _openLeaveLimits() async {
-    await showDialog<bool>(
-      context: context,
-      builder: (context) => const LeaveLimitsDialog(),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isWide = constraints.maxWidth >= Breakpoints.tablet;
+        final topNav = constraints.maxWidth >= Breakpoints.topNav;
 
         final content = IndexedStack(
           index: _selectedIndex,
@@ -175,83 +164,55 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               const ReasonsView()
             else
               const SizedBox.shrink(),
+            if (_visited.contains(4))
+              const SettingsView()
+            else
+              const SizedBox.shrink(),
           ],
         );
 
-        if (isWide) {
+        if (topNav) {
           return Scaffold(
-            backgroundColor: lightBg,
-            body: Row(
+            backgroundColor: AppColors.lightBg,
+            body: Column(
               children: [
-                _Sidebar(
+                _TopBar(
                   user: _user,
-                  selectedIndex: _selectedIndex,
                   titles: _titles,
                   icons: _destinationIcons,
+                  selectedIndex: _selectedIndex,
                   onSelect: _selectSection,
-                  onQrSettings: _openQrSettings,
-                  onLeaveLimits: _openLeaveLimits,
                   onLogout: _logout,
                 ),
-                Expanded(
-                  child: Column(
-                    children: [
-                      _SectionHeader(title: _titles[_selectedIndex]),
-                      Expanded(child: content),
-                    ],
-                  ),
-                ),
+                Expanded(child: content),
               ],
             ),
           );
         }
 
         return Scaffold(
-          backgroundColor: lightBg,
+          backgroundColor: AppColors.lightBg,
           appBar: AppBar(
             backgroundColor: Colors.white,
             surfaceTintColor: Colors.transparent,
             elevation: 0,
-            toolbarHeight: 64,
-            shape: const Border(bottom: BorderSide(color: AppColors.line)),
-            title: UserProfileHeader(user: _user, compact: true),
-            actions: [
-              IconButton(
-                icon: const Icon(
-                  Icons.rule_rounded,
-                  color: darkText,
-                  size: AppDimens.iconSize,
-                ),
-                tooltip: 'Límite de salidas',
-                onPressed: _openLeaveLimits,
-              ),
-              IconButton(
-                icon: const Icon(
-                  Icons.qr_code_2_rounded,
-                  color: darkText,
-                  size: AppDimens.iconSize,
-                ),
-                tooltip: 'Tiempo de vida del QR',
-                onPressed: _openQrSettings,
-              ),
-              IconButton(
-                icon: const Icon(
-                  Icons.logout,
-                  color: AppColors.danger,
-                  size: AppDimens.iconSize,
-                ),
-                tooltip: 'Cerrar sesión',
-                onPressed: _logout,
-              ),
-              const SizedBox(width: 4),
-            ],
+            toolbarHeight: 60,
+            titleSpacing: 16,
+            shape: const Border(bottom: BorderSide(color: Color(0xFFE0E0DC))),
+            title: Row(
+              children: [
+                const AppLogo(size: 36),
+                const Spacer(),
+                UserChip(user: _user, onLogout: _logout, compact: true),
+              ],
+            ),
           ),
           body: SafeArea(child: content),
           bottomNavigationBar: NavigationBar(
             selectedIndex: _selectedIndex,
             onDestinationSelected: _selectSection,
             backgroundColor: Colors.white,
-            indicatorColor: primaryRed.withValues(alpha: 0.14),
+            indicatorColor: AppColors.primaryRed.withValues(alpha: 0.14),
             height: 72,
             destinations: [
               for (var i = 0; i < _titles.length; i++)
@@ -259,7 +220,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                   icon: Icon(_destinationIcons[i].$1),
                   selectedIcon: Icon(
                     _destinationIcons[i].$2,
-                    color: primaryRed,
+                    color: AppColors.primaryRed,
                   ),
                   label: _titles[i],
                 ),
@@ -271,159 +232,121 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  final String title;
-
-  const _SectionHeader({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 64,
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 32),
-      alignment: Alignment.centerLeft,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: AppColors.line)),
-      ),
-      child: Text(title, style: AppText.heading.copyWith(fontSize: 24)),
-    );
-  }
-}
-
-class _Sidebar extends StatelessWidget {
+/// Barra superior de pantallas anchas: logo, pestañas y la persona.
+class _TopBar extends StatelessWidget {
   final AuthUser? user;
-  final int selectedIndex;
   final List<String> titles;
   final List<(IconData, IconData)> icons;
+  final int selectedIndex;
   final ValueChanged<int> onSelect;
-  final VoidCallback onQrSettings;
-  final VoidCallback onLeaveLimits;
   final VoidCallback onLogout;
 
-  const _Sidebar({
+  const _TopBar({
     required this.user,
-    required this.selectedIndex,
     required this.titles,
     required this.icons,
+    required this.selectedIndex,
     required this.onSelect,
-    required this.onQrSettings,
-    required this.onLeaveLimits,
     required this.onLogout,
   });
 
   @override
   Widget build(BuildContext context) {
+    // La barra tiene un alto fijo: sus textos crecen hasta x1.3 y no más.
+    return MediaQuery.withClampedTextScaling(
+      maxScaleFactor: 1.3,
+      child: _buildBar(),
+    );
+  }
+
+  Widget _buildBar() {
     return Container(
-      width: 270,
+      height: AppDimens.topBarHeight,
+      padding: const EdgeInsets.symmetric(horizontal: 32),
       decoration: const BoxDecoration(
         color: Colors.white,
-        border: Border(right: BorderSide(color: AppColors.line)),
+        border: Border(bottom: BorderSide(color: Color(0xFFE0E0DC))),
       ),
-      child: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-              child: Image.asset(
-                'rsc/comteco.png',
-                height: 38,
-                alignment: Alignment.centerLeft,
-                fit: BoxFit.contain,
-                errorBuilder: (_, _, _) => const Icon(
-                  Icons.business_rounded,
-                  color: AppColors.darkText,
-                ),
+      child: Row(
+        children: [
+          const AppLogo(size: 44),
+          const SizedBox(width: 24),
+          Expanded(
+            // Si la ventana es justa, las pestañas se desplazan en vez de
+            // desbordar.
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (var i = 0; i < titles.length; i++)
+                    _TopTab(
+                      icon: selectedIndex == i ? icons[i].$2 : icons[i].$1,
+                      label: titles[i],
+                      selected: selectedIndex == i,
+                      onTap: () => onSelect(i),
+                    ),
+                ],
               ),
             ),
-            UserProfileHeader(user: user),
-            const Divider(height: 28, color: AppColors.line),
-            for (var i = 0; i < titles.length; i++)
-              _NavItem(
-                icon: selectedIndex == i ? icons[i].$2 : icons[i].$1,
-                label: titles[i],
-                selected: selectedIndex == i,
-                onTap: () => onSelect(i),
-              ),
-            const Spacer(),
-            const Divider(height: 1, color: AppColors.line),
-            _NavItem(
-              icon: Icons.rule_rounded,
-              label: 'Límite de salidas',
-              selected: false,
-              onTap: onLeaveLimits,
-            ),
-            _NavItem(
-              icon: Icons.qr_code_2_rounded,
-              label: 'Tiempo de vida del QR',
-              selected: false,
-              onTap: onQrSettings,
-            ),
-            _NavItem(
-              icon: Icons.logout_rounded,
-              label: 'Cerrar sesión',
-              selected: false,
-              color: AppColors.danger,
-              onTap: onLogout,
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
+          ),
+          const SizedBox(width: 24),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 280),
+            child: UserChip(user: user, onLogout: onLogout),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _NavItem extends StatelessWidget {
+/// Una pestaña de la barra superior: la activa va en rojo y subrayada.
+class _TopTab extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool selected;
-  final Color? color;
   final VoidCallback onTap;
 
-  const _NavItem({
+  const _TopTab({
     required this.icon,
     required this.label,
     required this.selected,
     required this.onTap,
-    this.color,
   });
 
   @override
   Widget build(BuildContext context) {
-    final fg = selected ? AppColors.primaryRed : (color ?? AppColors.darkText);
-    return Tooltip(
-      message: label,
+    final color = selected ? AppColors.primaryRed : const Color(0xFF555555);
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      excludeSemantics: true,
       child: InkWell(
         onTap: onTap,
         child: Container(
-          height: 54,
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          height: AppDimens.topBarHeight,
+          margin: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 4),
           decoration: BoxDecoration(
-            color: selected
-                ? AppColors.primaryRed.withValues(alpha: 0.08)
-                : null,
             border: Border(
-              left: BorderSide(
+              bottom: BorderSide(
                 color: selected ? AppColors.primaryRed : Colors.transparent,
-                width: 5,
+                width: 3,
               ),
             ),
           ),
           child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, color: fg, size: 26),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                    color: fg,
-                  ),
+              Icon(icon, size: 19, color: color),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
+                  color: color,
                 ),
               ),
             ],

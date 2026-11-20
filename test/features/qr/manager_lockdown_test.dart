@@ -225,7 +225,7 @@ void main() {
       expect(find.byType(NavigationBar), findsNothing);
       expect(find.byType(NavigationRail), findsNothing);
       expect(find.byType(AppBar), findsNothing);
-      expect(find.text('Iniciar Sesión'), findsNothing);
+      expect(find.text('Iniciar sesión'), findsNothing);
       expect(backend.count('POST /api/manager/qr-token'), 1);
 
       await _teardown(tester);
@@ -240,7 +240,7 @@ void main() {
       await _settle(tester);
 
       expect(find.byType(QrImageView), findsOneWidget);
-      expect(find.text('Iniciar Sesión'), findsNothing);
+      expect(find.text('Iniciar sesión'), findsNothing);
 
       await _teardown(tester);
     });
@@ -262,7 +262,7 @@ void main() {
 
         expect(find.byType(QrImageView), findsOneWidget, reason: route);
         expect(find.byType(AdminDashboardPage), findsNothing, reason: route);
-        expect(find.text('Iniciar Sesión'), findsNothing, reason: route);
+        expect(find.text('Iniciar sesión'), findsNothing, reason: route);
       }
 
       await _teardown(tester);
@@ -275,7 +275,7 @@ void main() {
 
         await tester.pumpWidget(const ControlQrApp());
         await _settle(tester);
-        expect(find.text('Iniciar Sesión'), findsOneWidget);
+        expect(find.text('Iniciar sesión'), findsOneWidget);
 
         await tester.enterText(find.byType(TextFormField).at(0), 'ana_gestora');
         await tester.enterText(
@@ -286,7 +286,7 @@ void main() {
         await _settle(tester);
 
         expect(find.byType(QrImageView), findsOneWidget);
-        expect(find.text('Iniciar Sesión'), findsNothing);
+        expect(find.text('Iniciar sesión'), findsNothing);
         expect(find.byTooltip('Cerrar sesión'), findsNothing);
         expect(SessionController.instance.user.value?.isPremiseManager, isTrue);
         expect(backend.count('POST /api/auth/logout'), 0);
@@ -304,7 +304,7 @@ void main() {
         await tester.pumpWidget(const ControlQrApp());
         await _settle(tester);
 
-        expect(find.text('Iniciar Sesión'), findsOneWidget);
+        expect(find.text('Iniciar sesión'), findsOneWidget);
         expect(find.byType(QrImageView), findsNothing);
         expect(SessionController.instance.user.value, isNull);
 
@@ -380,7 +380,7 @@ void main() {
       await _settle(tester);
 
       expect(backend.count('POST /api/auth/logout'), 1);
-      expect(find.text('Iniciar Sesión'), findsOneWidget);
+      expect(find.text('Iniciar sesión'), findsOneWidget);
       expect(SessionController.instance.user.value, isNull);
 
       await _teardown(tester);
