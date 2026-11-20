@@ -71,6 +71,12 @@ class FakeAdminBackend implements HttpClientAdapter {
   List<Map<String, dynamic>> catalogReasons = [];
   Map<String, dynamic>? sync;
 
+  /// Lo que devuelve `POST /api/manager/qr-token` (con `qrError` falla con 500).
+  String qrToken = 'Prado+123e4567-e89b-12d3-a456-426614174000';
+  int qrTtl = 300;
+  String qrPremiseName = 'Prado';
+  String? qrError;
+
   /// Ajustes: período y tope de salidas por persona, y vida del QR.
   String leavePeriod = 'day';
   int? maxExits = 3;
@@ -192,6 +198,20 @@ class FakeAdminBackend implements HttpClientAdapter {
       premises.add(premise);
       statusCode = 201;
       body = {'status': 0, 'data': premise};
+    } else if (path == '/api/manager/qr-token' && method == 'POST') {
+      if (qrError != null) {
+        return _respond({'status': 'ERROR', 'message': qrError}, 500);
+      }
+      body = {
+        'status': 0,
+        'token': qrToken,
+        'TTL': qrTtl,
+        'expires_at': DateTime.now()
+            .add(Duration(seconds: qrTtl))
+            .toUtc()
+            .toIso8601String(),
+        'premise': {'premise_id': 7, 'name': qrPremiseName},
+      };
     } else if (path == '/api/admin/reasons/sync' && method == 'POST') {
       syncCalls++;
       body = {

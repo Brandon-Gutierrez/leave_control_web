@@ -1,16 +1,16 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../core/network/api_exception.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../auth/presentation/admin_login_page.dart';
 import '../../auth/state/session_controller.dart';
 import '../../premises/models/premise.dart';
 import '../data/qr_service.dart';
+import '../models/season.dart';
 import 'manual_entry_dialog.dart';
+import 'qr_screen.dart';
 
 /// Pantalla con el código QR de un predio.
 ///
@@ -19,12 +19,18 @@ import 'manual_entry_dialog.dart';
 ///  * Responsable de predio ([QrGeneratorPage.forPremiseManager]): es la única pantalla
 ///    de su cuenta. No tiene botón de volver ni de cerrar sesión, no reacciona
 ///    al botón "atrás" y el QR siempre es el del predio asignado en el servidor.
+///
+/// El aspecto lo pone [QrScreen]; en las fiestas de fin de año se viste de
+/// fiesta (ver [Season]).
 class QrGeneratorPage extends StatefulWidget {
   final Premise premise;
   final bool showNavigation;
 
+  /// Fuerza una temporada (pruebas y vistas previas); por defecto, la de hoy.
+  final Season? season;
+
   /// Crea la pantalla QR para administración.
-  const QrGeneratorPage({super.key, required this.premise})
+  const QrGeneratorPage({super.key, required this.premise, this.season})
     : showNavigation = true;
 
   /// Crea la pantalla QR para el responsable del predio.
@@ -32,6 +38,7 @@ class QrGeneratorPage extends StatefulWidget {
     super.key,
     required int premiseId,
     required String premiseName,
+    this.season,
   }) : premise = Premise(id: premiseId, name: premiseName, reasonNames: []),
        showNavigation = false;
 
@@ -57,7 +64,12 @@ class _QrGeneratorPageState extends State<QrGeneratorPage> {
   int _secondsRemaining = 0;
   int _totalSeconds = 0;
 
+  /// La temporada de la fecha de hoy; se vuelve a mirar con cada código nuevo
+  /// (la pantalla puede quedar encendida días enteros).
+  Season _todaySeason = Season.at(DateTime.now());
+
   bool get _isManager => !widget.showNavigation;
+  Season get _season => widget.season ?? _todaySeason;
 
   /// Inicializa la pantalla y solicita un QR.
   @override
@@ -95,6 +107,7 @@ class _QrGeneratorPageState extends State<QrGeneratorPage> {
         _secondsRemaining = qr.ttl;
         _totalSeconds = qr.ttl;
         _isLoading = false;
+        _todaySeason = Season.at(DateTime.now());
       });
       _startAutoRefreshTimer();
     } on ApiException catch (e) {
@@ -154,228 +167,6 @@ class _QrGeneratorPageState extends State<QrGeneratorPage> {
     });
   }
 
-  /// Elige el color según el tiempo restante.
-  Color get _timeColor {
-    if (_totalSeconds <= 0) return AppColors.success;
-    final ratio = _secondsRemaining / _totalSeconds;
-    if (ratio > 0.5) return AppColors.success;
-    if (ratio > 0.2) return AppColors.warning;
-    return AppColors.danger;
-  }
-
-  /// Construye la pantalla QR adaptable.
-  @override
-  Widget build(BuildContext context) {
-    final scaffold = Scaffold(
-      backgroundColor: Colors.white,
-      appBar: widget.showNavigation
-          ? AppBar(
-              leading: IconButton(
-                tooltip: 'Volver',
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => Navigator.maybePop(context),
-              ),
-              title: const Text('Código QR', style: AppText.sectionTitle),
-              centerTitle: true,
-              backgroundColor: Colors.white,
-              surfaceTintColor: Colors.transparent,
-              elevation: 0,
-              shape: const Border(bottom: BorderSide(color: AppColors.line)),
-            )
-          : null,
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final wide = constraints.maxWidth >= 900;
-          final name = _premiseName ?? widget.premise.name;
-
-          if (wide) {
-            final panelWidth = (constraints.maxWidth * 0.36).clamp(
-              380.0,
-              640.0,
-            );
-            return Row(
-              children: [
-                SizedBox(
-                  width: panelWidth,
-                  child: _buildBrandPanel(name, wide: true),
-                ),
-                Expanded(
-                  child: _buildQrArea(
-                    constraints,
-                    wide: true,
-                    panelWidth: panelWidth,
-                  ),
-                ),
-              ],
-            );
-          }
-          return SafeArea(
-            child: Column(
-              children: [
-                _buildBrandPanel(name, wide: false),
-                Expanded(
-                  child: _buildQrArea(constraints, wide: false, panelWidth: 0),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-
-    // El responsable no puede salir de esta pantalla: "atrás" no hace nada.
-    return _isManager ? PopScope(canPop: false, child: scaffold) : scaffold;
-  }
-
-  /// Muestra el nombre del predio y las instrucciones.
-  Widget _buildBrandPanel(String name, {required bool wide}) {
-    // En pantallas bajas (laptop) todo se compacta para que nada se corte.
-    final compact = MediaQuery.sizeOf(context).height < 860;
-    final progress = _totalSeconds > 0
-        ? (_secondsRemaining / _totalSeconds).clamp(0.0, 1.0)
-        : 0.0;
-    final pad = wide ? (compact ? 32.0 : 48.0) : 20.0;
-
-    const steps = [
-      'Abra la aplicación móvil',
-      'Toque «Registrar mi salida» o «mi retorno»',
-      'Apunte la cámara a este código',
-    ];
-
-    return Container(
-      color: AppColors.primaryRed,
-      padding: EdgeInsets.all(pad),
-      child: Column(
-        mainAxisSize: wide ? MainAxisSize.max : MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            color: Colors.white,
-            child: Image.asset(
-              'rsc/comteco.png',
-              height: wide ? 40 : 30,
-              fit: BoxFit.contain,
-              errorBuilder: (_, _, _) => const Icon(Icons.apartment_rounded),
-            ),
-          ),
-          SizedBox(height: wide ? (compact ? 28 : 48) : 14),
-          const Text(
-            'PREDIO',
-            style: TextStyle(
-              color: Colors.white70,
-              letterSpacing: 3,
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            name,
-            maxLines: 4,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: wide ? (compact ? 42 : 56) : 30,
-              fontWeight: FontWeight.w900,
-              height: 1.05,
-              letterSpacing: -1,
-            ),
-          ),
-          if (wide) ...[
-            SizedBox(height: compact ? 24 : 40),
-            for (var i = 0; i < steps.length; i++)
-              Padding(
-                padding: EdgeInsets.only(bottom: compact ? 12 : 18),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      alignment: Alignment.center,
-                      color: Colors.white,
-                      child: Text(
-                        '${i + 1}',
-                        style: const TextStyle(
-                          color: AppColors.primaryRed,
-                          fontSize: 24,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Text(
-                        steps[i],
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            const Spacer(),
-          ] else
-            const SizedBox(height: 14),
-          if (_isManager) ...[
-            _buildManualEntryButton(wide: wide),
-            SizedBox(height: wide ? 20 : 12),
-          ],
-          if (_qrToken != null) ...[
-            Row(
-              children: [
-                const Icon(Icons.timer_rounded, color: Colors.white, size: 30),
-                const SizedBox(width: 10),
-                Flexible(
-                  child: Text(
-                    'Se actualiza en: $_secondsRemaining s',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: wide ? 30 : 20,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            LinearProgressIndicator(
-              value: progress,
-              minHeight: wide ? 14 : 10,
-              color: Colors.white,
-              backgroundColor: Colors.white24,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  /// Botón para quien no puede escanear: ingresa con item y carnet.
-  Widget _buildManualEntryButton({required bool wide}) {
-    return SizedBox(
-      height: wide ? 60 : 52,
-      child: FilledButton.icon(
-        onPressed: _openManualEntry,
-        icon: const Icon(Icons.badge_outlined, size: 26),
-        label: const Text('Registro manual'),
-        style: FilledButton.styleFrom(
-          // Blanco sólido con texto rojo: se separa del fondo rojo del panel.
-          backgroundColor: Colors.white,
-          foregroundColor: AppColors.primaryRed,
-          textStyle: TextStyle(
-            fontSize: wide ? 20 : 17,
-            fontWeight: FontWeight.w800,
-          ),
-          shape: const RoundedRectangleBorder(),
-        ),
-      ),
-    );
-  }
-
   /// Abre el registro manual; al terminar se vuelve solo al QR.
   Future<void> _openManualEntry() async {
     await showDialog<bool>(
@@ -385,94 +176,45 @@ class _QrGeneratorPageState extends State<QrGeneratorPage> {
     );
   }
 
-  /// Muestra el QR, la carga o el error.
-  Widget _buildQrArea(
-    BoxConstraints constraints, {
-    required bool wide,
-    required double panelWidth,
-  }) {
-    final color = _timeColor;
-    final frame = wide ? 64.0 + 24 : 40.0 + 16;
-
-    return LayoutBuilder(
-      builder: (context, box) {
-        final qrSize = [
-          box.maxWidth - frame,
-          box.maxHeight - frame,
-        ].reduce((a, b) => a < b ? a : b).clamp(120.0, 1100.0);
-        return Container(
-          color: const Color(0xFFF4F4F4),
-          child: Center(
-            child: _isLoading
-                ? const CircularProgressIndicator(color: AppColors.primaryRed)
-                : _errorMessage != null
-                ? _buildErrorState()
-                : _qrToken == null
-                ? const SizedBox.shrink()
-                : Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        padding: EdgeInsets.all(wide ? 20 : 12),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          border: Border.all(
-                            color: color,
-                            width: wide ? 12 : 8,
-                          ),
-                        ),
-                        child: QrImageView(
-                          data: _qrToken!,
-                          version: QrVersions.auto,
-                          size: qrSize,
-                          backgroundColor: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-          ),
-        );
-      },
-    );
-  }
-
-  /// Muestra el error y permite reintentar.
-  Widget _buildErrorState() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 40),
-      child: Column(
-        children: [
-          Icon(Icons.cloud_off_rounded, size: 44, color: Colors.grey.shade600),
-          const SizedBox(height: 12),
-          Text(
-            _errorMessage!,
-            style: AppText.body.copyWith(
-              color: AppColors.danger,
-              fontWeight: FontWeight.w700,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          if (_isManager) ...[
-            const SizedBox(height: 6),
-            Text(
-              'Se reintentará automáticamente.',
-              style: AppText.caption,
-              textAlign: TextAlign.center,
-            ),
-          ],
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: _fetchQrToken,
-            icon: const Icon(Icons.refresh_rounded),
-            label: const Text('Reintentar'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryRed,
+  /// Construye la pantalla QR adaptable.
+  @override
+  Widget build(BuildContext context) {
+    final scaffold = Scaffold(
+      backgroundColor: const Color(0xFF121212),
+      appBar: widget.showNavigation
+          ? AppBar(
+              leading: IconButton(
+                tooltip: 'Volver',
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => Navigator.maybePop(context),
+              ),
+              title: Text(
+                'Código QR',
+                style: AppText.sectionTitle.copyWith(color: Colors.white),
+              ),
+              centerTitle: true,
               foregroundColor: Colors.white,
-              minimumSize: const Size(150, AppDimens.smallButtonHeight),
-            ),
-          ),
-        ],
+              backgroundColor: const Color(0xFF121212),
+              surfaceTintColor: Colors.transparent,
+              elevation: 0,
+              shape: const Border(bottom: BorderSide(color: Colors.white24)),
+            )
+          : null,
+      body: QrScreen(
+        premiseName: _premiseName ?? widget.premise.name,
+        token: _qrToken,
+        loading: _isLoading,
+        errorMessage: _errorMessage,
+        secondsRemaining: _secondsRemaining,
+        totalSeconds: _totalSeconds,
+        season: _season,
+        isManager: _isManager,
+        onRetry: _fetchQrToken,
+        onManualEntry: _isManager ? _openManualEntry : null,
       ),
     );
+
+    // El responsable no puede salir de esta pantalla: "atrás" no hace nada.
+    return _isManager ? PopScope(canPop: false, child: scaffold) : scaffold;
   }
 }

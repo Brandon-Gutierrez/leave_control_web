@@ -409,7 +409,8 @@ void main() {
         await tester.pump(const Duration(milliseconds: 100));
       }
       expect(tester.takeException(), isNull);
-      expect(find.text('Se actualiza en: 60 s'), findsOneWidget);
+      expect(find.text('El código se renueva solo'), findsOneWidget);
+      expect(find.text('1:00'), findsOneWidget);
 
       await tester.pumpWidget(const SizedBox.shrink());
     });
