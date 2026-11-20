@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/format/date_text.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/hover_highlight.dart';
 import '../../../core/widgets/load_error.dart';
 import '../../../core/widgets/skeleton.dart';
 import '../../premises/models/premise.dart';
@@ -558,15 +559,17 @@ class _PremiseRow extends StatelessWidget {
             ],
           );
 
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-        decoration: BoxDecoration(
-          color: urgent ? const Color(0xFFFDF1EF) : null,
-          border: const Border(top: BorderSide(color: AppColors.rowLine)),
+    return HoverHighlight(
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+          decoration: BoxDecoration(
+            color: urgent ? const Color(0xFFFDF1EF) : null,
+            border: const Border(top: BorderSide(color: AppColors.rowLine)),
+          ),
+          child: row,
         ),
-        child: row,
       ),
     );
   }
@@ -902,17 +905,32 @@ class _Rule extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 9),
-      child: Row(
-        // Los puntos van abajo, a la altura de la base del texto.
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Flexible(child: Text(label, style: const TextStyle(fontSize: 14))),
-          const Expanded(child: _DottedLeader()),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
-          ),
-        ],
+      child: LayoutBuilder(
+        // El nombre ocupa solo lo que mide y el valor tambiÃ©n (cada uno hasta la mitad de la fila), los
+        // puntos rellenan el resto y el valor queda pegado al borde derecho:
+        // así todas las filas terminan en la misma línea.
+        builder: (context, box) => Row(
+          // Los puntos van abajo, a la altura de la base del texto.
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: box.maxWidth * 0.5),
+              child: Text(label, style: const TextStyle(fontSize: 14)),
+            ),
+            const Expanded(child: _DottedLeader()),
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: box.maxWidth * 0.5),
+              child: Text(
+                value,
+                textAlign: TextAlign.right,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

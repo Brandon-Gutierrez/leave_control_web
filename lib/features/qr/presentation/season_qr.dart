@@ -212,8 +212,8 @@ class _Layouts {
 
 /// El paso de un dibujo a otro: cada pieza sale en su momento, de arriba abajo.
 class _Transition {
-  static const moveMs = 360;
-  static const colorMs = 220;
+  static const moveMs = 700;
+  static const colorMs = 400;
 
   final List<_PieceState> from;
   final List<_PieceState> to;
@@ -225,7 +225,7 @@ class _Transition {
   factory _Transition.between(List<_PieceState> from, List<_PieceState> to) {
     final delays = [
       for (var k = 0; k < to.length; k++)
-        (math.max(0.0, to[k].gridRow + 4) * 4 + (k % 7) * 3).round(),
+        (math.max(0.0, to[k].gridRow + 4) * 8 + (k % 7) * 5).round(),
     ];
     return _Transition._(
       from,
@@ -344,7 +344,7 @@ class SeasonQr extends StatefulWidget {
     required this.size,
     this.festive = false,
     this.treeEvery = 3,
-    this.dwell = const Duration(milliseconds: 750),
+    this.dwell = const Duration(milliseconds: 2200),
     this.snowColor = const Color(0xFF9CC3E4),
   });
 

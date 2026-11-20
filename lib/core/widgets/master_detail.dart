@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import 'hover_highlight.dart';
 import 'load_error.dart';
 import 'skeleton.dart';
 
@@ -185,9 +186,11 @@ class MasterList<T> extends StatelessWidget {
         final entry = entries[index];
         if (entry is String) return _GroupHeader(letter: entry);
         final item = entry as T;
-        return InkWell(
-          onTap: () => onTap(item),
-          child: rowBuilder(context, item),
+        return HoverHighlight(
+          child: InkWell(
+            onTap: () => onTap(item),
+            child: rowBuilder(context, item),
+          ),
         );
       },
     );

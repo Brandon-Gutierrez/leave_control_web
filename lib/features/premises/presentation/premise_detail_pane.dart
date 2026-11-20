@@ -5,6 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/admin_button.dart';
 import '../../../core/widgets/admin_field.dart';
+import '../../../core/widgets/check_row.dart';
 import '../../../core/widgets/load_error.dart';
 import '../../../core/widgets/master_detail.dart';
 import '../../../core/widgets/skeleton.dart';
@@ -605,7 +606,7 @@ class PremiseDetailPaneState extends State<PremiseDetailPane> {
                   for (final name in options)
                     SizedBox(
                       width: width,
-                      child: _ReasonCheck(
+                      child: CheckRow(
                         label: name,
                         checked: _reasons.contains(name),
                         onTap: _saving ? null : () => _toggleReason(name),
@@ -646,75 +647,6 @@ class PremiseDetailPaneState extends State<PremiseDetailPane> {
           ? null
           : '${options.where(_reasons.contains).length} de ${options.length}',
       children: [body],
-    );
-  }
-}
-
-/// Un motivo con su casilla: marcado va en negro y en negrita.
-class _ReasonCheck extends StatelessWidget {
-  final String label;
-  final bool checked;
-  final VoidCallback? onTap;
-
-  const _ReasonCheck({
-    required this.label,
-    required this.checked,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      checked: checked,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(6),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 40),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Row(
-              children: [
-                Container(
-                  width: 20,
-                  height: 20,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: checked ? AppColors.darkText : Colors.white,
-                    borderRadius: BorderRadius.circular(4),
-                    border: checked
-                        ? null
-                        : Border.all(
-                            color: const Color(0xFFBDBDB8),
-                            width: 1.5,
-                          ),
-                  ),
-                  child: checked
-                      ? const Icon(
-                          Icons.check_rounded,
-                          size: 15,
-                          color: Colors.white,
-                        )
-                      : null,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    label,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: checked ? FontWeight.w700 : FontWeight.w500,
-                      color: checked ? AppColors.darkText : AppColors.muted,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

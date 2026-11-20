@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/app_modal.dart';
 import '../../../core/widgets/dialog_tone.dart';
 import '../models/managed_user.dart';
@@ -95,9 +94,6 @@ class _ManagerPasswordDialogState extends State<ManagerPasswordDialog> {
                 autofocus: true,
                 decoration: InputDecoration(
                   labelText: 'Nueva contraseña (mínimo 10 caracteres)',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppDimens.fieldRadius),
-                  ),
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscure

@@ -5,7 +5,7 @@ import 'app_text_styles.dart';
 
 OutlineInputBorder _fieldBorder(Color color, double width) {
   return OutlineInputBorder(
-    borderRadius: BorderRadius.circular(AppDimens.radiusField),
+    borderRadius: BorderRadius.circular(AppDimens.fieldRadius),
     borderSide: BorderSide(color: color, width: width),
   );
 }
@@ -51,10 +51,11 @@ ThemeData buildAppTheme() {
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 17),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
       hintStyle: const TextStyle(color: Color(0xFF777777), fontSize: 15),
-      border: _fieldBorder(AppColors.fieldLine, 1.5),
-      enabledBorder: _fieldBorder(AppColors.fieldLine, 1.5),
+      border: _fieldBorder(AppColors.buttonLine, 1),
+      enabledBorder: _fieldBorder(AppColors.buttonLine, 1),
+      disabledBorder: _fieldBorder(AppColors.buttonLine, 1),
       focusedBorder: _fieldBorder(AppColors.primaryRed, 2),
       errorBorder: _fieldBorder(AppColors.danger, 1.5),
       focusedErrorBorder: _fieldBorder(AppColors.danger, 2),

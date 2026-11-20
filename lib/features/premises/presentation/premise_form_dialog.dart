@@ -4,6 +4,7 @@ import '../../../core/constants/role_names.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_modal.dart';
+import '../../../core/widgets/check_row.dart';
 import '../../../core/widgets/dialog_tone.dart';
 import '../../dashboard/state/admin_data_store.dart';
 import '../../map/models/lat_lng.dart';
@@ -196,28 +197,18 @@ class _PremiseFormDialogState extends State<PremiseFormDialog> {
     }
   }
 
-  InputDecoration _decoration(String label) => InputDecoration(
-    labelText: label,
-    filled: true,
-    fillColor: Colors.white,
-    enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(10),
-      borderSide: BorderSide(color: Colors.grey.shade300),
-    ),
-    focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(10),
-      borderSide: const BorderSide(color: primaryRed, width: 1.5),
-    ),
-  );
+  InputDecoration _decoration(String label) =>
+      InputDecoration(labelText: label);
 
   Widget _sectionTitle(String text) => Padding(
-    padding: const EdgeInsets.only(top: 20, bottom: 8),
+    padding: const EdgeInsets.only(top: 24, bottom: 10),
     child: Text(
-      text,
+      text.toUpperCase(),
       style: const TextStyle(
-        fontSize: 14,
-        fontWeight: FontWeight.bold,
-        color: darkText,
+        fontSize: 11,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 1.3,
+        color: AppColors.label,
       ),
     ),
   );
@@ -343,7 +334,7 @@ class _PremiseFormDialogState extends State<PremiseFormDialog> {
             key: ValueKey('manager-$_managerId'),
             initialValue: _managerId,
             isExpanded: true,
-            decoration: _decoration('Responsable'),
+            decoration: const InputDecoration(),
             items: [
               const DropdownMenuItem<int?>(
                 value: null,
@@ -424,18 +415,20 @@ class _PremiseFormDialogState extends State<PremiseFormDialog> {
         ),
         LayoutBuilder(
           builder: (context, constraints) {
-            const gap = 10.0;
-            final tileWidth = (constraints.maxWidth - gap) / 2;
+            const gap = 18.0;
+            final columns = constraints.maxWidth >= 480 ? 2 : 1;
+            final tileWidth =
+                (constraints.maxWidth - gap * (columns - 1)) / columns;
             return Wrap(
               spacing: gap,
-              runSpacing: gap,
+              runSpacing: 2,
               children: [
                 for (final reason in _availableReasons)
                   SizedBox(
                     width: tileWidth,
-                    child: _ReasonTile(
+                    child: CheckRow(
                       label: reason.name,
-                      selected: _selectedReasons.contains(reason.name),
+                      checked: _selectedReasons.contains(reason.name),
                       onTap: () => setState(() {
                         if (!_selectedReasons.remove(reason.name)) {
                           _selectedReasons.add(reason.name);
@@ -448,64 +441,6 @@ class _PremiseFormDialogState extends State<PremiseFormDialog> {
           },
         ),
       ],
-    );
-  }
-}
-
-class _ReasonTile extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _ReasonTile({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    const red = AppColors.primaryRed;
-    return Material(
-      color: selected ? red.withValues(alpha: 0.1) : Colors.white,
-      borderRadius: BorderRadius.circular(10),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(10),
-        onTap: onTap,
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 52),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: selected ? red : Colors.grey.shade300,
-              width: selected ? 1.5 : 1,
-            ),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                selected
-                    ? Icons.check_circle_rounded
-                    : Icons.radio_button_unchecked_rounded,
-                color: selected ? red : Colors.grey.shade400,
-                size: 22,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                    color: AppColors.darkText,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

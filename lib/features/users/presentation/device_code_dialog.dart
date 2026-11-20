@@ -121,9 +121,6 @@ class _DeviceCodeDialogState extends State<DeviceCodeDialog> {
                 Icons.smartphone_rounded,
                 color: AppColors.darkText,
               ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(6),
-              ),
             ),
           ),
           if (_error != null) _Note(_error!, danger: true),

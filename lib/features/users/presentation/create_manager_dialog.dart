@@ -75,11 +75,6 @@ class _CreateManagerDialogState extends State<CreateManagerDialog> {
       helperText: helper,
       helperMaxLines: 3,
       suffixIcon: suffix,
-      filled: true,
-      fillColor: Colors.white,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppDimens.fieldRadius),
-      ),
     );
   }
 

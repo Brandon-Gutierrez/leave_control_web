@@ -137,10 +137,7 @@ class _ChangeRoleDialogState extends State<ChangeRoleDialog> {
               key: ValueKey(_selectedPremiseId),
               initialValue: _selectedPremiseId,
               isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Predio asignado',
-                border: OutlineInputBorder(),
-              ),
+              decoration: const InputDecoration(labelText: 'Predio asignado'),
               items: [
                 for (final premise in widget.premises)
                   DropdownMenuItem(

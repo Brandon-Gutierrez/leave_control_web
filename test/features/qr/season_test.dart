@@ -167,7 +167,7 @@ void main() {
       expect(pieces(), findsOneWidget);
       expect(find.byType(QrImageView), findsNothing);
 
-      await _elapse(tester, 1 * 1000);
+      await _elapse(tester, 1500);
       expect(pieces(), findsNothing);
       expect(shown(tester), _b);
     });
@@ -181,7 +181,7 @@ void main() {
       // Primer cambio: solo se reacomoda (rápido).
       key.currentState!.change(_b);
       await tester.pump();
-      await _elapse(tester, 800);
+      await _elapse(tester, 1500);
       expect(pieces(), findsNothing);
       expect(shown(tester), _b);
 
@@ -193,7 +193,7 @@ void main() {
       await _elapse(tester, 200);
       expect(pieces(), findsOneWidget);
 
-      await _elapse(tester, 2 * 1000);
+      await _elapse(tester, 4 * 1000);
       expect(pieces(), findsNothing);
       expect(shown(tester), _c);
     });

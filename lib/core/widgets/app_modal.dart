@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/app_text_styles.dart';
 import 'dialog_tone.dart';
 
-/// Carcasa única de los modales del panel: cabecera de color sólido (el color
-/// dice el propósito), cuerpo que se desplaza y un pie con los botones. Mismo
-/// lenguaje visual que la barra lateral: esquinas rectas, líneas finas.
+/// Carcasa única de los modales del panel, con el mismo lenguaje que las
+/// páginas: hoja blanca de borde fino y esquinas casi rectas, una franja fina
+/// del color del propósito arriba (el color dice para qué es), el ícono en un
+/// cuadro suave junto al título, el cuerpo que se desplaza y un pie separado
+/// por una línea con los botones.
 class AppModal extends StatelessWidget {
   final DialogTone tone;
   final IconData icon;
@@ -36,13 +39,19 @@ class AppModal extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screen = MediaQuery.sizeOf(context);
+    // En pantallas angostas el contenido gana ancho: menos margen a los lados.
+    final side = screen.width < 480 ? 18.0 : 28.0;
     return Dialog(
       backgroundColor: Colors.white,
       surfaceTintColor: Colors.transparent,
       insetPadding: const EdgeInsets.all(16),
       clipBehavior: Clip.antiAlias,
-      elevation: 12,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+      elevation: 10,
+      shadowColor: Colors.black.withValues(alpha: 0.3),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(6),
+        side: const BorderSide(color: AppColors.panelLine),
+      ),
       child: ConstrainedBox(
         constraints: BoxConstraints(
           maxWidth: maxWidth,
@@ -52,7 +61,9 @@ class AppModal extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Container(height: 4, color: tone.color),
             _Header(
+              side: side,
               tone: tone,
               icon: icon,
               title: title,
@@ -61,20 +72,19 @@ class AppModal extends StatelessWidget {
             ),
             Flexible(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(24, 22, 24, 22),
+                padding: EdgeInsets.fromLTRB(side, 6, side, 24),
                 child: child,
               ),
             ),
             if (actions.isNotEmpty)
               Container(
-                padding: const EdgeInsets.fromLTRB(24, 14, 24, 14),
+                padding: EdgeInsets.fromLTRB(side, 16, side, 18),
                 decoration: const BoxDecoration(
-                  color: Color(0xFFF6F6F6),
-                  border: Border(top: BorderSide(color: AppColors.line)),
+                  border: Border(top: BorderSide(color: AppColors.rowLine)),
                 ),
                 child: Wrap(
                   alignment: WrapAlignment.end,
-                  spacing: 12,
+                  spacing: 10,
                   runSpacing: 10,
                   children: actions,
                 ),
@@ -87,6 +97,7 @@ class AppModal extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
+  final double side;
   final DialogTone tone;
   final IconData icon;
   final String title;
@@ -94,6 +105,7 @@ class _Header extends StatelessWidget {
   final VoidCallback onClose;
 
   const _Header({
+    required this.side,
     required this.tone,
     required this.icon,
     required this.title,
@@ -103,47 +115,60 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: tone.color,
-      padding: const EdgeInsets.fromLTRB(22, 16, 8, 16),
+    return Padding(
+      padding: EdgeInsets.fromLTRB(side, 22, 12, 14),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 1),
-            child: Icon(icon, color: Colors.white, size: 30),
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: tone.color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: tone.color, size: 24),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 16),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                  ),
-                ),
-                if (subtitle != null) ...[
-                  const SizedBox(height: 2),
+            child: Padding(
+              padding: const EdgeInsets.only(top: 1),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    subtitle!,
-                    style: const TextStyle(fontSize: 15, color: Colors.white),
+                    title,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.4,
+                      height: 1.15,
+                      color: AppColors.darkText,
+                    ),
                   ),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle!,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppColors.muted,
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
           IconButton(
             tooltip: 'Cerrar',
             onPressed: onClose,
-            icon: const Icon(
-              Icons.close_rounded,
-              color: Colors.white,
-              size: 26,
+            style: IconButton.styleFrom(
+              foregroundColor: AppColors.muted,
+              hoverColor: const Color(0x0D000000),
+              minimumSize: const Size(40, 40),
             ),
+            icon: const Icon(Icons.close_rounded, size: 24),
           ),
         ],
       ),
@@ -151,7 +176,9 @@ class _Header extends StatelessWidget {
   }
 }
 
-/// Botones del pie con el mismo estilo en todos los modales.
+/// Botones del pie con el mismo estilo en todos los modales: 46 px, esquinas
+/// de 8 px y letra en negrita. El principal va relleno (de [color] o rojo); el
+/// resto, blanco con borde.
 class ModalButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
@@ -171,29 +198,39 @@ class ModalButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(8),
     );
-    const size = Size(120, 48);
+    const size = Size(110, 46);
+    const text = TextStyle(
+      fontFamily: appFontFamily,
+      fontSize: 14,
+      fontWeight: FontWeight.w700,
+    );
     if (!primary) {
       return OutlinedButton(
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
           minimumSize: size,
           shape: shape,
+          textStyle: text,
           foregroundColor: AppColors.darkText,
           backgroundColor: Colors.white,
-          side: const BorderSide(color: Color(0xFFB0B0B0)),
+          side: const BorderSide(color: AppColors.buttonLine),
         ),
         child: Text(label),
       );
     }
+    final fill = color ?? AppColors.primaryRed;
     return FilledButton(
       onPressed: isLoading ? null : onPressed,
       style: FilledButton.styleFrom(
         minimumSize: size,
         shape: shape,
-        backgroundColor: color ?? AppColors.primaryRed,
+        textStyle: text,
+        backgroundColor: fill,
         foregroundColor: Colors.white,
+        disabledBackgroundColor: fill.withValues(alpha: 0.5),
+        disabledForegroundColor: Colors.white.withValues(alpha: 0.8),
       ),
       child: isLoading
           ? const SizedBox(
