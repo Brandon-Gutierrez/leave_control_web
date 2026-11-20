@@ -133,6 +133,39 @@ void main() {
   });
 
   group('lista', () {
+    testWidgets('muestra de 10 en 10 y vuelve a la primera al buscar', (
+      tester,
+    ) async {
+      backend.premises = [
+        for (var i = 1; i <= 25; i++)
+          {
+            'id': i,
+            'name': 'Predio ${i.toString().padLeft(2, '0')}',
+            'latitude': '-17.39',
+            'longitude': '-66.15',
+            'reason_names': <String>[],
+          },
+      ];
+      await _open(tester);
+
+      expect(find.text('Predio 01'), findsOneWidget);
+      expect(find.text('Predio 10'), findsOneWidget);
+      expect(find.text('Predio 11'), findsNothing);
+      expect(find.text('1–10 de 25'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Página siguiente'));
+      await tester.pumpAndSettle();
+      expect(find.text('Predio 01'), findsNothing);
+      expect(find.text('Predio 11'), findsOneWidget);
+      expect(find.text('11–20 de 25'), findsOneWidget);
+
+      // Otra búsqueda: de nuevo la primera página.
+      await tester.enterText(find.byType(TextField).first, 'Predio');
+      await tester.pumpAndSettle();
+      expect(find.text('Predio 01'), findsOneWidget);
+      expect(find.text('1–10 de 25'), findsOneWidget);
+    });
+
     testWidgets(
       'muestra los predios con letras, lo que les falta y sus motivos',
       (tester) async {

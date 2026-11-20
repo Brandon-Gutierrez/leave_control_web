@@ -37,6 +37,9 @@ class QrScreen extends StatelessWidget {
   final VoidCallback onRetry;
   final VoidCallback? onManualEntry;
 
+  /// Para renovar el cÃ³digo con la animaciÃ³n (ver [SeasonQrState.renew]).
+  final GlobalKey<SeasonQrState>? qrKey;
+
   const QrScreen({
     super.key,
     required this.premiseName,
@@ -49,6 +52,7 @@ class QrScreen extends StatelessWidget {
     required this.isManager,
     required this.onRetry,
     this.onManualEntry,
+    this.qrKey,
   });
 
   static const _steps = [
@@ -382,12 +386,7 @@ class QrScreen extends StatelessWidget {
     } else if (token == null) {
       content = const SizedBox.shrink();
     } else {
-      content = SeasonQr(
-        key: const ValueKey('qr-code'),
-        data: token!,
-        size: inner,
-        festive: _festive,
-      );
+      content = SeasonQr(key: qrKey, data: token!, size: inner);
     }
     return Container(
       width: side,

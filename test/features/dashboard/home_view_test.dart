@@ -472,8 +472,9 @@ void main() {
       expect(find.text('Configuración vigente'), findsOneWidget);
       expect(find.text('5 minutos'), findsOneWidget);
       expect(find.text('3 por día'), findsOneWidget);
-      expect(find.text('50 metros'), findsOneWidget);
-      expect(find.text('Lun a vie, 00:00'), findsOneWidget);
+      // Solo las reglas que se editan en Ajustes: sin distancia ni horario.
+      expect(find.text('Distancia al predio'), findsNothing);
+      expect(find.text('Sincronización de motivos'), findsNothing);
     });
 
     testWidgets('«Editar» lleva a Ajustes', (tester) async {

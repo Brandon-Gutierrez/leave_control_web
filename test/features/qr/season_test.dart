@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:control_leaves_web/features/qr/models/season.dart';
 import 'package:control_leaves_web/features/qr/presentation/qr_screen.dart';
 import 'package:control_leaves_web/features/qr/presentation/season_qr.dart';
@@ -11,30 +13,6 @@ Widget _host(Widget child) => MaterialApp(
     body: Center(child: child),
   ),
 );
-
-/// Un cambio de código con el reloj de la prueba.
-class _Swap extends StatefulWidget {
-  final bool festive;
-  final int treeEvery;
-  const _Swap({super.key, this.festive = true, this.treeEvery = 3});
-
-  @override
-  State<_Swap> createState() => _SwapState();
-}
-
-class _SwapState extends State<_Swap> {
-  String data = 'Prado+primero-1234567890123456789012345678901234';
-
-  void change(String value) => setState(() => data = value);
-
-  @override
-  Widget build(BuildContext context) => SeasonQr(
-    data: data,
-    size: 300,
-    festive: widget.festive,
-    treeEvery: widget.treeEvery,
-  );
-}
 
 /// Deja pasar el tiempo cuadro a cuadro: una animaciÃ³n necesita varios cuadros
 /// para avanzar (un solo `pump` largo no basta).
@@ -133,114 +111,127 @@ void main() {
 
   group('QR de temporada', () {
     Finder pieces() => find.byKey(const ValueKey('season-qr-pieces'));
+    final key = GlobalKey<SeasonQrState>();
 
-    /// El código que se ve: hay un QR quieto y es el de la pantalla.
-    String shown(WidgetTester t) {
+    Future<void> open(WidgetTester tester) =>
+        tester.pumpWidget(_host(SeasonQr(key: key, data: _a, size: 300)));
+
+    testWidgets('quieto es un QR real', (tester) async {
+      await open(tester);
+
       expect(find.byType(QrImageView), findsOneWidget);
-      return t.widget<SeasonQr>(find.byType(SeasonQr)).data;
-    }
-
-    testWidgets('sin temporada el código nuevo se pone al instante', (
-      tester,
-    ) async {
-      final key = GlobalKey<_SwapState>();
-      await tester.pumpWidget(_host(_Swap(key: key, festive: false)));
-      expect(shown(tester), _a);
-
-      key.currentState!.change(_b);
-      await tester.pump();
-
       expect(pieces(), findsNothing);
-      expect(shown(tester), _b);
+      expect(key.currentState!.isRenewing, isFalse);
     });
 
-    testWidgets('en temporada el código se reacomoda y vuelve a ser el QR', (
-      tester,
-    ) async {
-      final key = GlobalKey<_SwapState>();
-      await tester.pumpWidget(_host(_Swap(key: key)));
+    testWidgets('renovar: el QR forma el árbol, pide el código con el árbol '
+        'a la vista y aparece el nuevo', (tester) async {
+      await open(tester);
+      final fetch = Completer<String>();
+      var fetched = 0;
+      String? applied;
 
-      key.currentState!.change(_b);
+      final future = key.currentState!.renew<String>(
+        fetch: () {
+          fetched++;
+          return fetch.future;
+        },
+        tokenOf: (t) => t,
+      );
+      unawaited(future.then((v) => applied = v));
       await tester.pump();
-      await _elapse(tester, 200);
-      // Mientras se mueve no hay QR legible, solo piezas.
+      // Todavía no se pidió nada: el QR se está deshaciendo.
+      expect(fetched, 0);
       expect(pieces(), findsOneWidget);
       expect(find.byType(QrImageView), findsNothing);
 
+      // Con el árbol armado se pide el código.
       await _elapse(tester, 1500);
+      expect(fetched, 1);
+      expect(pieces(), findsOneWidget);
+      expect(applied, isNull);
+
+      // El servidor tarda: el árbol espera.
+      await _elapse(tester, 3000);
+      expect(pieces(), findsOneWidget);
+      expect(applied, isNull);
+
+      fetch.complete(_b);
+      await _elapse(tester, 2500);
+      expect(applied, _b);
       expect(pieces(), findsNothing);
-      expect(shown(tester), _b);
+      expect(
+        tester.widget<SeasonQr>(find.byType(SeasonQr)).data,
+        _a,
+        reason: 'el padre pasa el código nuevo después',
+      );
+      expect(key.currentState!.isRenewing, isFalse);
     });
 
-    testWidgets('cada tercer cambio forma el árbol antes del código nuevo', (
-      tester,
-    ) async {
-      final key = GlobalKey<_SwapState>();
-      await tester.pumpWidget(_host(_Swap(key: key, treeEvery: 2)));
+    testWidgets('el árbol se ve al menos el tiempo previsto', (tester) async {
+      await open(tester);
+      final future = key.currentState!.renew<String>(
+        fetch: () async => _b,
+        tokenOf: (t) => t,
+      );
+      var done = false;
+      unawaited(future.then((_) => done = true));
 
-      // Primer cambio: solo se reacomoda (rápido).
-      key.currentState!.change(_b);
-      await tester.pump();
+      // Aunque el servidor responda al instante no se salta la animación.
       await _elapse(tester, 1500);
-      expect(pieces(), findsNothing);
-      expect(shown(tester), _b);
-
-      // Segundo: pasa por el árbol y tarda más.
-      key.currentState!.change(_c);
-      await tester.pump();
-      await _elapse(tester, 800);
-      expect(pieces(), findsOneWidget); // el árbol a la vista
-      await _elapse(tester, 200);
+      expect(done, isFalse);
       expect(pieces(), findsOneWidget);
 
-      await _elapse(tester, 4 * 1000);
+      await _elapse(tester, 3000);
+      expect(done, isTrue);
       expect(pieces(), findsNothing);
-      expect(shown(tester), _c);
     });
 
-    testWidgets('un cambio en pleno movimiento pone el último código', (
+    testWidgets('si el servidor falla vuelve al QR anterior y avisa', (
       tester,
     ) async {
-      final key = GlobalKey<_SwapState>();
-      await tester.pumpWidget(_host(_Swap(key: key)));
+      await open(tester);
+      Object? error;
+      final future = key.currentState!.renew<String>(
+        fetch: () async => throw StateError('sin red'),
+        tokenOf: (t) => t,
+      );
+      unawaited(future.then((_) {}, onError: (Object e) => error = e));
 
-      key.currentState!.change(_b);
-      await tester.pump();
-      await _elapse(tester, 150);
-      key.currentState!.change(_c);
+      await _elapse(tester, 5000);
+
+      expect(error, isA<StateError>());
+      expect(pieces(), findsNothing);
+      expect(find.byType(QrImageView), findsOneWidget);
+      expect(key.currentState!.isRenewing, isFalse);
+    });
+
+    testWidgets('un código que llega sin renovar se pone directo', (
+      tester,
+    ) async {
+      await open(tester);
+
+      await tester.pumpWidget(_host(SeasonQr(key: key, data: _c, size: 300)));
       await tester.pump();
 
       expect(pieces(), findsNothing);
-      expect(shown(tester), _c);
-      await _elapse(tester, 3 * 1000);
-      expect(shown(tester), _c);
-      expect(tester.takeException(), isNull);
+      expect(find.byType(QrImageView), findsOneWidget);
     });
 
     testWidgets('cerrar la pantalla a mitad de la animación no falla', (
       tester,
     ) async {
-      final key = GlobalKey<_SwapState>();
-      await tester.pumpWidget(_host(_Swap(key: key, treeEvery: 1)));
-
-      key.currentState!.change(_b);
-      await tester.pump();
+      await open(tester);
+      unawaited(
+        key.currentState!
+            .renew<String>(fetch: () async => _b, tokenOf: (t) => t)
+            .then((_) {}, onError: (_) {}),
+      );
       await _elapse(tester, 300);
       await tester.pumpWidget(const SizedBox.shrink());
-      await _elapse(tester, 5 * 1000);
+      await _elapse(tester, 5000);
 
       expect(tester.takeException(), isNull);
-    });
-
-    testWidgets('el mismo código no anima nada', (tester) async {
-      final key = GlobalKey<_SwapState>();
-      await tester.pumpWidget(_host(_Swap(key: key)));
-
-      key.currentState!.change(_a);
-      await tester.pump();
-
-      expect(pieces(), findsNothing);
-      expect(shown(tester), _a);
     });
   });
 }

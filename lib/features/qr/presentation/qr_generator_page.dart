@@ -8,9 +8,11 @@ import '../../auth/presentation/admin_login_page.dart';
 import '../../auth/state/session_controller.dart';
 import '../../premises/models/premise.dart';
 import '../data/qr_service.dart';
+import '../models/qr_token.dart';
 import '../models/season.dart';
 import 'manual_entry_dialog.dart';
 import 'qr_screen.dart';
+import 'season_qr.dart';
 
 /// Pantalla con el código QR de un predio.
 ///
@@ -53,6 +55,7 @@ class _QrGeneratorPageState extends State<QrGeneratorPage> {
   static const Duration _managerRetryDelay = Duration(seconds: 10);
 
   final QrService _qrService = QrService();
+  final _qrKey = GlobalKey<SeasonQrState>();
 
   String? _qrToken;
   String? _premiseName;
@@ -98,35 +101,66 @@ class _QrGeneratorPageState extends State<QrGeneratorPage> {
     });
 
     try {
-      final qr = await _qrService.createQrToken();
-      if (!mounted) return;
-      setState(() {
-        _qrToken = qr.token;
-        _premiseName = qr.premiseName ?? _premiseName;
-        _expiresAt = qr.expiresAt;
-        _secondsRemaining = qr.ttl;
-        _totalSeconds = qr.ttl;
-        _isLoading = false;
-        _todaySeason = Season.at(DateTime.now());
-      });
-      _startAutoRefreshTimer();
+      _applyQr(await _qrService.createQrToken());
     } on ApiException catch (e) {
-      if (!mounted) return;
-      if (e.isUnauthorized) {
-        _handleSessionLost();
-        return;
-      }
-      setState(() {
-        _qrToken = null;
-        _expiresAt = null;
-        _errorMessage = e.message;
-        _isLoading = false;
-      });
-      // La pantalla del responsable queda encendida sin nadie que toque el
-      // botón: se recupera sola cuando vuelve la conexión.
-      if (_isManager) {
-        _retryTimer = Timer(_managerRetryDelay, _fetchQrToken);
-      }
+      _handleFetchError(e);
+    }
+  }
+
+  /// Muestra el código nuevo y arranca la cuenta regresiva desde ese momento.
+  void _applyQr(QrToken qr) {
+    if (!mounted) return;
+    setState(() {
+      _qrToken = qr.token;
+      _premiseName = qr.premiseName ?? _premiseName;
+      _expiresAt = qr.expiresAt;
+      _secondsRemaining = qr.ttl;
+      _totalSeconds = qr.ttl;
+      _isLoading = false;
+      _errorMessage = null;
+      _todaySeason = Season.at(DateTime.now());
+    });
+    _startAutoRefreshTimer();
+  }
+
+  void _handleFetchError(ApiException e) {
+    if (!mounted) return;
+    if (e.isUnauthorized) {
+      _handleSessionLost();
+      return;
+    }
+    setState(() {
+      _qrToken = null;
+      _expiresAt = null;
+      _errorMessage = e.message;
+      _isLoading = false;
+    });
+    // La pantalla del responsable queda encendida sin nadie que toque el
+    // botón: se recupera sola cuando vuelve la conexión.
+    if (_isManager) {
+      _retryTimer = Timer(_managerRetryDelay, _fetchQrToken);
+    }
+  }
+
+  /// El código venció. En temporada festiva el QR se deshace en el árbol, el
+  /// código nuevo se pide con el árbol a la vista y el contador arranca cuando
+  /// aparece el QR nuevo; si no, se pide directo.
+  Future<void> _renewQr() async {
+    final seasonQr = _qrKey.currentState;
+    if (!_season.isFestive || _qrToken == null || seasonQr == null) {
+      await _fetchQrToken();
+      return;
+    }
+    _timer?.cancel();
+    _retryTimer?.cancel();
+    try {
+      final qr = await seasonQr.renew<QrToken>(
+        fetch: _qrService.createQrToken,
+        tokenOf: (qr) => qr.token,
+      );
+      if (qr != null) _applyQr(qr);
+    } on ApiException catch (e) {
+      _handleFetchError(e);
     }
   }
 
@@ -162,7 +196,7 @@ class _QrGeneratorPageState extends State<QrGeneratorPage> {
         if (mounted) setState(() => _secondsRemaining = remaining);
       } else {
         timer.cancel();
-        _fetchQrToken();
+        _renewQr();
       }
     });
   }
@@ -211,6 +245,7 @@ class _QrGeneratorPageState extends State<QrGeneratorPage> {
         isManager: _isManager,
         onRetry: _fetchQrToken,
         onManualEntry: _isManager ? _openManualEntry : null,
+        qrKey: _qrKey,
       ),
     );
 

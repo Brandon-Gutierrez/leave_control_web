@@ -20,6 +20,9 @@ class HomeView extends StatefulWidget {
   final VoidCallback onOpenUsers;
   final VoidCallback? onOpenPremises;
 
+  /// Abre Predios con ese predio elegido (el de la vista rápida).
+  final ValueChanged<int>? onOpenPremise;
+
   /// Lleva a la sección "Motivos de salida" (p. ej. si falló la sincronización).
   final VoidCallback? onOpenReasons;
 
@@ -41,6 +44,7 @@ class HomeView extends StatefulWidget {
     required this.onAddPremise,
     required this.onOpenUsers,
     this.onOpenPremises,
+    this.onOpenPremise,
     this.onOpenReasons,
     this.onAddManager,
     this.onSearchDevice,
@@ -291,6 +295,7 @@ class HomeViewState extends State<HomeView> {
                 error: premises.hasFailed ? premises.error : null,
                 onRetry: () => premises.load(force: true),
                 onSeeAll: _openPremises,
+                onOpenPremise: widget.onOpenPremise,
               );
               final aside = Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -307,7 +312,6 @@ class HomeViewState extends State<HomeView> {
                   CurrentRules(
                     qr: _store.qrSettingsData.value,
                     limits: _store.leaveLimitsData.value,
-                    radiusMeters: _store.geofenceRadiusMeters,
                     onEdit: widget.onOpenSettings,
                   ),
                 ],

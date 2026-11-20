@@ -314,24 +314,17 @@ class _PiecesPainter extends CustomPainter {
   bool shouldRepaint(_PiecesPainter old) => old.transition != transition;
 }
 
-/// El código QR de la pantalla del responsable. En temporada festiva, cada
-/// vez que se renueva el código sus módulos se reacomodan y, de cada
-/// [treeEvery] renovaciones, forman un árbol de Navidad por un instante antes
-/// de volver a ser el QR nuevo. Fuera de temporada, o sin cambios, es un
-/// `QrImageView` quieto.
+/// El código QR de la pantalla del responsable: un `QrImageView` quieto casi
+/// todo el tiempo. Con [renew] (en temporada festiva) el código que vence se
+/// deshace en un árbol de Navidad; mientras el árbol está a la vista se pide
+/// el código nuevo, y el árbol vuelve a ser el QR nuevo. Así la animación se ve
+/// siempre completa y el servidor responde a mitad de ella.
 ///
-/// El QR solo es ilegible mientras dura la animación (poco más de un
-/// segundo); el resto del tiempo es el código real, sin adornos.
+/// El QR solo es ilegible mientras dura la animación (unos 3 segundos).
 class SeasonQr extends StatefulWidget {
   /// Lo que codifica el QR (el token del predio).
   final String data;
   final double size;
-
-  /// Anima los cambios de código (temporada festiva).
-  final bool festive;
-
-  /// De cada cuántos cambios de código, uno forma el árbol.
-  final int treeEvery;
 
   /// Cuánto se ve el árbol (incluye el tiempo en que se arma).
   final Duration dwell;
@@ -342,17 +335,15 @@ class SeasonQr extends StatefulWidget {
     super.key,
     required this.data,
     required this.size,
-    this.festive = false,
-    this.treeEvery = 3,
     this.dwell = const Duration(milliseconds: 2200),
     this.snowColor = const Color(0xFF9CC3E4),
   });
 
   @override
-  State<SeasonQr> createState() => _SeasonQrState();
+  State<SeasonQr> createState() => SeasonQrState();
 }
 
-class _SeasonQrState extends State<SeasonQr> with TickerProviderStateMixin {
+class SeasonQrState extends State<SeasonQr> with TickerProviderStateMixin {
   static const _ink = Color(0xFF000000);
 
   late final AnimationController _progress = AnimationController(vsync: this);
@@ -361,29 +352,28 @@ class _SeasonQrState extends State<SeasonQr> with TickerProviderStateMixin {
     duration: const Duration(milliseconds: 1200),
   );
 
-  late QrMatrix _matrix = QrMatrix.fromData(widget.data);
+  /// El código que se está mostrando.
+  late String _shown = widget.data;
+  late QrMatrix _matrix = QrMatrix.fromData(_shown);
   _Transition? _active;
   int _epoch = 0;
-  int _renewals = 0;
+  bool _renewing = false;
+
+  /// Hay una renovación en curso (el árbol se está armando o desarmando).
+  bool get isRenewing => _renewing;
 
   @override
   void didUpdateWidget(SeasonQr oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.data == oldWidget.data) return;
-    final next = QrMatrix.fromData(widget.data);
-    if (!widget.festive || _active != null) {
-      // Sin temporada (o si ya se estaba animando) el código nuevo se pone
-      // directo.
-      _epoch++;
-      _twinkle.stop();
-      setState(() {
-        _active = null;
-        _matrix = next;
-      });
-      return;
-    }
-    _renewals++;
-    unawaited(_animate(next, tree: _renewals % widget.treeEvery == 0));
+    // Un código que llega sin pasar por [renew] se pone directo.
+    if (_renewing || widget.data == _shown) return;
+    _epoch++;
+    _twinkle.stop();
+    setState(() {
+      _shown = widget.data;
+      _matrix = QrMatrix.fromData(_shown);
+      _active = null;
+    });
   }
 
   @override
@@ -394,38 +384,77 @@ class _SeasonQrState extends State<SeasonQr> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  Future<void> _animate(QrMatrix next, {required bool tree}) async {
+  /// Renueva el código con la animación: el QR actual forma el árbol, se llama
+  /// a [fetch] ya con el árbol armado y, cuando responde (y el árbol estuvo a
+  /// la vista el tiempo de [SeasonQr.dwell]), el árbol vuelve a ser el QR
+  /// nuevo. Devuelve lo que devolvió [fetch] justo cuando aparece el QR nuevo;
+  /// null si la pantalla se cerró. Si [fetch] falla, vuelve al QR anterior y
+  /// lanza el mismo error.
+  Future<T?> renew<T>({
+    required Future<T> Function() fetch,
+    required String Function(T) tokenOf,
+  }) async {
+    if (_renewing) return null;
     final epoch = ++_epoch;
-    final layout = TreeLayout.instance;
-    final total = math.max(
-      math.max(_matrix.dark.length, next.dark.length),
-      tree ? layout.cells.length + 100 : 0,
-    );
-    final before = _Layouts.qr(_matrix, total, _ink);
-    final after = _Layouts.qr(next, total, _ink);
-
+    _renewing = true;
     bool alive() => mounted && epoch == _epoch;
-
-    if (tree) {
+    try {
+      final layout = TreeLayout.instance;
+      final total = math.max(
+        layout.cells.length + 100,
+        (_matrix.dark.length * 1.25).ceil(),
+      );
+      final before = _Layouts.qr(_matrix, total, _ink);
       final shape = _Layouts.tree(total, widget.snowColor);
+
       final up = _Transition.between(before, shape);
-      if (!await _play(up, epoch)) return;
-      // El árbol queda un instante a la vista, con los adornos brillando.
-      final held = widget.dwell.inMilliseconds - up.totalMs;
+      if (!await _play(up, epoch)) return null;
+
+      // Con el árbol a la vista se pide el código nuevo.
       setState(() => _active = _Transition.still(shape));
       _twinkle.repeat();
-      await Future<void>.delayed(Duration(milliseconds: math.max(200, held)));
-      if (!alive()) return;
+      T? result;
+      Object? failure;
+      StackTrace? trace;
+      final hold = math.max(300, widget.dwell.inMilliseconds - up.totalMs);
+      await Future.wait<void>([
+        fetch().then<void>(
+          (value) => result = value,
+          onError: (Object e, StackTrace s) {
+            failure = e;
+            trace = s;
+          },
+        ),
+        Future<void>.delayed(Duration(milliseconds: hold)),
+      ]);
       _twinkle.stop();
-      if (!await _play(_Transition.between(shape, after), epoch)) return;
-    } else if (!await _play(_Transition.between(before, after), epoch)) {
-      return;
+      if (!alive()) return null;
+
+      if (failure != null) {
+        // Sin código nuevo: el árbol vuelve a ser el QR anterior.
+        await _play(_Transition.between(shape, before), epoch);
+        if (alive()) setState(() => _active = null);
+        Error.throwWithStackTrace(failure!, trace ?? StackTrace.current);
+      }
+
+      final token = tokenOf(result as T);
+      final next = QrMatrix.fromData(token);
+      if (next.dark.length <= total) {
+        final after = _Layouts.qr(next, total, _ink);
+        if (!await _play(_Transition.between(shape, after), epoch)) {
+          return null;
+        }
+      }
+      if (!alive()) return null;
+      setState(() {
+        _shown = token;
+        _matrix = next;
+        _active = null;
+      });
+      return result;
+    } finally {
+      _renewing = false;
     }
-    if (!alive()) return;
-    setState(() {
-      _matrix = next;
-      _active = null;
-    });
   }
 
   /// Anima una transición; false si se canceló o la pantalla se cerró.
@@ -444,7 +473,7 @@ class _SeasonQrState extends State<SeasonQr> with TickerProviderStateMixin {
       dimension: widget.size,
       child: active == null
           ? QrImageView(
-              data: widget.data,
+              data: _shown,
               size: widget.size,
               padding: EdgeInsets.zero,
               backgroundColor: Colors.white,

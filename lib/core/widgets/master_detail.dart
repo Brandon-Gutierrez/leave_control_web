@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import 'hover_highlight.dart';
 import 'load_error.dart';
+import 'pagination_bar.dart';
 import 'skeleton.dart';
 
 /// Una pestaña de la lista, con la cantidad que muestra («Admin 3»).
@@ -73,7 +74,7 @@ double masterListHeight(BuildContext context) {
 /// Panel con búsqueda, pestañas y una lista agrupada por letra que solo
 /// construye las filas cercanas a la pantalla. [items] ya viene filtrada y
 /// ordenada; las letras se ponen cuando cambia [groupOf].
-class MasterList<T> extends StatelessWidget {
+class MasterList<T> extends StatefulWidget {
   final double height;
   final String searchHint;
   final TextEditingController searchController;
@@ -89,6 +90,9 @@ class MasterList<T> extends StatelessWidget {
   final String? error;
   final VoidCallback onRetry;
   final String emptyText;
+
+  /// CuÃ¡ntos elementos se ven por pÃ¡gina (10).
+  final int pageSize;
 
   const MasterList({
     super.key,
@@ -107,12 +111,35 @@ class MasterList<T> extends StatelessWidget {
     required this.error,
     required this.onRetry,
     required this.emptyText,
+    this.pageSize = 10,
   });
 
   @override
+  State<MasterList<T>> createState() => _MasterListState<T>();
+}
+
+class _MasterListState<T> extends State<MasterList<T>> {
+  int _page = 0;
+  String _lastQuery = '';
+  int _lastTab = 0;
+
+  @override
+  void didUpdateWidget(MasterList<T> oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Otra bÃºsqueda u otra pestaÃ±a: se vuelve a la primera pÃ¡gina.
+    final query = widget.searchController.text;
+    if (query != _lastQuery || widget.tabIndex != _lastTab) {
+      _lastQuery = query;
+      _lastTab = widget.tabIndex;
+      _page = 0;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final w = widget;
     return Container(
-      height: height,
+      height: w.height,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: Colors.white,
@@ -126,41 +153,52 @@ class MasterList<T> extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
             child: _SearchField(
-              controller: searchController,
-              hint: searchHint,
-              onChanged: onSearch,
+              controller: w.searchController,
+              hint: w.searchHint,
+              onChanged: w.onSearch,
             ),
           ),
-          _Tabs(tabs: tabs, index: tabIndex, onTap: onTab),
+          _Tabs(tabs: w.tabs, index: w.tabIndex, onTap: w.onTab),
           Expanded(child: _body(context)),
+          if (!w.loading && w.error == null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: PaginationBar(
+                page: _page,
+                pageSize: w.pageSize,
+                total: w.items.length,
+                onChanged: (p) => setState(() => _page = p),
+              ),
+            ),
         ],
       ),
     );
   }
 
   Widget _body(BuildContext context) {
-    if (loading) {
+    final w = widget;
+    if (w.loading) {
       return const SkeletonPulse(
         child: Column(
           children: [_SkeletonRow(), _SkeletonRow(), _SkeletonRow()],
         ),
       );
     }
-    if (error != null) {
+    if (w.error != null) {
       return Padding(
         padding: const EdgeInsets.all(16),
         child: Align(
           alignment: Alignment.topCenter,
-          child: LoadErrorNotice(message: error!, onRetry: onRetry),
+          child: LoadErrorNotice(message: w.error!, onRetry: w.onRetry),
         ),
       );
     }
-    if (items.isEmpty) {
+    if (w.items.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Text(
-            emptyText,
+            w.emptyText,
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 15, color: AppColors.muted),
           ),
@@ -172,8 +210,9 @@ class MasterList<T> extends StatelessWidget {
     // demanda.
     final entries = <Object?>[];
     String? current;
-    for (final item in items) {
-      final group = groupOf(item);
+    final visible = pageSlice(w.items, _page, w.pageSize);
+    for (final item in visible) {
+      final group = w.groupOf(item);
       if (group != current) {
         current = group;
         entries.add(group);
@@ -188,8 +227,8 @@ class MasterList<T> extends StatelessWidget {
         final item = entry as T;
         return HoverHighlight(
           child: InkWell(
-            onTap: () => onTap(item),
-            child: rowBuilder(context, item),
+            onTap: () => w.onTap(item),
+            child: w.rowBuilder(context, item),
           ),
         );
       },

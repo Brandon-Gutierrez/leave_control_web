@@ -113,8 +113,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     _showSection(index);
   }
 
-  void _goToPremises({bool openCreateDialog = false}) {
+  void _goToPremises({bool openCreateDialog = false, int? selectId}) {
     _showSection(1);
+    if (selectId != null) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _premisesKey.currentState?.selectById(selectId),
+      );
+    }
     if (openCreateDialog) {
       // Si la sección se acaba de construir, su estado existe en el siguiente
       // cuadro.
@@ -158,6 +163,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               user: _user,
               onAddPremise: () => _goToPremises(openCreateDialog: true),
               onOpenPremises: _goToPremises,
+              onOpenPremise: (id) => _goToPremises(selectId: id),
               onOpenReasons: _goToReasons,
               onOpenUsers: _goToUsers,
               onAddManager: () => _goToUsers(openCreateManager: true),

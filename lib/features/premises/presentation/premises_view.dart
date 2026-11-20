@@ -149,6 +149,19 @@ class PremisesViewState extends State<PremisesView> {
     unawaited(_store.usersData.load());
   }
 
+  /// Abre el detalle del predio [id] (p. ej. desde la vista rápida de Inicio):
+  /// espera la lista si todavía no llegó.
+  Future<void> selectById(int id) async {
+    await _store.premisesData.load();
+    if (!mounted) return;
+    for (final premise in _premises) {
+      if (premise.id == id) {
+        await _select(premise);
+        return;
+      }
+    }
+  }
+
   Future<void> _backToList() async {
     if (!await _confirmDiscard() || !mounted) return;
     setState(() => _detailOpen = false);

@@ -282,6 +282,9 @@ class PremisesGlance extends StatelessWidget {
   final VoidCallback onRetry;
   final VoidCallback onSeeAll;
 
+  /// Abre Predios con ese predio ya elegido (null: solo abre la sección).
+  final ValueChanged<int>? onOpenPremise;
+
   const PremisesGlance({
     super.key,
     required this.premises,
@@ -289,6 +292,7 @@ class PremisesGlance extends StatelessWidget {
     required this.error,
     required this.onRetry,
     required this.onSeeAll,
+    this.onOpenPremise,
   });
 
   /// Cuántos predios caben en la vista rápida.
@@ -349,7 +353,9 @@ class PremisesGlance extends StatelessWidget {
                   premise: premise,
                   wide: wide,
                   first: false,
-                  onTap: onSeeAll,
+                  onTap: () => onOpenPremise != null
+                      ? onOpenPremise!(premise.id)
+                      : onSeeAll(),
                 ),
             ],
           );
@@ -833,14 +839,12 @@ class _SkeletonTodo extends StatelessWidget {
 class CurrentRules extends StatelessWidget {
   final QrSettings? qr;
   final LeaveLimits? limits;
-  final double radiusMeters;
   final VoidCallback? onEdit;
 
   const CurrentRules({
     super.key,
     required this.qr,
     required this.limits,
-    required this.radiusMeters,
     required this.onEdit,
   });
 
@@ -888,8 +892,6 @@ class CurrentRules extends StatelessWidget {
           'Salidas por persona',
           leaveLimits == null ? '—' : limitText(leaveLimits),
         ),
-        _Rule('Distancia al predio', '${radiusMeters.round()} metros'),
-        const _Rule('Sincronización de motivos', 'Lun a vie, 00:00'),
       ],
     );
   }
