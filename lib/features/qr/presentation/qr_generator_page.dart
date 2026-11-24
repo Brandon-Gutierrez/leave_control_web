@@ -113,7 +113,7 @@ class _QrGeneratorPageState extends State<QrGeneratorPage> {
     setState(() {
       _qrToken = qr.token;
       _premiseName = qr.premiseName ?? _premiseName;
-      _expiresAt = qr.expiresAt;
+      _expiresAt = _deadlineOf(qr);
       _secondsRemaining = qr.ttl;
       _totalSeconds = qr.ttl;
       _isLoading = false;
@@ -179,8 +179,20 @@ class _QrGeneratorPageState extends State<QrGeneratorPage> {
 
   /// Calcula los segundos restantes hasta la caducidad.
   int _remainingSeconds(DateTime expiresAt) {
-    final remaining = expiresAt.difference(DateTime.now()).inSeconds;
-    return remaining < 0 ? 0 : remaining;
+    // Hacia arriba: con 59,2 s por delante se ve 1:00 → 0:59, sin saltos.
+    final ms = expiresAt.difference(DateTime.now()).inMilliseconds;
+    return ms <= 0 ? 0 : (ms + 999) ~/ 1000;
+  }
+
+  /// Cuándo vence lo que se ve. Cuenta desde que el QR aparece en pantalla (con
+  /// la animación de fiestas el código se pide unos segundos antes de
+  /// mostrarse), para que el contador arranque completo. El servidor sigue
+  /// aceptando el código unos segundos después de vencer, así que se limita a
+  /// ese margen.
+  DateTime _deadlineOf(QrToken qr) {
+    final shown = DateTime.now().add(Duration(seconds: qr.ttl));
+    final latest = qr.expiresAt.add(const Duration(seconds: 20));
+    return shown.isBefore(latest) ? shown : latest;
   }
 
   /// Actualiza la cuenta regresiva y renueva el QR.
