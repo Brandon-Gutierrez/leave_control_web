@@ -110,6 +110,12 @@ class _QrGeneratorPageState extends State<QrGeneratorPage> {
   /// Muestra el código nuevo y arranca la cuenta regresiva desde ese momento.
   void _applyQr(QrToken qr) {
     if (!mounted) return;
+    _log(
+      'código nuevo: ttl=${qr.ttl}s, expires_at=${qr.expiresAt.toIso8601String()}, '
+      'ahora=${DateTime.now().toUtc().toIso8601String()}, '
+      'emitido hace ${DateTime.now().difference(qr.expiresAt.subtract(Duration(seconds: qr.ttl))).inMilliseconds} ms '
+      '(según el reloj de este equipo)',
+    );
     setState(() {
       _qrToken = qr.token;
       _premiseName = qr.premiseName ?? _premiseName;
@@ -184,6 +190,10 @@ class _QrGeneratorPageState extends State<QrGeneratorPage> {
     return ms <= 0 ? 0 : (ms + 999) ~/ 1000;
   }
 
+  /// Registro en la consola del navegador (también en producción) para
+  /// diagnosticar el contador: ábrala con F12 → Console y busque «[QR]».
+  void _log(String message) => debugPrint('[QR] $message');
+
   /// Cuándo vence lo que se ve: el tiempo que dura el QR (el que se configuró
   /// en Ajustes) contado desde que aparece en pantalla. Solo usa el reloj de
   /// este equipo: la hora que informa el servidor no se compara con la de aquí
@@ -203,6 +213,9 @@ class _QrGeneratorPageState extends State<QrGeneratorPage> {
       }
       final remaining = _remainingSeconds(expiresAt);
       if (remaining > 0) {
+        if (_secondsRemaining - remaining > 1) {
+          _log('el contador saltó de $_secondsRemaining a $remaining');
+        }
         if (mounted) setState(() => _secondsRemaining = remaining);
       } else {
         timer.cancel();
