@@ -184,16 +184,14 @@ class _QrGeneratorPageState extends State<QrGeneratorPage> {
     return ms <= 0 ? 0 : (ms + 999) ~/ 1000;
   }
 
-  /// Cuándo vence lo que se ve. Cuenta desde que el QR aparece en pantalla (con
-  /// la animación de fiestas el código se pide unos segundos antes de
-  /// mostrarse), para que el contador arranque completo. El servidor sigue
-  /// aceptando el código unos segundos después de vencer, así que se limita a
-  /// ese margen.
-  DateTime _deadlineOf(QrToken qr) {
-    final shown = DateTime.now().add(Duration(seconds: qr.ttl));
-    final latest = qr.expiresAt.add(const Duration(seconds: 20));
-    return shown.isBefore(latest) ? shown : latest;
-  }
+  /// Cuándo vence lo que se ve: el tiempo que dura el QR (el que se configuró
+  /// en Ajustes) contado desde que aparece en pantalla. Solo usa el reloj de
+  /// este equipo: la hora que informa el servidor no se compara con la de aquí
+  /// (si los relojes difieren unos segundos el contador saltaría), y como el
+  /// servidor acepta el código 30 s más allá de lo visible, la demora de la
+  /// animación no lo deja vencido.
+  DateTime _deadlineOf(QrToken qr) =>
+      DateTime.now().add(Duration(seconds: qr.ttl));
 
   /// Actualiza la cuenta regresiva y renueva el QR.
   void _startAutoRefreshTimer() {

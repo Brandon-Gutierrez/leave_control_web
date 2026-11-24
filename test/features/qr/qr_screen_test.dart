@@ -88,6 +88,23 @@ void main() {
       await _close(tester);
     });
 
+    testWidgets('el contador arranca completo aunque el código se pidió antes '
+        'de mostrarse', (tester) async {
+      // El servidor emitió el código hace 4 s (la animación de fiestas).
+      backend.qrIssuedAgo = 4;
+      await _open(tester);
+      expect(find.text('5:00'), findsOneWidget);
+
+      // Pasa un segundo de verdad: baja de a uno, sin saltar de golpe.
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 1100)),
+      );
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.text('4:59'), findsOneWidget);
+
+      await _close(tester);
+    });
+
     testWidgets('usa el nombre del predio que manda el servidor', (
       tester,
     ) async {

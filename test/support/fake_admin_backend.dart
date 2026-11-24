@@ -77,6 +77,10 @@ class FakeAdminBackend implements HttpClientAdapter {
   String qrPremiseName = 'Prado';
   String? qrError;
 
+  /// Segundos que ya pasaron desde que el servidor emitió el código (el QR se
+  /// pide antes de mostrarse, durante la animación).
+  int qrIssuedAgo = 0;
+
   /// Ajustes: período y tope de salidas por persona, y vida del QR.
   String leavePeriod = 'day';
   int? maxExits = 3;
@@ -207,7 +211,7 @@ class FakeAdminBackend implements HttpClientAdapter {
         'token': qrToken,
         'TTL': qrTtl,
         'expires_at': DateTime.now()
-            .add(Duration(seconds: qrTtl))
+            .add(Duration(seconds: qrTtl - qrIssuedAgo))
             .toUtc()
             .toIso8601String(),
         'premise': {'premise_id': 7, 'name': qrPremiseName},
