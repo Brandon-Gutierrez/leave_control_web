@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 
-/// Una opciÃ³n con su casilla cuadrada: marcada va en negro y en negrita. Sirve
+/// Una opción con su casilla cuadrada: marcada va en negro y en negrita. Sirve
 /// para elegir varias cosas de una lista (los motivos de un predio).
 /// Con [onTap] nulo queda deshabilitada.
 class CheckRow extends StatelessWidget {

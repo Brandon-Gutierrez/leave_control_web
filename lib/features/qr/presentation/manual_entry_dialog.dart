@@ -10,6 +10,7 @@ import '../../../core/widgets/app_modal.dart';
 import '../../../core/widgets/dialog_tone.dart';
 import '../data/qr_service.dart';
 import '../models/manual_entry_step.dart';
+import 'manual_entry_summary.dart';
 
 /// Registro manual desde la pantalla del QR: la persona dicta su item y su
 /// carnet, se validan en el sistema externo y luego elige el motivo de su
@@ -18,13 +19,14 @@ import '../models/manual_entry_step.dart';
 class ManualEntryDialog extends StatefulWidget {
   final QrService? service;
 
-  /// Segundos que se muestra el resultado antes de volver al QR.
+  /// Cuánto se muestra el resultado (con las horas) antes de volver al QR;
+  /// «Cerrar» vuelve antes.
   final Duration resultDuration;
 
   const ManualEntryDialog({
     super.key,
     this.service,
-    this.resultDuration = const Duration(seconds: 3),
+    this.resultDuration = const Duration(seconds: 8),
   });
 
   @override
@@ -45,7 +47,10 @@ class _ManualEntryDialogState extends State<ManualEntryDialog> {
   String? _error;
   ManualEntryStep? _step;
   String? _selectedReason;
+  String _doneTitle = '';
   String _doneMessage = '';
+  DateTime? _doneLeftAt;
+  DateTime? _doneReturnedAt;
   int _secondsLeft = 0;
   Timer? _ticker;
   Timer? _closeTimer;
@@ -81,8 +86,10 @@ class _ManualEntryDialogState extends State<ManualEntryDialog> {
         _startCountdown(step);
       } else {
         _finish(
-          'Retorno registrado${_atTime(step.returnedAt)}. '
-          'Bienvenido de regreso, ${step.person}.',
+          title: 'Retorno registrado',
+          message: 'Bienvenido de regreso, ${step.person}.',
+          leftAt: step.leftAt,
+          returnedAt: step.returnedAt,
         );
       }
     } on ApiException catch (e) {
@@ -133,7 +140,9 @@ class _ManualEntryDialogState extends State<ManualEntryDialog> {
       );
       if (!mounted) return;
       _finish(
-        'Salida registrada${_atTime(leftAt)}. Hasta pronto, ${step.person}.',
+        title: 'Salida registrada',
+        message: 'Hasta pronto, ${step.person}.',
+        leftAt: leftAt,
       );
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -144,19 +153,18 @@ class _ManualEntryDialogState extends State<ManualEntryDialog> {
     }
   }
 
-  /// " a las 14:32" con la hora local, o vacío si el servidor no la envió.
-  static String _atTime(DateTime? time) {
-    if (time == null) return '';
-    final local = time.toLocal();
-    final hh = local.hour.toString().padLeft(2, '0');
-    final mm = local.minute.toString().padLeft(2, '0');
-    return ' a las $hh:$mm';
-  }
-
-  void _finish(String message) {
+  void _finish({
+    required String title,
+    required String message,
+    DateTime? leftAt,
+    DateTime? returnedAt,
+  }) {
     _ticker?.cancel();
     setState(() {
+      _doneTitle = title;
       _doneMessage = message;
+      _doneLeftAt = leftAt;
+      _doneReturnedAt = returnedAt;
       _phase = _Phase.done;
       _busy = false;
     });
@@ -308,20 +316,31 @@ class _ManualEntryDialogState extends State<ManualEntryDialog> {
     );
   }
 
+  /// Vuelve al QR sin esperar el cierre automático.
+  void _closeResult() {
+    _closeTimer?.cancel();
+    Navigator.pop(context, true);
+  }
+
   Widget _buildDone() {
     return AppModal(
       tone: DialogTone.create,
       icon: Icons.check_circle_rounded,
-      title: 'Listo',
-      maxWidth: 440,
-      onClose: () => Navigator.pop(context, true),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Text(
-          _doneMessage,
-          textAlign: TextAlign.center,
-          style: AppText.sectionTitle,
+      title: _doneTitle,
+      subtitle: _doneMessage,
+      maxWidth: 460,
+      onClose: _closeResult,
+      actions: [
+        ModalButton(
+          label: 'Cerrar',
+          primary: true,
+          color: AppColors.success,
+          onPressed: _closeResult,
         ),
+      ],
+      child: ManualEntrySummary(
+        leftAt: _doneLeftAt,
+        returnedAt: _doneReturnedAt,
       ),
     );
   }

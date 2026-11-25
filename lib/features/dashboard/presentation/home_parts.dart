@@ -908,7 +908,7 @@ class _Rule extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 9),
       child: LayoutBuilder(
-        // El nombre ocupa solo lo que mide y el valor tambiÃ©n (cada uno hasta la mitad de la fila), los
+        // El nombre ocupa solo lo que mide y el valor también (cada uno hasta la mitad de la fila), los
         // puntos rellenan el resto y el valor queda pegado al borde derecho:
         // así todas las filas terminan en la misma línea.
         builder: (context, box) => Row(

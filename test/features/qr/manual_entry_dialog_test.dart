@@ -3,6 +3,7 @@ import 'package:control_leaves_web/features/qr/data/qr_service.dart';
 import 'package:control_leaves_web/features/qr/models/manual_entry_step.dart';
 import 'package:control_leaves_web/features/qr/models/qr_token.dart';
 import 'package:control_leaves_web/features/qr/presentation/manual_entry_dialog.dart';
+import 'package:control_leaves_web/features/qr/presentation/manual_entry_summary.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -165,11 +166,12 @@ void main() {
     await tester.pump();
 
     expect(service.confirmedReason, 'Cita médica');
-    // El popup de confirmación muestra la hora de salida.
-    expect(
-      find.textContaining('Salida registrada a las 08:15'),
-      findsOneWidget,
-    );
+    // El popup de confirmación muestra la hora de salida con segundos.
+    expect(find.text('Salida registrada'), findsOneWidget);
+    expect(find.text('Hasta pronto, Juan Pérez.'), findsOneWidget);
+    expect(find.text('Hora de salida'), findsOneWidget);
+    expect(find.text('08:15:30'), findsOneWidget);
+    expect(find.text('Tiempo fuera'), findsNothing);
 
     // Se cierra solo y vuelve a la pantalla anterior (el QR).
     await tester.pumpAndSettle(const Duration(milliseconds: 400));
@@ -221,7 +223,8 @@ void main() {
         action: 'showHome',
         person: 'Juan Pérez',
         item: '2057',
-        returnedAt: DateTime(2026, 3, 2, 17, 45),
+        leftAt: DateTime(2026, 3, 2, 15, 18, 51),
+        returnedAt: DateTime(2026, 3, 2, 17, 45, 7),
       );
     await _open(tester, service);
 
@@ -231,13 +234,60 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    // El popup de confirmación muestra la hora de retorno.
-    expect(
-      find.textContaining('Retorno registrado a las 17:45'),
-      findsOneWidget,
-    );
+    // Las dos horas completas y cuánto tiempo estuvo fuera.
+    expect(find.text('Retorno registrado'), findsOneWidget);
+    expect(find.text('Bienvenido de regreso, Juan Pérez.'), findsOneWidget);
+    expect(find.text('Hora de salida'), findsOneWidget);
+    expect(find.text('15:18:51'), findsOneWidget);
+    expect(find.text('Hora de retorno'), findsOneWidget);
+    expect(find.text('17:45:07'), findsOneWidget);
+    expect(find.text('Tiempo fuera'), findsOneWidget);
+    expect(find.text('2 h 26 min 16 s'), findsOneWidget);
     await tester.pumpAndSettle(const Duration(milliseconds: 400));
     expect(find.text('abrir'), findsOneWidget);
+  });
+
+  test('el tiempo fuera se escribe hasta los segundos', () {
+    expect(formatTimeAway(const Duration(seconds: 45)), '45 s');
+    expect(
+      formatTimeAway(const Duration(minutes: 26, seconds: 5)),
+      '26 min 5 s',
+    );
+    expect(
+      formatTimeAway(const Duration(hours: 2, seconds: 9)),
+      '2 h 0 min 9 s',
+    );
+    expect(
+      formatTimeAway(const Duration(days: 1, hours: 3, minutes: 10)),
+      '1 d 3 h 10 min 0 s',
+    );
+    expect(formatTimeAway(const Duration(seconds: -4)), '0 s');
+  });
+
+  testWidgets('el resultado se puede cerrar sin esperar', (tester) async {
+    final service = _FakeQrService()
+      ..step = ManualEntryStep(
+        action: 'showHome',
+        person: 'Juan Pérez',
+        item: '2057',
+        // Salió el día anterior: la salida lleva su fecha.
+        leftAt: DateTime(2026, 3, 1, 23, 50),
+        returnedAt: DateTime(2026, 3, 2, 0, 10),
+      );
+    await _open(tester, service);
+
+    await tester.enterText(find.byType(TextFormField).at(0), '2057');
+    await tester.enterText(find.byType(TextFormField).at(1), '1234567');
+    await tester.tap(find.text('Validar'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('01/03 23:50:00'), findsOneWidget);
+    expect(find.text('20 min 0 s'), findsOneWidget);
+    await tester.tap(find.text('Cerrar'));
+    await tester.pumpAndSettle();
+    expect(find.text('abrir'), findsOneWidget);
+    expect(find.text('Retorno registrado'), findsNothing);
   });
 
   testWidgets('muestra el error cuando item o carnet no coinciden', (

@@ -499,7 +499,6 @@ class UsersViewState extends State<UsersView> {
       child: MasterDetailLayout(
         showDetail: _detailOpen && selected != null,
         master: MasterList<ManagedUser>(
-          height: masterListHeight(context),
           searchHint: 'Buscar por nombre o item...',
           searchController: _searchController,
           onSearch: (value) => setState(() => _query = value),

@@ -46,6 +46,10 @@ class ManualEntryStep {
   /// Hora en que quedó registrado el retorno (solo en `showHome`).
   final DateTime? returnedAt;
 
+  /// Hora de la salida que se está cerrando con el retorno (solo en
+  /// `showHome`), para decir cuánto tiempo estuvo fuera.
+  final DateTime? leftAt;
+
   const ManualEntryStep({
     required this.action,
     required this.person,
@@ -56,6 +60,7 @@ class ManualEntryStep {
     this.leaveTicket,
     this.ticketExpiresAt,
     this.returnedAt,
+    this.leftAt,
   });
 
   bool get needsReason => action == 'showReasons';
@@ -86,6 +91,7 @@ class ManualEntryStep {
         json['leaveTicketExpiresAt']?.toString() ?? '',
       ),
       returnedAt: DateTime.tryParse(json['returned_at']?.toString() ?? ''),
+      leftAt: DateTime.tryParse(json['left_at']?.toString() ?? ''),
     );
   }
 }

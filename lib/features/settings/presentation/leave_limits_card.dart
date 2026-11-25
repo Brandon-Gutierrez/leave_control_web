@@ -407,7 +407,7 @@ class _LeaveLimitsCardState extends State<LeaveLimitsCard> {
                   ValueKey('limit-reason-${cap.reasonId}'),
                   _caps[cap.reasonId]!,
                   valid: _capValid(cap),
-                  error: 'MÃ­nimo 1',
+                  error: 'Mínimo 1',
                 ),
               ),
             ],

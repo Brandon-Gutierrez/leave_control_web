@@ -63,19 +63,12 @@ class MasterDetailLayout extends StatelessWidget {
   }
 }
 
-/// Altura de la lista: ocupa la pantalla (menos el encabezado y el título),
-/// con un mínimo para que siempre se pueda usar.
-double masterListHeight(BuildContext context) {
-  final screen = MediaQuery.sizeOf(context).height;
-  final height = screen - 340;
-  return height < 480 ? 480 : height;
-}
-
-/// Panel con búsqueda, pestañas y una lista agrupada por letra que solo
-/// construye las filas cercanas a la pantalla. [items] ya viene filtrada y
-/// ordenada; las letras se ponen cuando cambia [groupOf].
+/// Panel con búsqueda, pestañas y una lista agrupada por letra, por páginas.
+/// No tiene desplazamiento propio: crece lo necesario para mostrar de una vez
+/// los elementos de la página (si no caben en la ventana, se desplaza la
+/// página entera). [items] ya viene filtrada y ordenada; las letras se ponen
+/// cuando cambia [groupOf].
 class MasterList<T> extends StatefulWidget {
-  final double height;
   final String searchHint;
   final TextEditingController searchController;
   final ValueChanged<String> onSearch;
@@ -91,12 +84,11 @@ class MasterList<T> extends StatefulWidget {
   final VoidCallback onRetry;
   final String emptyText;
 
-  /// CuÃ¡ntos elementos se ven por pÃ¡gina (10).
+  /// Cuántos elementos se ven por página (10).
   final int pageSize;
 
   const MasterList({
     super.key,
-    required this.height,
     required this.searchHint,
     required this.searchController,
     required this.onSearch,
@@ -126,7 +118,7 @@ class _MasterListState<T> extends State<MasterList<T>> {
   @override
   void didUpdateWidget(MasterList<T> oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Otra bÃºsqueda u otra pestaÃ±a: se vuelve a la primera pÃ¡gina.
+    // Otra búsqueda u otra pestaña: se vuelve a la primera página.
     final query = widget.searchController.text;
     if (query != _lastQuery || widget.tabIndex != _lastTab) {
       _lastQuery = query;
@@ -139,7 +131,6 @@ class _MasterListState<T> extends State<MasterList<T>> {
   Widget build(BuildContext context) {
     final w = widget;
     return Container(
-      height: w.height,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: Colors.white,
@@ -147,6 +138,7 @@ class _MasterListState<T> extends State<MasterList<T>> {
         borderRadius: BorderRadius.circular(6),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         // La barra de pestañas ocupa todo el ancho aunque tenga pocas.
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -159,7 +151,7 @@ class _MasterListState<T> extends State<MasterList<T>> {
             ),
           ),
           _Tabs(tabs: w.tabs, index: w.tabIndex, onTap: w.onTab),
-          Expanded(child: _body(context)),
+          _body(context),
           if (!w.loading && w.error == null)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -180,58 +172,55 @@ class _MasterListState<T> extends State<MasterList<T>> {
     if (w.loading) {
       return const SkeletonPulse(
         child: Column(
-          children: [_SkeletonRow(), _SkeletonRow(), _SkeletonRow()],
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _SkeletonRow(),
+            _SkeletonRow(),
+            _SkeletonRow(),
+            _SkeletonRow(),
+            _SkeletonRow(),
+          ],
         ),
       );
     }
     if (w.error != null) {
       return Padding(
         padding: const EdgeInsets.all(16),
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: LoadErrorNotice(message: w.error!, onRetry: w.onRetry),
-        ),
+        child: LoadErrorNotice(message: w.error!, onRetry: w.onRetry),
       );
     }
     if (w.items.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(
-            w.emptyText,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 15, color: AppColors.muted),
-          ),
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 72),
+        child: Text(
+          w.emptyText,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 15, color: AppColors.muted),
         ),
       );
     }
 
-    // Las letras y las filas van en una sola lista para construirlas por
-    // demanda.
-    final entries = <Object?>[];
+    final rows = <Widget>[];
     String? current;
-    final visible = pageSlice(w.items, _page, w.pageSize);
-    for (final item in visible) {
+    for (final item in pageSlice(w.items, _page, w.pageSize)) {
       final group = w.groupOf(item);
       if (group != current) {
         current = group;
-        entries.add(group);
+        rows.add(_GroupHeader(letter: group));
       }
-      entries.add(item);
-    }
-    return ListView.builder(
-      itemCount: entries.length,
-      itemBuilder: (context, index) {
-        final entry = entries[index];
-        if (entry is String) return _GroupHeader(letter: entry);
-        final item = entry as T;
-        return HoverHighlight(
+      rows.add(
+        HoverHighlight(
           child: InkWell(
             onTap: () => w.onTap(item),
             child: w.rowBuilder(context, item),
           ),
-        );
-      },
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: rows,
     );
   }
 }

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
@@ -290,8 +289,6 @@ class ReasonsViewState extends State<ReasonsView> {
           MasterDetailLayout(
             showDetail: _detailOpen && selected != null,
             master: MasterList<CatalogReason>(
-              // El aviso de sincronización ocupa parte de la pantalla.
-              height: math.max(480, masterListHeight(context) - 110),
               searchHint: 'Buscar por nombre o código...',
               searchController: _searchController,
               onSearch: (value) => setState(() => _query = value),

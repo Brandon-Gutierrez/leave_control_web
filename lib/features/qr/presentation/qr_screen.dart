@@ -37,7 +37,7 @@ class QrScreen extends StatelessWidget {
   final VoidCallback onRetry;
   final VoidCallback? onManualEntry;
 
-  /// Para renovar el cÃ³digo con la animaciÃ³n (ver [SeasonQrState.renew]).
+  /// Para renovar el código con la animación (ver [SeasonQrState.renew]).
   final GlobalKey<SeasonQrState>? qrKey;
 
   const QrScreen({

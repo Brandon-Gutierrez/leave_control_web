@@ -14,7 +14,7 @@ Widget _host(Widget child) => MaterialApp(
   ),
 );
 
-/// Deja pasar el tiempo cuadro a cuadro: una animaciÃ³n necesita varios cuadros
+/// Deja pasar el tiempo cuadro a cuadro: una animación necesita varios cuadros
 /// para avanzar (un solo `pump` largo no basta).
 Future<void> _elapse(WidgetTester tester, int milliseconds) async {
   for (var t = 0; t < milliseconds; t += 50) {

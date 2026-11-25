@@ -359,7 +359,6 @@ class PremisesViewState extends State<PremisesView> {
       child: MasterDetailLayout(
         showDetail: _detailOpen && selected != null,
         master: MasterList<Premise>(
-          height: masterListHeight(context),
           searchHint: 'Buscar predio...',
           searchController: _searchController,
           onSearch: (value) => setState(() => _query = value),
