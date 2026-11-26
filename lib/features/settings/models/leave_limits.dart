@@ -100,13 +100,4 @@ class LeaveLimits {
     'max_exits': maxExits,
     'reason_limit': reasonLimit.toJson(),
   };
-
-  static const periods = ['day', 'week', 'month'];
-
-  static String periodLabel(String period) => switch (period) {
-    'day' => 'Cada día',
-    'week' => 'Cada semana',
-    'month' => 'Cada mes',
-    _ => period,
-  };
 }

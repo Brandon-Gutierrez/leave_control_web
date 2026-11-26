@@ -57,7 +57,6 @@ class _ManagerLockdownPageState extends State<ManagerLockdownPage> {
                   loadLibrary: qr.loadLibrary,
                   placeholderHeight: double.infinity,
                   builder: (context) => qr.QrGeneratorPage.forPremiseManager(
-                    premiseId: premise.id,
                     premiseName: premise.name,
                   ),
                 )

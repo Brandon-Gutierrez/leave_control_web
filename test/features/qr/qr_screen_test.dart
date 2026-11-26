@@ -1,5 +1,4 @@
 import 'package:control_leaves_web/core/theme/app_theme.dart';
-import 'package:control_leaves_web/features/premises/models/premise.dart';
 import 'package:control_leaves_web/features/qr/models/season.dart';
 import 'package:control_leaves_web/features/qr/presentation/festive_backdrop.dart';
 import 'package:control_leaves_web/features/qr/presentation/manual_entry_dialog.dart';
@@ -20,7 +19,6 @@ void _size(WidgetTester tester, Size size) {
 Future<void> _open(
   WidgetTester tester, {
   Season season = Season.none,
-  bool manager = true,
   Size size = const Size(1280, 800),
   double scale = 1,
 }) async {
@@ -33,16 +31,10 @@ Future<void> _open(
             .copyWith(textScaler: TextScaler.linear(scale)),
         child: child!,
       ),
-      home: manager
-          ? QrGeneratorPage.forPremiseManager(
-              premiseId: 7,
-              premiseName: 'Prado',
-              season: season,
-            )
-          : QrGeneratorPage(
-              premise: Premise(id: 7, name: 'Prado', reasonNames: []),
-              season: season,
-            ),
+      home: QrGeneratorPage.forPremiseManager(
+        premiseName: 'Prado',
+        season: season,
+      ),
     ),
   );
   // Con la fiesta la pantalla nunca queda quieta: se avanza a mano.
@@ -180,21 +172,6 @@ void main() {
 
       expect(find.byType(QrImageView), findsOneWidget);
       expect(find.text('Error del servidor'), findsNothing);
-
-      await _close(tester);
-    });
-  });
-
-  group('vista de administración', () {
-    testWidgets('tiene botón de volver y no ofrece el registro manual', (
-      tester,
-    ) async {
-      await _open(tester, manager: false);
-
-      expect(find.byTooltip('Volver'), findsOneWidget);
-      expect(find.text('Código QR'), findsOneWidget);
-      expect(find.text('Registro manual'), findsNothing);
-      expect(find.byType(QrImageView), findsOneWidget);
 
       await _close(tester);
     });

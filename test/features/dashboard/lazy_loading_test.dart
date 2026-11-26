@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:control_leaves_web/core/network/api_client.dart';
-import 'package:control_leaves_web/core/widgets/lazy_card_grid.dart';
 import 'package:control_leaves_web/core/widgets/skeleton.dart';
 import 'package:control_leaves_web/features/auth/models/auth_user.dart';
 import 'package:control_leaves_web/features/auth/state/session_controller.dart';
@@ -285,8 +284,8 @@ void main() {
     });
   });
 
-  group('listas perezosas', () {
-    testWidgets('Usuarios solo construye las filas cercanas a la pantalla', (
+  group('listas por páginas', () {
+    testWidgets('Usuarios solo construye las filas de la página', (
       tester,
     ) async {
       tester.view.physicalSize = const Size(1600, 700);
@@ -297,7 +296,7 @@ void main() {
       await tester.tap(find.text('Usuarios'));
       await tester.pumpAndSettle();
 
-      // 60 usuarios: solo se construyen las filas cercanas a la pantalla.
+      // 60 usuarios: solo se construyen las diez de la primera página.
       expect(find.text('Persona 1'), findsOneWidget);
       expect(find.text('Persona 60'), findsNothing);
       expect(
@@ -305,61 +304,6 @@ void main() {
         lessThan(30),
         reason: 'no debe construir las 60 filas',
       );
-    });
-
-    testWidgets('LazyCardGrid construye solo lo que se ve', (tester) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: SizedBox(
-              height: 300,
-              child: LazyCardGrid<int>(
-                items: List.generate(500, (i) => i),
-                columns: 2,
-                itemBuilder: (context, i) =>
-                    SizedBox(height: 50, child: Text('Tarjeta $i')),
-              ),
-            ),
-          ),
-        ),
-      );
-
-      expect(find.text('Tarjeta 0'), findsOneWidget);
-      expect(find.text('Tarjeta 1'), findsOneWidget);
-      expect(find.text('Tarjeta 499'), findsNothing);
-      expect(
-        find.textContaining('Tarjeta').evaluate().length,
-        lessThan(40),
-        reason: 'no debe construir las 500 tarjetas',
-      );
-
-      // Al desplazarse se construyen las siguientes.
-      await tester.drag(find.byType(ListView), const Offset(0, -20000));
-      await tester.pumpAndSettle();
-      expect(find.text('Tarjeta 499'), findsOneWidget);
-      expect(find.text('Tarjeta 0'), findsNothing);
-    });
-
-    testWidgets('LazyCardGrid rellena la última fila incompleta', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: LazyCardGrid<int>(
-              items: const [1, 2, 3],
-              columns: 2,
-              itemBuilder: (context, i) =>
-                  SizedBox(height: 40, child: Text('Item $i')),
-            ),
-          ),
-        ),
-      );
-
-      expect(find.text('Item 3'), findsOneWidget);
-      // Cada tarjeta ocupa la mitad del ancho (menos la separación).
-      final first = tester.getSize(find.text('Item 1').first).width;
-      expect(first, lessThan(400));
     });
   });
 }

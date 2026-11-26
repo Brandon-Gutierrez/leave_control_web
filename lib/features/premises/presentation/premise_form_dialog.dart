@@ -12,24 +12,16 @@ import '../../map/presentation/map_library.dart';
 import '../../users/data/user_admin_service.dart';
 import '../../users/models/managed_user.dart';
 import '../data/premise_service.dart';
-import '../models/premise.dart';
 import '../models/reason.dart';
 
-/// Formulario para crear o editar un predio: nombre, ubicación en el mapa,
-/// responsable y motivos de salida. Devuelve `true` si se guardó.
+/// Formulario para crear un predio: nombre, ubicación en el mapa, responsable
+/// y motivos de salida. Devuelve `true` si se creó. (Los predios ya creados
+/// se cambian en su detalle.)
 class PremiseFormDialog extends StatefulWidget {
-  /// Predio a editar; null crea uno nuevo.
-  final Premise? premise;
-
   final PremiseService? premiseService;
   final UserAdminService? userService;
 
-  const PremiseFormDialog({
-    super.key,
-    this.premise,
-    this.premiseService,
-    this.userService,
-  });
+  const PremiseFormDialog({super.key, this.premiseService, this.userService});
 
   @override
   State<PremiseFormDialog> createState() => _PremiseFormDialogState();
@@ -40,15 +32,11 @@ class _PremiseFormDialogState extends State<PremiseFormDialog> {
   static const darkText = AppColors.darkText;
 
   final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _nameController = TextEditingController(
-    text: widget.premise?.name ?? '',
-  );
+  final _nameController = TextEditingController();
   late final PremiseService _premiseService =
       widget.premiseService ?? PremiseService();
   late final UserAdminService _userService =
       widget.userService ?? UserAdminService();
-
-  bool get _isEditing => widget.premise != null;
 
   bool _isLoading = true;
   bool _isSaving = false;
@@ -56,13 +44,9 @@ class _PremiseFormDialogState extends State<PremiseFormDialog> {
   String? _submitError;
   List<Reason> _availableReasons = [];
   List<ManagedUser> _managers = [];
-  late final Set<String> _selectedReasons = {
-    ...?widget.premise?.reasonNames.map((r) => r.name),
-  };
-  late int? _managerId = widget.premise?.manager?.userId;
-  late LatLng? _position = widget.premise?.hasLocation == true
-      ? LatLng(widget.premise!.latitude!, widget.premise!.longitude!)
-      : null;
+  final Set<String> _selectedReasons = {};
+  int? _managerId;
+  LatLng? _position;
 
   @override
   void initState() {
@@ -130,24 +114,13 @@ class _PremiseFormDialogState extends State<PremiseFormDialog> {
     return null;
   }
 
-  /// Aviso cuando el cambio de responsable afecta a otra cuenta o predio.
+  /// Aviso cuando el responsable elegido ya lo es de otro predio.
   String? get _managerWarning {
-    final original = widget.premise?.manager;
     final selected = _selectedManager;
-    final notes = <String>[];
-    if (original != null && original.userId != _managerId) {
-      notes.add(
-        '${original.name} dejará de ser responsable y su sesión se cerrará.',
-      );
-    }
-    if (selected != null &&
-        selected.premise != null &&
-        selected.premise!.id != widget.premise?.id) {
-      notes.add(
-        '${selected.name} pasará de "${selected.premise!.name}" a este predio.',
-      );
-    }
-    return notes.isEmpty ? null : notes.join(' ');
+    final current = selected?.premise;
+    return current == null
+        ? null
+        : '${selected!.name} pasará de "${current.name}" a este predio.';
   }
 
   Future<void> _submit() async {
@@ -166,26 +139,13 @@ class _PremiseFormDialogState extends State<PremiseFormDialog> {
     });
 
     try {
-      final name = _nameController.text.trim();
-      final reasons = _selectedReasons.toList();
-      if (_isEditing) {
-        await _premiseService.updatePremise(
-          widget.premise!.id,
-          name: name,
-          latitude: position.latitude,
-          longitude: position.longitude,
-          reasonNames: reasons,
-          managerUserId: _managerId,
-        );
-      } else {
-        await _premiseService.createPremise(
-          name: name,
-          latitude: position.latitude,
-          longitude: position.longitude,
-          reasonNames: reasons,
-          managerUserId: _managerId,
-        );
-      }
+      await _premiseService.createPremise(
+        name: _nameController.text.trim(),
+        latitude: position.latitude,
+        longitude: position.longitude,
+        reasonNames: _selectedReasons.toList(),
+        managerUserId: _managerId,
+      );
       if (!mounted) return;
       Navigator.pop(context, true);
     } on ApiException catch (e) {
@@ -216,14 +176,10 @@ class _PremiseFormDialogState extends State<PremiseFormDialog> {
   @override
   Widget build(BuildContext context) {
     return AppModal(
-      tone: _isEditing ? DialogTone.configure : DialogTone.create,
-      icon: _isEditing
-          ? Icons.edit_location_alt_rounded
-          : Icons.add_location_alt_rounded,
-      title: _isEditing ? 'Editar predio' : 'Nuevo predio',
-      subtitle: _isEditing
-          ? widget.premise!.name
-          : 'Nombre, ubicación en el mapa, responsable y motivos',
+      tone: DialogTone.create,
+      icon: Icons.add_location_alt_rounded,
+      title: 'Nuevo predio',
+      subtitle: 'Nombre, ubicación en el mapa, responsable y motivos',
       maxWidth: 760,
       onClose: _isSaving ? () {} : () => Navigator.pop(context, false),
       actions: [
@@ -232,9 +188,9 @@ class _PremiseFormDialogState extends State<PremiseFormDialog> {
           onPressed: _isSaving ? null : () => Navigator.pop(context, false),
         ),
         ModalButton(
-          label: _isEditing ? 'Guardar cambios' : 'Crear predio',
+          label: 'Crear predio',
           primary: true,
-          color: _isEditing ? AppColors.info : AppColors.success,
+          color: AppColors.success,
           isLoading: _isSaving,
           onPressed: (_isSaving || _isLoading || _loadError != null)
               ? null
@@ -378,8 +334,8 @@ class _PremiseFormDialogState extends State<PremiseFormDialog> {
     );
   }
 
-  /// Motivos en dos columnas: cada uno es un botón grande que se marca al
-  /// tocarlo, con contador y atajos "Todos" / "Ninguno".
+  /// Motivos con casillas (en dos columnas si caben), con contador y atajos
+  /// "Todos" / "Ninguno".
   Widget _buildReasonsPicker() {
     if (_availableReasons.isEmpty) {
       return Text(

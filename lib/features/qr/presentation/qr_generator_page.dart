@@ -3,10 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../core/network/api_exception.dart';
-import '../../../core/theme/app_text_styles.dart';
-import '../../auth/presentation/admin_login_page.dart';
 import '../../auth/state/session_controller.dart';
-import '../../premises/models/premise.dart';
 import '../data/qr_service.dart';
 import '../models/qr_token.dart';
 import '../models/season.dart';
@@ -14,35 +11,25 @@ import 'manual_entry_dialog.dart';
 import 'qr_screen.dart';
 import 'season_qr.dart';
 
-/// Pantalla con el código QR de un predio.
-///
-/// Dos modos:
-///  * Administrador ([QrGeneratorPage.new]): se llega desde el panel y se puede volver.
-///  * Responsable de predio ([QrGeneratorPage.forPremiseManager]): es la única pantalla
-///    de su cuenta. No tiene botón de volver ni de cerrar sesión, no reacciona
-///    al botón "atrás" y el QR siempre es el del predio asignado en el servidor.
+/// Pantalla con el código QR de un predio: la única de una cuenta de
+/// responsable. No tiene botón de volver ni de cerrar sesión, no reacciona al
+/// botón "atrás" y el QR siempre es el del predio asignado en el servidor.
 ///
 /// El aspecto lo pone [QrScreen]; en las fiestas de fin de año se viste de
 /// fiesta (ver [Season]).
 class QrGeneratorPage extends StatefulWidget {
-  final Premise premise;
-  final bool showNavigation;
+  /// Nombre del predio mientras llega el primer código (luego manda el que
+  /// envíe el servidor).
+  final String premiseName;
 
   /// Fuerza una temporada (pruebas y vistas previas); por defecto, la de hoy.
   final Season? season;
 
-  /// Crea la pantalla QR para administración.
-  const QrGeneratorPage({super.key, required this.premise, this.season})
-    : showNavigation = true;
-
-  /// Crea la pantalla QR para el responsable del predio.
-  QrGeneratorPage.forPremiseManager({
+  const QrGeneratorPage.forPremiseManager({
     super.key,
-    required int premiseId,
-    required String premiseName,
+    required this.premiseName,
     this.season,
-  }) : premise = Premise(id: premiseId, name: premiseName, reasonNames: []),
-       showNavigation = false;
+  });
 
   /// Crea el estado de la pantalla QR.
   @override
@@ -51,8 +38,8 @@ class QrGeneratorPage extends StatefulWidget {
 
 /// Gestiona la carga, caducidad y presentación del QR.
 class _QrGeneratorPageState extends State<QrGeneratorPage> {
-  /// Cada cuánto se reintenta sola la pantalla del responsable si falla.
-  static const Duration _managerRetryDelay = Duration(seconds: 10);
+  /// Cada cuánto se reintenta sola la pantalla si falla.
+  static const Duration _retryDelay = Duration(seconds: 10);
 
   final QrService _qrService = QrService();
   final _qrKey = GlobalKey<SeasonQrState>();
@@ -71,7 +58,6 @@ class _QrGeneratorPageState extends State<QrGeneratorPage> {
   /// (la pantalla puede quedar encendida días enteros).
   Season _todaySeason = Season.at(DateTime.now());
 
-  bool get _isManager => !widget.showNavigation;
   Season get _season => widget.season ?? _todaySeason;
 
   /// Inicializa la pantalla y solicita un QR.
@@ -126,7 +112,9 @@ class _QrGeneratorPageState extends State<QrGeneratorPage> {
   void _handleFetchError(ApiException e) {
     if (!mounted) return;
     if (e.isUnauthorized) {
-      _handleSessionLost();
+      // Sesión vencida o cerrada: al limpiarla, la raíz de la app vuelve al
+      // inicio de sesión.
+      SessionController.instance.clear();
       return;
     }
     setState(() {
@@ -135,11 +123,9 @@ class _QrGeneratorPageState extends State<QrGeneratorPage> {
       _errorMessage = e.message;
       _isLoading = false;
     });
-    // La pantalla del responsable queda encendida sin nadie que toque el
-    // botón: se recupera sola cuando vuelve la conexión.
-    if (_isManager) {
-      _retryTimer = Timer(_managerRetryDelay, _fetchQrToken);
-    }
+    // La pantalla queda encendida sin nadie que toque el botón: se recupera
+    // sola cuando vuelve la conexión.
+    _retryTimer = Timer(_retryDelay, _fetchQrToken);
   }
 
   /// El código venció. En temporada festiva el QR se deshace en el árbol, el
@@ -162,19 +148,6 @@ class _QrGeneratorPageState extends State<QrGeneratorPage> {
     } on ApiException catch (e) {
       _handleFetchError(e);
     }
-  }
-
-  /// Gestiona una sesión vencida o cerrada.
-  void _handleSessionLost() {
-    if (_isManager) {
-      // Se limpia la sesión: la raíz de la app vuelve al inicio de sesión.
-      SessionController.instance.clear();
-      return;
-    }
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const AdminLoginPage()),
-      (_) => false,
-    );
   }
 
   /// Calcula los segundos restantes hasta la caducidad.
@@ -223,43 +196,24 @@ class _QrGeneratorPageState extends State<QrGeneratorPage> {
   /// Construye la pantalla QR adaptable.
   @override
   Widget build(BuildContext context) {
-    final scaffold = Scaffold(
-      backgroundColor: const Color(0xFF121212),
-      appBar: widget.showNavigation
-          ? AppBar(
-              leading: IconButton(
-                tooltip: 'Volver',
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => Navigator.maybePop(context),
-              ),
-              title: Text(
-                'Código QR',
-                style: AppText.sectionTitle.copyWith(color: Colors.white),
-              ),
-              centerTitle: true,
-              foregroundColor: Colors.white,
-              backgroundColor: const Color(0xFF121212),
-              surfaceTintColor: Colors.transparent,
-              elevation: 0,
-              shape: const Border(bottom: BorderSide(color: Colors.white24)),
-            )
-          : null,
-      body: QrScreen(
-        premiseName: _premiseName ?? widget.premise.name,
-        token: _qrToken,
-        loading: _isLoading,
-        errorMessage: _errorMessage,
-        secondsRemaining: _secondsRemaining,
-        totalSeconds: _totalSeconds,
-        season: _season,
-        isManager: _isManager,
-        onRetry: _fetchQrToken,
-        onManualEntry: _isManager ? _openManualEntry : null,
-        qrKey: _qrKey,
+    // El responsable no puede salir de esta pantalla: "atrás" no hace nada.
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        backgroundColor: const Color(0xFF121212),
+        body: QrScreen(
+          premiseName: _premiseName ?? widget.premiseName,
+          token: _qrToken,
+          loading: _isLoading,
+          errorMessage: _errorMessage,
+          secondsRemaining: _secondsRemaining,
+          totalSeconds: _totalSeconds,
+          season: _season,
+          onRetry: _fetchQrToken,
+          onManualEntry: _openManualEntry,
+          qrKey: _qrKey,
+        ),
       ),
     );
-
-    // El responsable no puede salir de esta pantalla: "atrás" no hace nada.
-    return _isManager ? PopScope(canPop: false, child: scaffold) : scaffold;
   }
 }

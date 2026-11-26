@@ -37,26 +37,6 @@ class _FakePremises implements PremiseService {
     return Premise(id: 9, name: name, reasonNames: []);
   }
 
-  @override
-  Future<Premise> updatePremise(
-    int premiseId, {
-    required String name,
-    required double latitude,
-    required double longitude,
-    required List<String> reasonNames,
-    required int? managerUserId,
-  }) async {
-    saved = {
-      'id': premiseId,
-      'name': name,
-      'lat': latitude,
-      'lng': longitude,
-      'manager': managerUserId,
-      'reasons': reasonNames,
-    };
-    return Premise(id: premiseId, name: name, reasonNames: []);
-  }
-
   /// Gestiona metodos no implementados.
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -232,50 +212,6 @@ void main() {
     expect(premises.saved!['name'], 'Sede Prado');
     expect(premises.saved!['manager'], 7);
     expect(premises.saved!['lng'], greaterThan(-66.1570));
-  });
-
-  testWidgets('editar precarga datos y envia una sola actualizacion', (
-    t,
-  ) async {
-    final premises = _FakePremises();
-    final premise = Premise(
-      id: 4,
-      name: 'Central',
-      reasonNames: [Reason(name: 'Cita médica')],
-      latitude: -17.39,
-      longitude: -66.15,
-      manager: const PremiseManager(userId: 7, name: 'Ana Gestora'),
-    );
-    await _open(
-      t,
-      PremiseFormDialog(
-        premise: premise,
-        premiseService: premises,
-        userService: _FakeUsers(),
-      ),
-    );
-
-    expect(find.text('Editar predio'), findsOneWidget);
-    expect(
-      find.textContaining('Ubicación fijada (-17.39000, -66.15000)'),
-      findsOneWidget,
-    );
-    await t.enterText(
-      find.widgetWithText(TextFormField, 'Nombre del predio'),
-      'Central 2',
-    );
-    await t.tap(find.text('Guardar cambios'));
-    await t.pump();
-    await t.pump(const Duration(milliseconds: 100));
-
-    expect(premises.saved, {
-      'id': 4,
-      'name': 'Central 2',
-      'lat': -17.39,
-      'lng': -66.15,
-      'manager': 7,
-      'reasons': ['Cita médica'],
-    });
   });
 
   testWidgets('buscar un lugar y usar mi ubicación mueven el marcador', (

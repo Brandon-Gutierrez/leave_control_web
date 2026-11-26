@@ -31,11 +31,8 @@ class QrScreen extends StatelessWidget {
   final int totalSeconds;
   final Season season;
 
-  /// Cuenta del responsable: hay botón de registro manual y el error se
-  /// reintenta solo.
-  final bool isManager;
   final VoidCallback onRetry;
-  final VoidCallback? onManualEntry;
+  final VoidCallback onManualEntry;
 
   /// Para renovar el código con la animación (ver [SeasonQrState.renew]).
   final GlobalKey<SeasonQrState>? qrKey;
@@ -49,9 +46,8 @@ class QrScreen extends StatelessWidget {
     required this.secondsRemaining,
     required this.totalSeconds,
     required this.season,
-    required this.isManager,
     required this.onRetry,
-    this.onManualEntry,
+    required this.onManualEntry,
     this.qrKey,
   });
 
@@ -140,10 +136,8 @@ class QrScreen extends StatelessWidget {
                 Center(child: _qrPanel(context, side, s)),
                 const SizedBox(height: 22),
                 _stepsList(s),
-                if (isManager) ...[
-                  const SizedBox(height: 20),
-                  _manualButton(s),
-                ],
+                const SizedBox(height: 20),
+                _manualButton(s),
                 if (token != null) ...[const SizedBox(height: 22), _clock(s)],
               ],
             ),
@@ -179,7 +173,8 @@ class QrScreen extends StatelessWidget {
         ),
         SizedBox(height: u(24)),
         _stepsList(s),
-        if (isManager) ...[SizedBox(height: u(24)), _manualButton(s)],
+        SizedBox(height: u(24)),
+        _manualButton(s),
         if (token != null) ...[SizedBox(height: u(24)), _clock(s)],
       ],
     );
@@ -425,14 +420,12 @@ class QrScreen extends StatelessWidget {
             fontWeight: FontWeight.w700,
           ),
         ),
-        if (isManager) ...[
-          const SizedBox(height: 6),
-          Text(
-            'Se reintentará automáticamente.',
-            textAlign: TextAlign.center,
-            style: AppText.caption,
-          ),
-        ],
+        const SizedBox(height: 6),
+        Text(
+          'Se reintentará automáticamente.',
+          textAlign: TextAlign.center,
+          style: AppText.caption,
+        ),
         const SizedBox(height: 16),
         ElevatedButton.icon(
           onPressed: onRetry,

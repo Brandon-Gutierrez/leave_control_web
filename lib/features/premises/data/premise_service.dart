@@ -67,33 +67,6 @@ class PremiseService {
     }
   }
 
-  /// Actualiza en una sola petición nombre, ubicación, motivos y responsable
-  /// (`managerUserId` null deja el predio sin responsable).
-  Future<Premise> updatePremise(
-    int premiseId, {
-    required String name,
-    required double latitude,
-    required double longitude,
-    required List<String> reasonNames,
-    required int? managerUserId,
-  }) async {
-    try {
-      final response = await _dio.put(
-        ApiRoutes.premise(premiseId),
-        data: {
-          'name': name,
-          'latitude': latitude,
-          'longitude': longitude,
-          'reasons': reasonNames,
-          'manager_user_id': managerUserId,
-        },
-      );
-      return Premise.fromJson(response.data['data']);
-    } on DioException catch (e) {
-      throw ApiException.fromDio(e, fallback: 'Error al guardar el predio.');
-    }
-  }
-
   /// Guarda nombre, ubicación y motivos sin tocar al responsable. Sin
   /// coordenadas (un predio que todavía no tiene ubicación) solo viajan el
   /// nombre y los motivos.

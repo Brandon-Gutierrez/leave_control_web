@@ -214,7 +214,7 @@ class UsersViewState extends State<UsersView> {
       _showSnackBar(
         _premises.isEmpty
             ? 'Primero cree un predio para poder asignárselo a un responsable.'
-            : 'Todos los predios ya tienen responsable. Cambie el responsable desde Editar predio.',
+            : 'Todos los predios ya tienen responsable. Cambie el responsable en la sección Predios.',
         AppColors.danger,
       );
       return;

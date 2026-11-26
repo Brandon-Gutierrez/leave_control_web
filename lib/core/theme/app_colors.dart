@@ -40,9 +40,6 @@ abstract final class AppColors {
 
   /// Borde de los botones y campos de la barra de herramientas.
   static const buttonLine = Color(0xFFCFCFCA);
-
-  /// Borde de los campos de texto de los formularios.
-  static const fieldLine = Color(0xFFD6D6D6);
 }
 
 /// Puntos de quiebre para pantallas web.

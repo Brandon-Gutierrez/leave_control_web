@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/app_text_styles.dart';
 import 'hover_highlight.dart';
 import 'load_error.dart';
 import 'pagination_bar.dart';
@@ -278,49 +279,96 @@ class _Tabs extends StatelessWidget {
 
   const _Tabs({required this.tabs, required this.index, required this.onTap});
 
+  /// (letra, separación, margen lateral), de holgado a apretado.
+  static const _sizes = <(double, double, double)>[
+    (14, 20, 16),
+    (14, 14, 14),
+    (13, 12, 12),
+    (13, 9, 10),
+    (12, 10, 10),
+  ];
+
+  static String _textOf(ListTabSpec tab) =>
+      tab.count == null ? tab.label : '${tab.label} ${tab.count}';
+
+  static TextStyle _style(double fontSize, Color color) => TextStyle(
+    fontFamily: appFontFamily,
+    fontSize: fontSize,
+    fontWeight: FontWeight.w700,
+    color: color,
+  );
+
+  /// El tamaño más holgado con el que todas las pestañas se ven a la vez; si
+  /// no caben ni apretadas, el último (y bajan a una segunda línea).
+  (double, double, double) _fit(BuildContext context, double width) {
+    final scaler = MediaQuery.textScalerOf(context);
+    // Con el estilo heredado (p. ej. el espaciado de letras del tema), que es
+    // como se dibujan.
+    final base = DefaultTextStyle.of(context).style;
+    for (final size in _sizes) {
+      final (fontSize, gap, margin) = size;
+      var total = margin * 2 + gap * (tabs.length - 1);
+      for (final tab in tabs) {
+        final painter = TextPainter(
+          text: TextSpan(
+            text: _textOf(tab),
+            style: base.merge(_style(fontSize, AppColors.darkText)),
+          ),
+          textDirection: TextDirection.ltr,
+          textScaler: scaler,
+        )..layout();
+        total += painter.width;
+        painter.dispose();
+      }
+      if (total <= width) return size;
+    }
+    return _sizes.last;
+  }
+
   @override
   Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, box) => _bar(_fit(context, box.maxWidth)),
+    );
+  }
+
+  Widget _bar((double, double, double) size) {
+    final (fontSize, gap, margin) = size;
     return Container(
       margin: const EdgeInsets.only(top: 6),
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: AppColors.rowLine)),
       ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: margin),
+        child: Wrap(
+          spacing: gap,
           children: [
             for (var i = 0; i < tabs.length; i++)
-              Padding(
-                padding: EdgeInsets.only(right: i == tabs.length - 1 ? 0 : 20),
-                child: Semantics(
-                  button: true,
-                  selected: i == index,
-                  child: InkWell(
-                    onTap: () => onTap(i),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      decoration: BoxDecoration(
-                        border: Border(
-                          bottom: BorderSide(
-                            color: i == index
-                                ? AppColors.primaryRed
-                                : Colors.transparent,
-                            width: 3,
-                          ),
+              Semantics(
+                button: true,
+                selected: i == index,
+                child: InkWell(
+                  onTap: () => onTap(i),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(
+                          color: i == index
+                              ? AppColors.primaryRed
+                              : Colors.transparent,
+                          width: 3,
                         ),
                       ),
-                      child: Text(
-                        tabs[i].count == null
-                            ? tabs[i].label
-                            : '${tabs[i].label} ${tabs[i].count}',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: i == index
-                              ? AppColors.darkText
-                              : const Color(0xFF777777),
-                        ),
+                    ),
+                    child: Text(
+                      _textOf(tabs[i]),
+                      style: _style(
+                        fontSize,
+                        i == index
+                            ? AppColors.darkText
+                            : const Color(0xFF777777),
                       ),
                     ),
                   ),

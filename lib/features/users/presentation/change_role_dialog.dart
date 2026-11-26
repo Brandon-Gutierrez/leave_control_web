@@ -155,7 +155,7 @@ class _ChangeRoleDialogState extends State<ChangeRoleDialog> {
               Padding(
                 padding: const EdgeInsets.only(top: 6),
                 child: Text(
-                  'Todos los predios ya tienen responsable. Solo puede haber uno por predio: cámbielo desde Editar predio.',
+                  'Todos los predios ya tienen responsable. Solo puede haber uno por predio: cámbielo en la sección Predios.',
                   style: AppText.caption,
                 ),
               ),

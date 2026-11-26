@@ -8,8 +8,6 @@ import 'package:control_leaves_web/features/auth/presentation/admin_login_page.d
 import 'package:control_leaves_web/features/auth/state/session_controller.dart';
 import 'package:control_leaves_web/features/dashboard/presentation/admin_dashboard_page.dart';
 import 'package:control_leaves_web/features/dashboard/state/admin_data_store.dart';
-import 'package:control_leaves_web/features/premises/models/premise.dart';
-import 'package:control_leaves_web/features/qr/presentation/qr_generator_page.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -165,17 +163,7 @@ class _FakeAdapter implements HttpClientAdapter {
     final Object body;
     var statusCode = 200;
 
-    if (path == '/api/manager/qr-token' && method == 'POST') {
-      body = {
-        'status': 0,
-        'token': 'Predio Central+123e4567',
-        'TTL': 60,
-        'expires_at': DateTime.now()
-            .add(const Duration(seconds: 60))
-            .toUtc()
-            .toIso8601String(),
-      };
-    } else if (path == '/api/admin/reasons' && method == 'GET') {
+    if (path == '/api/admin/reasons' && method == 'GET') {
       body = {
         'status': 0,
         'reasons': ['Banco', 'Comisión de servicio', 'Médico', 'Personal'],
@@ -395,25 +383,6 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.text('Predio creado correctamente'), findsOneWidget);
     });
-
-    testWidgets('QR no desborda en ${entry.key}', (tester) async {
-      await setSize(tester);
-      await tester.pumpWidget(
-        MaterialApp(
-          home: QrGeneratorPage(
-            premise: Premise(id: 1, name: 'Predio Central', reasonNames: []),
-          ),
-        ),
-      );
-      for (var i = 0; i < 5; i++) {
-        await tester.pump(const Duration(milliseconds: 100));
-      }
-      expect(tester.takeException(), isNull);
-      expect(find.text('El código se renueva solo'), findsOneWidget);
-      expect(find.text('1:00'), findsOneWidget);
-
-      await tester.pumpWidget(const SizedBox.shrink());
-    });
   }
 
   testWidgets(
@@ -535,9 +504,7 @@ void filtersTests() {
     expect(find.text('Predio 1'), findsOneWidget);
   });
 
-  testWidgets('La barra de filtros de usuarios filtra por tipo', (
-    tester,
-  ) async {
+  testWidgets('Las pestañas de usuarios filtran por tipo', (tester) async {
     tester.view.physicalSize = const Size(1600, 1000);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
