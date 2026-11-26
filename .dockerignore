@@ -6,3 +6,8 @@
 build
 test
 *.md
+# Secretos y archivos del despliegue: no entran en la imagen.
+docker/.env
+docker/.env.example
+docker/certs
+docker/docker-compose.yml

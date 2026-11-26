@@ -1,12 +1,10 @@
 #
-# Panel web (Flutter Web) servido por nginx. El contexto de build es la raíz de
-# este repositorio.
+# Panel web (Flutter Web) servido por nginx, con HTTPS y reenvío a la API. El
+# contexto de build es la raíz de este repositorio; el despliegue está en
+# docker/docker-compose.yml (ver README.md).
 #
-#   docker build -t control-salidas-web --build-arg API_BASE_URL=https://mi-api .
-#
-# Por defecto la imagen sirve solo la web en el puerto 80. En el despliegue
-# completo (repositorio de despliegue) se le monta una configuración de nginx que
-# hace de puerta de entrada: web en "/" y /api, /sanctum hacia el backend.
+# Al ejecutar la imagen hay que indicar BACKEND_URL, la dirección de la API:
+# nginx le reenvía /api, /sanctum y /up, y el resto lo sirve Flutter.
 
 # ---------------------------------------------------------------- Flutter SDK
 FROM debian:bookworm-slim AS flutter-sdk
@@ -27,8 +25,8 @@ RUN git config --global --add safe.directory /opt/flutter \
 # ---------------------------------------------------------------- compilación
 FROM flutter-sdk AS build
 
-# URL del backend que se incrusta al compilar. Vacía = mismo origen (la web
-# llama a /api en el dominio desde el que se sirve).
+# URL del backend que se incrusta al compilar. Debe quedar vacía: la web llama a
+# /api en la dirección desde la que se sirve y nginx lo reenvía a la API.
 ARG API_BASE_URL=""
 
 WORKDIR /app
@@ -45,7 +43,13 @@ RUN apk add --no-cache openssl
 
 COPY --from=build /app/build/web /usr/share/nginx/html
 COPY docker/nginx/default.conf.template /etc/nginx/templates/default.conf.template
-# Si se monta /etc/nginx/certs sin certificado, genera uno autofirmado (ver el script).
+COPY docker/nginx/api-proxy.conf /etc/nginx/api-proxy.conf
+# Al arrancar: valida BACKEND_URL y, si falta el certificado, genera uno autofirmado.
+COPY --chmod=755 docker/nginx/05-check-backend-url.sh /docker-entrypoint.d/05-check-backend-url.sh
 COPY --chmod=755 docker/nginx/10-selfsigned-cert.sh /docker-entrypoint.d/10-selfsigned-cert.sh
+
+# Valores por defecto de la configuración de nginx. BACKEND_URL no tiene: es obligatorio.
+ENV PUBLIC_HTTPS_PORT=443 \
+    TRUSTED_PROXY=127.0.0.1/32
 
 EXPOSE 80 443

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 
-/// Logo de la app: Comteco con la insignia roja de salida y retorno, sin fondo
-/// (el mismo del ícono de la aplicación móvil).
+/// Logo de la app: la C de Comteco en blanco, con la insignia de salida y
+/// retorno, sobre un cuadro rojo redondeado (el diseño del ícono de la
+/// aplicación móvil). Se genera con control_leaves_mobile/tool/generate_icons.ps1
+/// usando el parámetro -Web.
 class AppLogo extends StatelessWidget {
   final double size;
 

@@ -1,18 +1,22 @@
-# Configuración por defecto de la imagen: solo sirve la web (HTTP, puerto 80).
-# En el despliegue completo, el repositorio de despliegue la reemplaza por una
-# configuración que además reenvía /api y /sanctum al backend y añade HTTPS.
+# nginx de la web: sirve Flutter en "/" y reenvía /api, /sanctum y /up a la API,
+# que se despliega aparte. Así el navegador ve una sola dirección (sin CORS y con
+# las cookies de sesión del mismo origen). HTTP (80) redirige a HTTPS (443).
+# El entrypoint de nginx sustituye ${BACKEND_URL}, ${TRUSTED_PROXY} y ${PUBLIC_HTTPS_PORT}.
+
+# El DNS interno de Docker resuelve el nombre de la API aunque su contenedor se
+# recree. La web arranca aunque la API esté apagada (responde 502 en /api).
+resolver 127.0.0.11 valid=10s ipv6=off;
+
+# IP real del cliente. X-Forwarded-For solo se acepta si la conexión viene del
+# proxy de confianza (TRUSTED_PROXY, p. ej. el proxy de la empresa); de cualquier
+# otro origen se ignora y vale la IP de la conexión.
+set_real_ip_from ${TRUSTED_PROXY};
+real_ip_header X-Forwarded-For;
+real_ip_recursive on;
 
 server {
     listen 80 default_server;
     server_name _;
-
-    root /usr/share/nginx/html;
-    index index.html;
-
-    gzip on;
-    gzip_vary on;
-    gzip_min_length 1024;
-    gzip_types text/plain text/css application/javascript application/json application/wasm image/svg+xml;
 
     # Lo usa el healthcheck del contenedor.
     location = /healthz {
@@ -21,9 +25,51 @@ server {
         return 200 "ok\n";
     }
 
+    location / {
+        return 301 https://$host:${PUBLIC_HTTPS_PORT}$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl default_server;
+    http2 on;
+    server_name _;
+
+    ssl_certificate     /etc/nginx/certs/fullchain.pem;
+    ssl_certificate_key /etc/nginx/certs/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_session_cache   shared:SSL:10m;
+    ssl_session_timeout 1h;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_types text/plain text/css application/javascript application/json application/wasm image/svg+xml;
+
+    # Con la dirección en una variable, nginx la resuelve al atender cada petición.
+    set $backend "${BACKEND_URL}";
+
+    # --- API (y el estado /up) ---------------------------------------------
+    location ~ ^/(api|sanctum)/ {
+        include /etc/nginx/api-proxy.conf;
+    }
+
+    location = /up {
+        include /etc/nginx/api-proxy.conf;
+    }
+
+    # --- Flutter Web -------------------------------------------------------
     # Archivos que Flutter no versiona por nombre: nunca en caché.
     location ~ ^/(index\.html|flutter_service_worker\.js|flutter_bootstrap\.js|version\.json|manifest\.json)$ {
         add_header Cache-Control "no-cache" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
         try_files $uri =404;
     }
 

@@ -1,0 +1,4 @@
+# Configuración y certificados de este despliegue: no se versionan.
+.env
+certs/*
+!certs/.gitkeep

@@ -1,17 +1,14 @@
 #!/bin/sh
 # Si no hay certificado en /etc/nginx/certs, genera uno autofirmado para que
 # nginx pueda arrancar. Para producción real, coloca fullchain.pem y privkey.pem
-# en la carpeta ./certs del host (se monta en esa ruta) y reinicia el contenedor.
+# en la carpeta docker/certs del host (se monta en esa ruta) y reinicia el contenedor.
 set -e
 
 CERT_DIR=/etc/nginx/certs
 CERT="$CERT_DIR/fullchain.pem"
 KEY="$CERT_DIR/privkey.pem"
 
-# Solo nos importa en producción: el modo dev no monta certificados.
-if [ ! -d "$CERT_DIR" ]; then
-    exit 0
-fi
+mkdir -p "$CERT_DIR"
 
 if [ -s "$CERT" ] && [ -s "$KEY" ]; then
     exit 0

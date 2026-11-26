@@ -1,0 +1,53 @@
+# Web de control de salidas temporales — despliegue en producción.
+#
+#   docker network create --subnet 172.30.0.0/24 control-salidas   # una sola vez
+#   docker compose up -d --build
+#
+# Un solo servicio: web (nginx con la web Flutter, puerta de entrada de HTTP/HTTPS).
+# La API se despliega aparte, desde su repositorio; nginx le reenvía /api y
+# /sanctum a BACKEND_URL. En el mismo servidor la alcanza por la red compartida
+# "control-salidas" (ver ../README.md).
+
+name: control-salidas-web
+
+services:
+  web:
+    image: control-salidas-web:prod
+    build:
+      context: ..
+      target: prod
+      args:
+        FLUTTER_VERSION: ${FLUTTER_VERSION:-3.47.0}
+    restart: unless-stopped
+    environment:
+      # Solo para el nombre del certificado autofirmado.
+      PUBLIC_HOST: ${PUBLIC_HOST:?Define PUBLIC_HOST en .env}
+      PUBLIC_HTTPS_PORT: ${HTTPS_PORT:-443}
+      BACKEND_URL: ${BACKEND_URL:-http://control-salidas-api}
+      # Proxy delante de este servidor cuyo X-Forwarded-For se acepta (IP o CIDR).
+      # Por defecto ninguno externo: se usa la IP de la conexión.
+      TRUSTED_PROXY: ${TRUSTED_PROXY:-127.0.0.1/32}
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      # Coloca aquí fullchain.pem y privkey.pem; si faltan se genera uno autofirmado.
+      - ./certs:/etc/nginx/certs
+    networks:
+      - shared
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/healthz || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  # Se crea a mano una vez; así backend y web se levantan y bajan por separado.
+  shared:
+    name: ${SHARED_NETWORK:-control-salidas}
+    external: true
